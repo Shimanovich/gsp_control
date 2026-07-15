@@ -2,7 +2,17 @@ QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
+DEFINES += QT_NO_ENTRYPOINT
+
+DEFINES += SDL_MAIN_HANDLED
+
 CONFIG += c++17
+
+SDL2_PATH = d:/work/SDL2-2.0.14/x86_64-w64-mingw32/
+
+INCLUDEPATH += $$SDL2_PATH/include
+
+LIBS += -L$$SDL2_PATH/lib -lSDL2
 
 # SDL2 support
 unix: LIBS += -lSDL2

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>900</width>
-    <height>600</height>
+    <width>262</width>
+    <height>529</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -45,7 +45,6 @@
       </layout>
      </widget>
     </item>
-
     <item>
      <widget class="QGroupBox" name="groupGyro">
       <property name="title">
@@ -83,7 +82,6 @@
       </layout>
      </widget>
     </item>
-
     <item>
      <widget class="QGroupBox" name="groupCamera">
       <property name="title">
@@ -121,7 +119,6 @@
       </layout>
      </widget>
     </item>
-
     <item>
      <widget class="QGroupBox" name="groupRangefinder">
       <property name="title">
