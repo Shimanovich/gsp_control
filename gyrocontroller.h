@@ -35,7 +35,7 @@ private:
 
     QTimer* m_pollTimer = nullptr;
 
-    QByteArray buildCmdControl(uint8_t mode, float yaw, float pitch, float roll = 0);
+    QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch, float roll = 0);
     QByteArray buildRealtimeDataRequest();
 };
 

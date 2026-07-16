@@ -23,16 +23,16 @@ bool GyroController::loadSettings(const QString& iniPath)
 
 void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 {
-    // CMD_CONTROL in SPEED mode
-    QByteArray packet = buildCmdControl(SimpleBGC::MODE_SPEED, yawSpeed, pitchSpeed);
-    if (m_udp) m_udp->sendPacket(m_targetId, packet);
+    QByteArray payload = buildControlPayload(SimpleBGC::MODE_SPEED, yawSpeed, pitchSpeed);
+    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
+    if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 
 void GyroController::goToZeroPosition()
 {
-    // CMD_CONTROL in ANGLE mode to 0,0,0
-    QByteArray packet = buildCmdControl(SimpleBGC::MODE_ANGLE, 0, 0, 0);
-    if (m_udp) m_udp->sendPacket(m_targetId, packet);
+    QByteArray payload = buildControlPayload(SimpleBGC::MODE_ANGLE, 0, 0, 0);
+    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
+    if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 
 void GyroController::startAnglePolling()
@@ -47,22 +47,18 @@ void GyroController::stopAnglePolling()
 
 void GyroController::pollAngles()
 {
-    QByteArray req = buildRealtimeDataRequest();
-    if (m_udp) m_udp->sendPacket(m_targetId, req);
+    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_REALTIME_DATA_3);
+    if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 
-QByteArray GyroController::buildCmdControl(uint8_t mode, float yaw, float pitch, float roll)
+QByteArray GyroController::buildControlPayload(uint8_t mode, float yaw, float pitch, float roll)
 {
     QByteArray payload;
-    payload.append(char(SimpleBGC::CMD_CONTROL));
-    payload.append(char(0x0E)); // payload size for basic control (adjust if needed)
 
-    // Simplified CMD_CONTROL structure (common fields)
     payload.append(char(mode));           // control mode
-    payload.append(char(0x00));           // reserved
+    payload.append(char(0x00));           // reserved / flags
 
-    // Angles or speeds (16-bit signed, scaled)
-    // For simplicity we send speed or angle in 0.1 deg units
+    // Roll, Pitch, Yaw (16-bit signed, in 0.1 degree units)
     int16_t r = qToLittleEndian<int16_t>(static_cast<int16_t>(roll * 10));
     int16_t p = qToLittleEndian<int16_t>(static_cast<int16_t>(pitch * 10));
     int16_t y = qToLittleEndian<int16_t>(static_cast<int16_t>(yaw * 10));
@@ -71,8 +67,7 @@ QByteArray GyroController::buildCmdControl(uint8_t mode, float yaw, float pitch,
     payload.append(reinterpret_cast<const char*>(&p), 2);
     payload.append(reinterpret_cast<const char*>(&y), 2);
 
-    // Add header + CRC for Protocol v2 would be done in a more complete implementation
-    // For now we send simplified version
+    // TODO: Add more fields if you need full CMD_CONTROL structure (speed, etc.)
 
     return payload;
 }
@@ -80,8 +75,7 @@ QByteArray GyroController::buildCmdControl(uint8_t mode, float yaw, float pitch,
 QByteArray GyroController::buildRealtimeDataRequest()
 {
     QByteArray payload;
-    payload.append(char(SimpleBGC::CMD_REALTIME_DATA_3));
-    payload.append(char(0x00)); // request all data
+    // Usually no payload needed for CMD_REALTIME_DATA_3 request
     return payload;
 }
 
