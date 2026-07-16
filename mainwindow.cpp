@@ -20,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect UI signals (example buttons)
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(ui->btnGoToZero, &QPushButton::clicked, this, &MainWindow::onGoToZeroClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
 
@@ -61,6 +62,7 @@ void MainWindow::onConnectClicked()
     } else {
         QMessageBox::warning(this, "Error", "Failed to start UDP communication");
     }
+    ui->btnDisconnect->setEnabled(true);
 }
 
 void MainWindow::onGoToZeroClicked()
@@ -95,6 +97,23 @@ void MainWindow::updateConnectionStatus(bool connected)
     ui->labelGyroStatus->setText(connected ? "Connected" : "Disconnected");
     ui->labelGyroStatus->setStyleSheet(connected ? "color: green;" : "color: red;");
 }
+
+void MainWindow::onDisconnectClicked()
+{
+    if (m_udp) m_udp->stop();
+    if (m_joystick) m_joystick->shutdown();
+    if (m_gyro) m_gyro->stopAnglePolling();
+    if (m_camera) m_camera->stopZoomPolling();
+
+    ui->btnConnect->setEnabled(true);
+    ui->btnDisconnect->setEnabled(false);
+
+    ui->labelGyroStatus->setText("Disconnected");
+    ui->labelGyroStatus->setStyleSheet("color: red;");
+    ui->labelJoystickStatus->setText("Disconnected");
+    ui->labelJoystickStatus->setStyleSheet("color: red;");
+}
+
 
 void MainWindow::onJoystickButtonPressed(int button)
 {

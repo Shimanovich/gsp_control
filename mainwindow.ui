@@ -29,6 +29,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="btnDisconnect">
+         <property name="text">
+          <string>Disconnect</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QLabel" name="labelGyroStatus">
          <property name="text">
           <string>Gyro: Disconnected</string>

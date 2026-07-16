@@ -24,11 +24,14 @@ bool UdpCommunicator::loadSettings(const QString& iniPath)
 
     QString ip = settings.value("Network/ip", "192.168.1.100").toString();
     m_remoteAddress = QHostAddress(ip);
-    m_port = settings.value("Network/port", 5000).toUInt();
+
+    m_sendPort   = settings.value("Network/send_port", 5000).toUInt();
+    m_listenPort = settings.value("Network/listen_port", m_sendPort).toUInt(); // если не задан — используем send_port
+
     m_connectionTimeoutMs = settings.value("Network/connection_timeout_ms", 5000).toInt();
 
     if (m_remoteAddress.isNull()) {
-        emit errorOccurred("Invalid IP address in config");
+        emit errorOccurred("Invalid IP address");
         return false;
     }
     return true;
@@ -36,17 +39,19 @@ bool UdpCommunicator::loadSettings(const QString& iniPath)
 
 bool UdpCommunicator::start()
 {
-    if (m_socket->state() != QAbstractSocket::UnconnectedState) {
+    if (m_socket->state() != QAbstractSocket::UnconnectedState)
         m_socket->close();
-    }
 
-    // Bind to the same port for receiving
-    if (!m_socket->bind(QHostAddress::AnyIPv4, m_port)) {
-        emit errorOccurred(QString("Failed to bind UDP port %1: %2").arg(m_port).arg(m_socket->errorString()));
+    // Привязываемся именно к listen_port
+    if (!m_socket->bind(QHostAddress::AnyIPv4, m_listenPort)) {
+        emit errorOccurred(QString("Failed to bind to port %1: %2")
+                               .arg(m_listenPort).arg(m_socket->errorString()));
         return false;
     }
 
-    qDebug() << "UDP bound to port" << m_port << "for send/receive";
+    qDebug() << "UDP listening on port" << m_listenPort
+             << ", sending to port" << m_sendPort;
+
     m_timeoutTimer->start();
     m_connected = false;
     emit connectionStatusChanged(false);
@@ -69,7 +74,8 @@ bool UdpCommunicator::sendPacket(uint8_t targetId, const QByteArray& payload)
     packet.append(static_cast<char>(targetId));
     packet.append(payload);
 
-    qint64 bytes = m_socket->writeDatagram(packet, m_remoteAddress, m_port);
+    // Отправляем на m_sendPort
+    qint64 bytes = m_socket->writeDatagram(packet, m_remoteAddress, m_sendPort);
     return bytes == packet.size();
 }
 

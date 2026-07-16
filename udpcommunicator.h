@@ -35,9 +35,12 @@ private slots:
     void checkConnectionTimeout();
 
 private:
+
+    quint16 m_sendPort = 1020;
+    quint16 m_listenPort = 1040;
+
     QUdpSocket* m_socket = nullptr;
     QHostAddress m_remoteAddress;
-    quint16 m_port = 5000;
     int m_connectionTimeoutMs = 5000;
 
     QTimer* m_timeoutTimer = nullptr;

@@ -28,6 +28,7 @@ private slots:
     void updateJoystickStatus(bool connected);
     void updateConnectionStatus(bool connected);
     void onJoystickButtonPressed(int button);
+    void onDisconnectClicked();
 
 private:
     Ui::MainWindow *ui;
