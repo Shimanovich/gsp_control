@@ -15,13 +15,16 @@ MainWindow::MainWindow(QWidget *parent)
     m_gyro = new GyroController(m_udp, this);
     m_rangefinder = new RangefinderController(m_udp, this);
 
+    // Create 10Hz timer for speed control
+    m_speedSendTimer = new QTimer(this);
+    m_speedSendTimer->setInterval(100); // 10 Hz
+    connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+
     setupControllers();
     loadAllSettings();
 
     // Connect UI signals (example buttons)
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
-    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
-    connect(ui->btnGoToZero, &QPushButton::clicked, this, &MainWindow::onGoToZeroClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
 
     // Status labels
@@ -62,7 +65,6 @@ void MainWindow::onConnectClicked()
     } else {
         QMessageBox::warning(this, "Error", "Failed to start UDP communication");
     }
-    ui->btnDisconnect->setEnabled(true);
 }
 
 void MainWindow::onGoToZeroClicked()
@@ -98,23 +100,6 @@ void MainWindow::updateConnectionStatus(bool connected)
     ui->labelGyroStatus->setStyleSheet(connected ? "color: green;" : "color: red;");
 }
 
-void MainWindow::onDisconnectClicked()
-{
-    if (m_udp) m_udp->stop();
-    if (m_joystick) m_joystick->shutdown();
-    if (m_gyro) m_gyro->stopAnglePolling();
-    if (m_camera) m_camera->stopZoomPolling();
-
-    ui->btnConnect->setEnabled(true);
-    ui->btnDisconnect->setEnabled(false);
-
-    ui->labelGyroStatus->setText("Disconnected");
-    ui->labelGyroStatus->setStyleSheet("color: red;");
-    ui->labelJoystickStatus->setText("Disconnected");
-    ui->labelJoystickStatus->setStyleSheet("color: red;");
-}
-
-
 void MainWindow::onJoystickButtonPressed(int button)
 {
     // Map buttons according to config (simplified)
@@ -122,4 +107,28 @@ void MainWindow::onJoystickButtonPressed(int button)
     else if (button == 1) m_camera->zoomOut();
     else if (button == 2) m_camera->autofocus();
     // ... add more mappings from INI later
+}
+
+void MainWindow::updateControlMode()
+{
+    m_isSpeedMode = ui->radioSpeedMode->isChecked();
+
+    if (m_isSpeedMode) {
+        // Switch to Speed mode
+        if (m_speedSendTimer) m_speedSendTimer->start();
+    } else {
+        // Switch to Zero Position mode
+        if (m_speedSendTimer) m_speedSendTimer->stop();
+        if (m_gyro) m_gyro->goToZeroPosition();
+    }
+}
+
+void MainWindow::sendJoystickSpeed()
+{
+    if (!m_isSpeedMode || !m_joystick || !m_gyro) return;
+
+    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier;
+    float pitch = m_joystick->getAxisPitch() * m_speedMultiplier;
+
+    m_gyro->setSpeed(yaw, pitch);
 }

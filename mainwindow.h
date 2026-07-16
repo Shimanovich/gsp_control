@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 #include "udpcommunicator.h"
 #include "joystickmanager.h"
 #include "cameracontroller.h"
@@ -28,7 +29,6 @@ private slots:
     void updateJoystickStatus(bool connected);
     void updateConnectionStatus(bool connected);
     void onJoystickButtonPressed(int button);
-    void onDisconnectClicked();
 
 private:
     Ui::MainWindow *ui;
@@ -41,8 +41,14 @@ private:
 
     QString m_configPath = "config.ini";
 
+    bool m_isSpeedMode = false;
+    QTimer* m_speedSendTimer = nullptr;
+    double m_speedMultiplier = 1.0;
+
     void setupControllers();
     void loadAllSettings();
+    void updateControlMode();
+    void sendJoystickSpeed();
 };
 
 #endif // MAINWINDOW_H

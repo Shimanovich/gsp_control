@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>262</width>
-    <height>529</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,13 +25,6 @@
         <widget class="QPushButton" name="btnConnect">
          <property name="text">
           <string>Connect</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnDisconnect">
-         <property name="text">
-          <string>Disconnect</string>
          </property>
         </widget>
        </item>
@@ -80,11 +73,52 @@
         </widget>
        </item>
        <item row="1" column="0" colspan="3">
-        <widget class="QPushButton" name="btnGoToZero">
-         <property name="text">
-          <string>Go to Zero Position</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayoutMode">
+         <item>
+          <widget class="QRadioButton" name="radioZeroMode">
+           <property name="text">
+            <string>Zero Position</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioSpeedMode">
+           <property name="text">
+            <string>Speed Control</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0" colspan="3">
+        <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
+         <item>
+          <widget class="QLabel" name="labelMultiplier">
+           <property name="text">
+            <string>Speed Multiplier:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="spinSpeedMultiplier">
+           <property name="minimum">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
