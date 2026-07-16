@@ -30,6 +30,12 @@ private slots:
     void updateConnectionStatus(bool connected);
     void onJoystickButtonPressed(int button);
 
+    void on_radioZeroMode_clicked(bool checked);
+
+    void on_radioSpeedMode_clicked(bool checked);
+
+    void onDisconnectClicked();
+
 private:
     Ui::MainWindow *ui;
 

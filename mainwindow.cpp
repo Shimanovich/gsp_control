@@ -23,8 +23,13 @@ MainWindow::MainWindow(QWidget *parent)
     setupControllers();
     loadAllSettings();
 
+    // Initialize control mode after everything is ready
+    QTimer::singleShot(50, this, &MainWindow::updateControlMode);
+
     // Connect UI signals (example buttons)
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
+    //connect(ui->btnGoToZero, &QPushButton::clicked, this, &MainWindow::onGoToZeroClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
 
     // Status labels
@@ -42,7 +47,7 @@ void MainWindow::setupControllers()
     connect(m_udp, &UdpCommunicator::connectionStatusChanged, this, &MainWindow::updateConnectionStatus);
     connect(m_joystick, &JoystickManager::connectedChanged, this, &MainWindow::updateJoystickStatus);
     connect(m_joystick, &JoystickManager::buttonPressed, this, &MainWindow::onJoystickButtonPressed);
-
+    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
 }
 
@@ -62,15 +67,20 @@ void MainWindow::onConnectClicked()
         m_gyro->startAnglePolling();
         m_camera->startZoomPolling();
         ui->btnConnect->setEnabled(false);
+        ui->btnDisconnect->setEnabled(true);
+
+        // Apply current mode after connection
+        QTimer::singleShot(100, this, &MainWindow::updateControlMode);
     } else {
         QMessageBox::warning(this, "Error", "Failed to start UDP communication");
     }
+     ui->btnDisconnect->setEnabled(true);
 }
 
-// void MainWindow::onGoToZeroClicked()
-// {
-//     m_gyro->goToZeroPosition();
-// }
+void MainWindow::onGoToZeroClicked()
+{
+    m_gyro->goToZeroPosition();
+}
 
 void MainWindow::onShootClicked()
 {
@@ -109,6 +119,22 @@ void MainWindow::onJoystickButtonPressed(int button)
     // ... add more mappings from INI later
 }
 
+void MainWindow::onDisconnectClicked()
+{
+    if (m_udp) m_udp->stop();
+    if (m_joystick) m_joystick->shutdown();
+    if (m_gyro) m_gyro->stopAnglePolling();
+    if (m_camera) m_camera->stopZoomPolling();
+
+    ui->btnConnect->setEnabled(true);
+    ui->btnDisconnect->setEnabled(false);
+
+    ui->labelGyroStatus->setText("Disconnected");
+    ui->labelGyroStatus->setStyleSheet("color: red;");
+    ui->labelJoystickStatus->setText("Disconnected");
+    ui->labelJoystickStatus->setStyleSheet("color: red;");
+}
+
 void MainWindow::updateControlMode()
 {
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
@@ -132,3 +158,18 @@ void MainWindow::sendJoystickSpeed()
 
     m_gyro->setSpeed(yaw, pitch);
 }
+
+void MainWindow::on_radioZeroMode_clicked(bool checked)
+{
+    updateControlMode();
+}
+
+
+void MainWindow::on_radioSpeedMode_clicked(bool checked)
+{
+    updateControlMode();
+}
+
+
+
+
