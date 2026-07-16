@@ -67,10 +67,10 @@ void MainWindow::onConnectClicked()
     }
 }
 
-void MainWindow::onGoToZeroClicked()
-{
-    m_gyro->goToZeroPosition();
-}
+// void MainWindow::onGoToZeroClicked()
+// {
+//     m_gyro->goToZeroPosition();
+// }
 
 void MainWindow::onShootClicked()
 {
