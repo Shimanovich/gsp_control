@@ -64,7 +64,13 @@ void MainWindow::onConnectClicked()
 {
     if (m_udp->start()) {
         m_joystick->initialize();
-        m_gyro->startAnglePolling();
+
+
+
+        if (ui->cBoxAutoSimpleIntr->isChecked())
+        {
+            m_gyro->startAnglePolling();
+        }
         m_camera->startZoomPolling();
         ui->btnConnect->setEnabled(false);
         ui->btnDisconnect->setEnabled(true);
@@ -91,11 +97,10 @@ void MainWindow::onShootClicked()
     }
 }
 
-void MainWindow::updateGyroAngles(float roll, float pitch, float yaw)
+void MainWindow::updateGyroAngles(float roll, float pitch)
 {
     ui->labelRoll->setText(QString::number(roll, 'f', 1) + "°");
     ui->labelPitch->setText(QString::number(pitch, 'f', 1) + "°");
-    ui->labelYaw->setText(QString::number(yaw, 'f', 1) + "°");
 }
 
 void MainWindow::updateJoystickStatus(bool connected)
@@ -155,21 +160,38 @@ void MainWindow::sendJoystickSpeed()
 
     float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier;
     float pitch = m_joystick->getAxisPitch() * m_speedMultiplier;
-
     m_gyro->setSpeed(yaw, pitch);
 }
 
 void MainWindow::on_radioZeroMode_clicked(bool checked)
 {
-    updateControlMode();
+    if (checked)
+    {
+        updateControlMode();
+    }
 }
 
 
 void MainWindow::on_radioSpeedMode_clicked(bool checked)
 {
-    updateControlMode();
+    if (checked)
+    {
+        updateControlMode();
+    }
 }
 
 
-
+void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1)
+{
+    if (arg1 == Qt::Checked)
+    {
+        m_gyro->startAnglePolling();
+        return;
+    }
+    if (arg1 == Qt::Unchecked)
+    {
+        m_gyro->stopAnglePolling();
+        return ;
+    }
+}
 

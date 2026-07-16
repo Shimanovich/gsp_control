@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>262</width>
-    <height>600</height>
+    <width>316</width>
+    <height>489</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,6 +17,9 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QGroupBox" name="groupNetwork">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
       <property name="title">
        <string>Network</string>
       </property>
@@ -65,21 +68,7 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="labelPitch">
-         <property name="text">
-          <string>Pitch: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QLabel" name="labelYaw">
-         <property name="text">
-          <string>Yaw: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="3">
+       <item row="1" column="0" colspan="4">
         <layout class="QHBoxLayout" name="horizontalLayoutMode">
          <item>
           <widget class="QRadioButton" name="radioZeroMode">
@@ -100,7 +89,14 @@
          </item>
         </layout>
        </item>
-       <item row="2" column="0" colspan="3">
+       <item row="0" column="1">
+        <widget class="QLabel" name="labelPitch">
+         <property name="text">
+          <string>Pitch: 0.0°</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="4">
         <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
          <item>
           <widget class="QLabel" name="labelMultiplier">
@@ -126,6 +122,19 @@
           </widget>
          </item>
         </layout>
+       </item>
+       <item row="0" column="2">
+        <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>AutoRead</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

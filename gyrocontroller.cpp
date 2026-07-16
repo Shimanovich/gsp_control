@@ -37,12 +37,18 @@ void GyroController::goToZeroPosition()
 
 void GyroController::startAnglePolling()
 {
-    m_pollTimer->start(m_pollIntervalMs);
+    if (!m_pollTimer->isActive())
+    {
+        m_pollTimer->start(m_pollIntervalMs);
+    }
 }
 
 void GyroController::stopAnglePolling()
 {
-    m_pollTimer->stop();
+    if (m_pollTimer->isActive())
+    {
+        m_pollTimer->stop();
+    }
 }
 
 void GyroController::pollAngles()

@@ -25,7 +25,7 @@ private slots:
     void onConnectClicked();
     void onGoToZeroClicked();
     void onShootClicked();
-    void updateGyroAngles(float roll, float pitch, float yaw);
+    void updateGyroAngles(float roll, float pitch);
     void updateJoystickStatus(bool connected);
     void updateConnectionStatus(bool connected);
     void onJoystickButtonPressed(int button);
@@ -35,6 +35,8 @@ private slots:
     void on_radioSpeedMode_clicked(bool checked);
 
     void onDisconnectClicked();
+
+    void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
 
 private:
     Ui::MainWindow *ui;
