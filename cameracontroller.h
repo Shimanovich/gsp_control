@@ -34,6 +34,9 @@ signals:
     void error(const QString& msg);
 
 private slots:
+
+    void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
+
     void pollZoomPosition();
 
 private:

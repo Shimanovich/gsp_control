@@ -17,6 +17,9 @@ signals:
     void measurementReceived(float distanceMeters, uint8_t status);
     void statusUpdated(const QString& status);
 
+private slots:
+    void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
+
 private:
     UdpCommunicator* m_udp = nullptr;
     uint8_t m_targetId = 13;

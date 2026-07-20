@@ -20,6 +20,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_speedSendTimer->setInterval(100); // 10 Hz
     connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
 
+
+
     setupControllers();
     loadAllSettings();
 

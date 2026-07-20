@@ -153,32 +153,47 @@
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
-        <widget class="QPushButton" name="btnZoomIn">
-         <property name="text">
-          <string>Zoom +</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnZoomOut">
-         <property name="text">
-          <string>Zoom -</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnAutofocus">
-         <property name="text">
-          <string>Autofocus</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnFocusInf">
-         <property name="text">
-          <string>Focus ∞</string>
-         </property>
-        </widget>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QPushButton" name="btnZoomIn">
+             <property name="text">
+              <string>Zoom +</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnZoomOut">
+             <property name="text">
+              <string>Zoom -</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnAutofocus">
+             <property name="text">
+              <string>Autofocus</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnFocusInf">
+             <property name="text">
+              <string>Focus ∞</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QLabel" name="zoomVal">
+           <property name="text">
+            <string>Zoom </string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

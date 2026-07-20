@@ -7,6 +7,15 @@ CameraController::CameraController(UdpCommunicator* udp, QObject *parent)
 {
     m_zoomPollTimer = new QTimer(this);
     connect(m_zoomPollTimer, &QTimer::timeout, this, &CameraController::pollZoomPosition);
+
+
+    if (m_udp) {
+            connect(m_udp, &UdpCommunicator::packetReceived,
+                    this, &CameraController::handleIncomingPacket);
+        }
+
+
+
 }
 
 bool CameraController::loadSettings(const QString& iniPath)
@@ -158,5 +167,62 @@ void CameraController::sendVisca(const QByteArray& cmd)
 {
     if (m_udp) {
         m_udp->sendPacket(m_targetId, cmd);
+    }
+}
+
+void CameraController::handleIncomingPacket(uint8_t sourceId, const QByteArray& payload)
+{
+    if (sourceId != m_targetId || payload.size() < 3)
+        return;
+
+    // VISCA-ответ должен начинаться с 0x90 и заканчиваться 0xFF
+    if (static_cast<uint8_t>(payload[0]) != 0x90 ||
+        static_cast<uint8_t>(payload.back()) != 0xFF)
+        return;
+
+    const uint8_t second = static_cast<uint8_t>(payload[1]);
+
+    // ACK
+    if ((second & 0xF0) == 0x40) {
+        // emit ackReceived();  // при необходимости
+        return;
+    }
+
+    // Completion (обычная команда)
+    if ((second & 0xF0) == 0x50 && payload.size() == 3) {
+        // emit completionReceived();
+        return;
+    }
+
+    // Ответ на CAM_ZoomPosInq: 90 50 0p 0q 0r 0s FF
+    if ((second & 0xF0) == 0x50 && payload.size() == 7)
+    {
+        // Дополнительная проверка, что это именно 4 полубайта позиции
+        bool isZoomPosReply =
+            (static_cast<uint8_t>(payload[2]) & 0xF0) == 0x00 &&
+            (static_cast<uint8_t>(payload[3]) & 0xF0) == 0x00 &&
+            (static_cast<uint8_t>(payload[4]) & 0xF0) == 0x00 &&
+            (static_cast<uint8_t>(payload[5]) & 0xF0) == 0x00;
+
+        if (isZoomPosReply)
+        {
+            uint16_t zoomPos =
+                ((static_cast<uint8_t>(payload[2]) & 0x0F) << 12) |
+                ((static_cast<uint8_t>(payload[3]) & 0x0F) <<  8) |
+                ((static_cast<uint8_t>(payload[4]) & 0x0F) <<  4) |
+                (static_cast<uint8_t>(payload[5]) & 0x0F);
+
+            // Диапазон зума у MC-108-M3: 0x0000 … 0x7FFF
+            float normalized = static_cast<float>(zoomPos) / 0x7FFF;
+            emit zoomPositionUpdated(normalized);
+            return;
+        }
+    }
+
+    // Error
+    if ((second & 0xF0) == 0x60) {
+        int errCode = second & 0x0F;
+        emit error(QString("VISCA error 0x%1").arg(errCode, 2, 16, QChar('0')));
+        return;
     }
 }

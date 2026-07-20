@@ -130,9 +130,6 @@ QByteArray GyroController::buildControlPayload(uint8_t mode, float yaw, float pi
      return payload;
 
 
-
-
-
     return payload;
 }
 
