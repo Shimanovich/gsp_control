@@ -71,7 +71,11 @@ bool UdpCommunicator::sendPacket(uint8_t targetId, const QByteArray& payload)
         return false;
 
     QByteArray packet;
-    packet.append(static_cast<char>(targetId));
+
+    if (targetId !=0xff)
+    {
+        packet.append(static_cast<char>(targetId));
+    }
     packet.append(payload);
 
     // Отправляем на m_sendPort
@@ -94,10 +98,21 @@ void UdpCommunicator::onReadyRead()
 
         m_socket->readDatagram(datagram.data(), datagram.size(), &sender, &senderPort);
 
-        if (datagram.size() < 1) continue;
+        int sz = datagram.size();
 
+        if (sz < 1) continue;
+
+        QByteArray payload;
         uint8_t sourceId = static_cast<uint8_t>(datagram.at(0));
-        QByteArray payload = datagram.mid(1);
+        if (sourceId !=0x3e)
+        {
+             payload = datagram.mid(1,datagram.size()-1);
+        }
+        else
+        {
+            sourceId = 0xff;
+            payload = datagram.mid(0,datagram.size());
+        }
 
         // Update last receive time for this source
         m_lastReceiveTime[sourceId] = QDateTime::currentMSecsSinceEpoch();
@@ -105,6 +120,9 @@ void UdpCommunicator::onReadyRead()
         emit packetReceived(sourceId, payload);
     }
 }
+
+
+
 
 void UdpCommunicator::checkConnectionTimeout()
 {

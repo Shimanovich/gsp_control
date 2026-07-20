@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>316</width>
-    <height>489</height>
+    <height>468</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -61,42 +61,7 @@
        <string>Gyro Platform</string>
       </property>
       <layout class="QGridLayout" name="gridLayout">
-       <item row="0" column="0">
-        <widget class="QLabel" name="labelRoll">
-         <property name="text">
-          <string>Roll: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="4">
-        <layout class="QHBoxLayout" name="horizontalLayoutMode">
-         <item>
-          <widget class="QRadioButton" name="radioZeroMode">
-           <property name="text">
-            <string>Zero Position</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="radioSpeedMode">
-           <property name="text">
-            <string>Speed Control</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="labelPitch">
-         <property name="text">
-          <string>Pitch: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="4">
+       <item row="3" column="0" colspan="4">
         <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
          <item>
           <widget class="QLabel" name="labelMultiplier">
@@ -123,6 +88,34 @@
          </item>
         </layout>
        </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="labelRoll">
+         <property name="text">
+          <string>Roll: 0.0°</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="4">
+        <layout class="QHBoxLayout" name="horizontalLayoutMode">
+         <item>
+          <widget class="QRadioButton" name="radioZeroMode">
+           <property name="text">
+            <string>Zero Position</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioSpeedMode">
+           <property name="text">
+            <string>Speed Control</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
        <item row="0" column="2">
         <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
          <property name="enabled">
@@ -133,6 +126,20 @@
          </property>
          <property name="checked">
           <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="labelPitch">
+         <property name="text">
+          <string>Pitch: 0.0°</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QPushButton" name="btMotor_on">
+         <property name="text">
+          <string>Motor ON</string>
          </property>
         </widget>
        </item>
@@ -188,7 +195,7 @@
           <string>Safety Lock</string>
          </property>
          <property name="checked">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -204,6 +211,7 @@
     </item>
    </layout>
   </widget>
+  <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <resources/>
  <connections/>

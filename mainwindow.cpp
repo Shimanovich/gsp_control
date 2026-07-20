@@ -49,6 +49,8 @@ void MainWindow::setupControllers()
     connect(m_joystick, &JoystickManager::buttonPressed, this, &MainWindow::onJoystickButtonPressed);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
+
+
 }
 
 void MainWindow::loadAllSettings()
@@ -97,9 +99,9 @@ void MainWindow::onShootClicked()
     }
 }
 
-void MainWindow::updateGyroAngles(float roll, float pitch)
+void MainWindow::updateGyroAngles( float pitch,float yaw)
 {
-    ui->labelRoll->setText(QString::number(roll, 'f', 1) + "°");
+    ui->labelRoll->setText(QString::number(yaw, 'f', 1) + "°");
     ui->labelPitch->setText(QString::number(pitch, 'f', 1) + "°");
 }
 
@@ -144,22 +146,36 @@ void MainWindow::updateControlMode()
 {
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
 
-    if (m_isSpeedMode) {
-        // Switch to Speed mode
-        if (m_speedSendTimer) m_speedSendTimer->start();
-    } else {
-        // Switch to Zero Position mode
-        if (m_speedSendTimer) m_speedSendTimer->stop();
-        if (m_gyro) m_gyro->goToZeroPosition();
+    if (m_speedSendTimer)
+    {
+        m_speedSendTimer->stop();
+        if (m_isSpeedMode) {
+            disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+        }
+        else {
+            disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
+        }
+        m_speedSendTimer->start();
     }
+
 }
+
 
 void MainWindow::sendJoystickSpeed()
 {
     if (!m_isSpeedMode || !m_joystick || !m_gyro) return;
 
-    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier;
-    float pitch = m_joystick->getAxisPitch() * m_speedMultiplier;
+    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*10.0;
+    float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*10.0;
+
+    ui->statusBar->showMessage(
+        QString("Yaw: %1   Pitch: %2")
+            .arg(yaw,0, 'f', 3)
+            .arg(pitch,0, 'f', 3),0
+        );
+
     m_gyro->setSpeed(yaw, pitch);
 }
 
@@ -194,4 +210,49 @@ void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &a
         return ;
     }
 }
+
+
+
+
+void MainWindow::on_spinSpeedMultiplier_valueChanged(double arg1)
+{
+    m_speedMultiplier = arg1;
+}
+
+void MainWindow::sendZeroPos()
+{
+    m_gyro->goToZeroPosition();
+}
+
+
+void MainWindow::on_btMotor_on_clicked()
+{
+    m_gyro->motorOn();
+}
+
+
+void MainWindow::on_btnZoomIn_clicked()
+{
+    m_camera->zoomIn();
+}
+
+
+void MainWindow::on_btnZoomOut_clicked()
+{
+    m_camera->zoomOut();
+}
+
+
+void MainWindow::on_btnAutofocus_clicked()
+{
+    m_camera->autofocus();
+}
+
+
+void MainWindow::on_btnFocusInf_clicked()
+{
+    m_camera->focusInfinity();
+}
+
+
 

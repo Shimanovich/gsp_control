@@ -38,6 +38,20 @@ private slots:
 
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
 
+    void on_spinSpeedMultiplier_valueChanged(double arg1);
+
+    void on_btMotor_on_clicked();
+
+
+
+    void on_btnZoomIn_clicked();
+
+    void on_btnZoomOut_clicked();
+
+    void on_btnAutofocus_clicked();
+
+    void on_btnFocusInf_clicked();
+
 private:
     Ui::MainWindow *ui;
 
@@ -57,6 +71,7 @@ private:
     void loadAllSettings();
     void updateControlMode();
     void sendJoystickSpeed();
+    void sendZeroPos();
 };
 
 #endif // MAINWINDOW_H

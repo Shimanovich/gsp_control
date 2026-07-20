@@ -5,7 +5,7 @@ JoystickManager::JoystickManager(QObject *parent)
     : QObject(parent)
 {
     m_pollTimer = new QTimer(this);
-    m_pollTimer->setInterval(10); // 100 Hz polling
+    m_pollTimer->setInterval(100); // 100 Hz polling
     connect(m_pollTimer, &QTimer::timeout, this, &JoystickManager::pollJoystick);
 }
 

@@ -19,24 +19,28 @@ public:
     void goToZeroPosition();
     void startAnglePolling();
     void stopAnglePolling();
+    void motorOn();
 
 signals:
-    void anglesUpdated(float roll, float pitch, float yaw); // degrees
+    void anglesUpdated(float pitch, float yaw); // degrees
     void error(const QString& msg);
 
 private slots:
     void pollAngles();
+
     void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
 
 private:
     UdpCommunicator* m_udp = nullptr;
-    uint8_t m_targetId = 41;
-    int m_pollIntervalMs = 100; // 10 Hz
+    //uint8_t m_targetId = 41;
+    uint8_t m_targetId = 0xff;
+    int m_pollIntervalMs = 1000; // 10 Hz // интервал опроса углов гироплатформы
 
     QTimer* m_pollTimer = nullptr;
 
-    QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch, float roll = 0);
-    QByteArray buildRealtimeDataRequest();
+    QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch);
+
+    QByteArray buildZeroPosCmd();
 };
 
 #endif // GYROCONTROLLER_H
