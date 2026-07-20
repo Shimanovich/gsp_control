@@ -52,6 +52,8 @@ void MainWindow::setupControllers()
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
 
+    connect(m_camera, &CameraController::zoomPositionUpdated,this, &MainWindow::onZoomPositionUpdated);
+
 
 }
 
@@ -213,6 +215,11 @@ void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &a
     }
 }
 
+void MainWindow::onZoomPositionUpdated(float position)
+{
+    // position: 0.0 .. 1.0 (normalized from 0x0000..0x7FFF)
+    ui->zoomVal->setText(QString("Zoom: %1%").arg(position * 100.0f, 0, 'f', 1));
+}
 
 
 

@@ -30,7 +30,7 @@ public:
     void stopZoomPolling();
 
 signals:
-    void zoomPositionUpdated(float position);  // 0.0 .. 1.0 normalized
+    void zoomPositionUpdated(float position);
     void error(const QString& msg);
 
 private slots:

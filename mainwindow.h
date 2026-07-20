@@ -52,6 +52,8 @@ private slots:
 
     void on_btnFocusInf_clicked();
 
+    void onZoomPositionUpdated(float position);
+
 private:
     Ui::MainWindow *ui;
 
