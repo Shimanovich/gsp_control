@@ -237,21 +237,43 @@
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
-        <widget class="QCheckBox" name="checkSafety">
-         <property name="text">
-          <string>Safety Lock</string>
-         </property>
-         <property name="checked">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnShoot">
-         <property name="text">
-          <string>SHOOT</string>
-         </property>
-        </widget>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QCheckBox" name="checkSafety">
+           <property name="text">
+            <string>Safety Lock</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnShoot">
+           <property name="text">
+            <string>SHOOT</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <widget class="QLabel" name="ldDistance">
+             <property name="text">
+              <string> 0 m</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="Ld_status">
+             <property name="text">
+              <string>Status ---</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

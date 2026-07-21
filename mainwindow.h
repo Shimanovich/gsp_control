@@ -66,6 +66,8 @@ private slots:
 
     void on_BrightDW_clicked();
 
+    void onMeasurementReceived(float distanceMeters, uint8_t status);
+
 private:
     Ui::MainWindow *ui;
 

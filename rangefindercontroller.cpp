@@ -19,8 +19,8 @@ bool RangefinderController::loadSettings(const QString& iniPath)
 void RangefinderController::shoot()
 {
     // Command 0x01 - single measurement
-    //sendRangefinderCommand(0x01);
-    sendRangefinderCommand(0x03);
+    sendRangefinderCommand(0x01);
+    //sendRangefinderCommand(0x03);
 }
 
 void RangefinderController::sendRangefinderCommand(uint8_t cmd, uint16_t data)
@@ -75,8 +75,7 @@ void RangefinderController::handleIncomingPacket(uint8_t sourceId, const QByteAr
         uint32_t dist1_raw = (d[1] << 16) | (d[2] << 8) | d[3];
         float dist1_m = dist1_raw * 0.1f;
 
-        // аналогично dist2, dist3 при необходимости
-        // ...
+
 
         emit measurementReceived(dist1_m, statusByte);
         return;

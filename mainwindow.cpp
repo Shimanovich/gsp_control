@@ -54,6 +54,8 @@ void MainWindow::setupControllers()
 
     connect(m_camera, &CameraController::zoomPositionUpdated,this, &MainWindow::onZoomPositionUpdated);
 
+    connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
+
 
 }
 
@@ -217,7 +219,7 @@ void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &a
 
 void MainWindow::onZoomPositionUpdated(float position)
 {
-    // position: 0.0 .. 1.0 (normalized from 0x0000..0x7FFF)
+    // position: 0.0 .. 1.0 (normalized from 0x0000..0x4000)
     ui->zoomVal->setText(QString("Zoom: %1%").arg(position * 100.0f, 0, 'f', 1));
 }
 
@@ -294,5 +296,28 @@ void MainWindow::on_BrIghtUP_clicked()
 void MainWindow::on_BrightDW_clicked()
 {
     m_camera->brightnessDown();
+}
+
+void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
+{
+    // Показать измеренное расстояние
+    ui->ldDistance->setText(QString("Distance: %1 m").arg(distanceMeters, 0, 'f', 1));
+
+    // Результат одиночного измерения (статус-байт D9 по протоколу)
+    // Биты: 7-main wave, 6-echo, 5-laser OK, 4-timeout, 3-reserved=1, 2-APD OK, 1-prev target, 0-next target
+    QString statusText;
+    bool ok = (status & 0x20) && (status & 0x04); // laser OK (bit5) && APD OK (bit2)
+    bool hasEcho = (status & 0x40);
+    bool hasMainWave = (status & 0x80);
+
+    if (!ok) {
+        statusText = QString("Error (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
+    } else if (!hasEcho && !hasMainWave) {
+        statusText = QString("No target (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
+    } else {
+        statusText = QString("OK (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
+    }
+
+    ui->Ld_status->setText("Status: " + statusText);
 }
 
