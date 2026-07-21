@@ -54,6 +54,18 @@ private slots:
 
     void onZoomPositionUpdated(float position);
 
+    void on_zoom_prev_clicked();
+
+    void on_zoom_next_clicked();
+
+    void on_btnZoomIn_released();
+
+    void on_btnZoomOut_released();
+
+    void on_BrIghtUP_clicked();
+
+    void on_BrightDW_clicked();
+
 private:
     Ui::MainWindow *ui;
 

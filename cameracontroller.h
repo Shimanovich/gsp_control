@@ -20,7 +20,15 @@ public:
     // Commands
     void zoomIn();
     void zoomOut();
+    void zoomStop();
+
     void setZoomPosition(int index);           // fixed positions from config
+
+
+    void setZoomPosition_prev();
+    void setZoomPosition_next();
+
+
     void autofocus();
     void focusInfinity();
     void brightnessUp();

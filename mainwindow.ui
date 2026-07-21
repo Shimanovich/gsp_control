@@ -187,11 +187,43 @@
           </layout>
          </item>
          <item>
-          <widget class="QLabel" name="zoomVal">
-           <property name="text">
-            <string>Zoom </string>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <item>
+            <widget class="QLabel" name="zoomVal">
+             <property name="text">
+              <string>Zoom </string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="zoom_prev">
+             <property name="text">
+              <string>Zoom Prev</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="zoom_next">
+             <property name="text">
+              <string>Zoom Next</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BrIghtUP">
+             <property name="text">
+              <string>bright +</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="BrightDW">
+             <property name="text">
+              <string>Bright -</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </item>

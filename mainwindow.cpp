@@ -172,7 +172,7 @@ void MainWindow::sendJoystickSpeed()
     if (!m_isSpeedMode || !m_joystick || !m_gyro) return;
 
     float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*10.0;
-    float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*10.0;
+    float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*1.0;
 
     ui->statusBar->showMessage(
         QString("Yaw: %1   Pitch: %2")
@@ -264,4 +264,35 @@ void MainWindow::on_btnFocusInf_clicked()
 }
 
 
+void MainWindow::on_zoom_prev_clicked()
+{
+    m_camera->setZoomPosition_prev();
+}
+
+
+void MainWindow::on_zoom_next_clicked()
+{
+    m_camera->setZoomPosition_next();
+}
+
+
+void MainWindow::on_btnZoomIn_released()
+{
+    m_camera->zoomStop();
+}
+
+void MainWindow::on_btnZoomOut_released()
+{
+        m_camera->zoomStop();
+}
+
+void MainWindow::on_BrIghtUP_clicked()
+{
+    m_camera->brightnessUp();
+}
+
+void MainWindow::on_BrightDW_clicked()
+{
+    m_camera->brightnessDown();
+}
 

@@ -19,7 +19,8 @@ bool RangefinderController::loadSettings(const QString& iniPath)
 void RangefinderController::shoot()
 {
     // Command 0x01 - single measurement
-    sendRangefinderCommand(0x01);
+    //sendRangefinderCommand(0x01);
+    sendRangefinderCommand(0x03);
 }
 
 void RangefinderController::sendRangefinderCommand(uint8_t cmd, uint16_t data)
