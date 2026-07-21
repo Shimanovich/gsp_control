@@ -83,6 +83,8 @@ void JoystickManager::openJoystick(int index)
     m_joystick = SDL_JoystickOpen(index);
     if (m_joystick) {
         m_deviceIndex = index;
+        const int n = SDL_JoystickNumButtons(m_joystick);
+        m_prevButtonStates = QVector<bool>(n, false);   // сброс
         qDebug() << "Joystick opened:" << SDL_JoystickName(m_joystick);
         emit connectedChanged(true);
     }
@@ -101,19 +103,27 @@ void JoystickManager::pollJoystick()
 {
     SDL_JoystickUpdate();
 
-    // Simple hotplug detection (basic)
+    // hotplug (как было)
     if (!m_joystick && SDL_NumJoysticks() > 0) {
         openJoystick(0);
     } else if (m_joystick && SDL_JoystickGetAttached(m_joystick) == SDL_FALSE) {
         closeJoystick();
+        return;
     }
 
-    // Emit button events (simple polling for now)
-    if (m_joystick) {
-        for (int i = 0; i < SDL_JoystickNumButtons(m_joystick); ++i) {
-            if (SDL_JoystickGetButton(m_joystick, i)) {
-                emit buttonPressed(i);
-            }
+    if (!m_joystick) return;
+
+    const int n = SDL_JoystickNumButtons(m_joystick);
+    if (m_prevButtonStates.size() != n)
+        m_prevButtonStates = QVector<bool>(n, false);
+
+    for (int i = 0; i < n; ++i) {
+        const bool pressed = SDL_JoystickGetButton(m_joystick, i);
+        if (pressed && !m_prevButtonStates[i]) {
+            emit buttonPressed(i);          // единожды при нажатии
+        } else if (!pressed && m_prevButtonStates[i]) {
+            emit buttonReleased(i);         // единожды при отпускании
         }
+        m_prevButtonStates[i] = pressed;
     }
 }

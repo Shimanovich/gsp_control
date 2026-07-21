@@ -26,13 +26,16 @@ public:
 
 signals:
     void connectedChanged(bool connected);
-    void buttonPressed(int button);
+    void buttonPressed(int button);   // фронт 0→1
+    void buttonReleased(int button);  // фронт 1→0
     void axisMoved(int axis, float value);
 
 private slots:
     void pollJoystick();
 
 private:
+
+    QVector<bool> m_prevButtonStates;
     SDL_Joystick* m_joystick = nullptr;
     int m_deviceIndex = -1;
     bool m_invertYaw = false;

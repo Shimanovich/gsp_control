@@ -48,7 +48,13 @@ void MainWindow::setupControllers()
 {
     connect(m_udp, &UdpCommunicator::connectionStatusChanged, this, &MainWindow::updateConnectionStatus);
     connect(m_joystick, &JoystickManager::connectedChanged, this, &MainWindow::updateJoystickStatus);
-    connect(m_joystick, &JoystickManager::buttonPressed, this, &MainWindow::onJoystickButtonPressed);
+
+
+
+    connect(m_joystick, &JoystickManager::buttonPressed,this, &MainWindow::onJoystickButtonPressed);
+    connect(m_joystick, &JoystickManager::buttonReleased,this, &MainWindow::onJoystickButtonReleased);
+
+
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
 
@@ -122,15 +128,51 @@ void MainWindow::updateConnectionStatus(bool connected)
     ui->labelGyroStatus->setText(connected ? "Connected" : "Disconnected");
     ui->labelGyroStatus->setStyleSheet(connected ? "color: green;" : "color: red;");
 }
-
 void MainWindow::onJoystickButtonPressed(int button)
 {
-    // Map buttons according to config (simplified)
-    if (button == 0) m_camera->zoomIn();
-    else if (button == 1) m_camera->zoomOut();
-    else if (button == 2) m_camera->autofocus();
-    // ... add more mappings from INI later
+
+    qDebug() << "MainWindow: processing pressed button" << button;
+
+    switch (button) {
+
+
+    case 9:  m_camera->zoomIn();          break;
+    case 7:  m_camera->zoomOut();         break;
+
+
+    case 6:  m_camera->setZoomPosition_next();          break;
+    case 8:  m_camera->setZoomPosition_prev();         break;
+
+    case 10:  m_camera->brightnessUp();    break;
+    case 12:  m_camera->brightnessDown();  break;
+
+    case 1:  if (ui->checkSafety->isChecked())
+            m_rangefinder->shoot();
+        break;
+
+    // case 10:  m_camera->autofocus();       break;
+    // case 13:  m_camera->focusInfinity();   break;
+
+
+    // позже: читать номера из INI
+    default: break;
+    }
 }
+
+void MainWindow::onJoystickButtonReleased(int button)
+{
+    // Вызов ровно один раз при отпускании (только для непрерывных действий)
+    switch (button) {
+    case 9:  // zoomIn
+    case 7:  // zoomOut
+        m_camera->zoomStop();
+        break;
+    default:
+        break;   // остальные действия не требуют release
+    }
+}
+
+
 
 void MainWindow::onDisconnectClicked()
 {

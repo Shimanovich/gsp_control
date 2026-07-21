@@ -28,7 +28,9 @@ private slots:
     void updateGyroAngles(float roll, float pitch);
     void updateJoystickStatus(bool connected);
     void updateConnectionStatus(bool connected);
+
     void onJoystickButtonPressed(int button);
+    void onJoystickButtonReleased(int button);
 
     void on_radioZeroMode_clicked(bool checked);
 
