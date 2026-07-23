@@ -18,6 +18,20 @@ LIBS += -L$$SDL2_PATH/lib -lSDL2
 unix: LIBS += -lSDL2
 win32: LIBS += -lSDL2
 
+win32 {
+    INCLUDEPATH += d:/work/6176/ffmpeg-8.1.2-full_build-shared/include/
+    LIBS += -Ld:/work/6176/ffmpeg-8.1.2-full_build-shared/lib/ \
+            -lavcodec -lavutil -lswscale -lavformat
+}
+unix {
+    # Вариант через pkg-config (рекомендуется)
+    CONFIG += link_pkgconfig
+    PKGCONFIG += libavcodec libavutil libswscale libavformat
+    # Или вручную:
+    # INCLUDEPATH += /usr/include/ffmpeg
+    # LIBS += -lavcodec -lavutil -lswscale -lavformat
+}
+
 TARGET = gsp_control
 TEMPLATE = app
 
@@ -28,7 +42,8 @@ SOURCES += \
     joystickmanager.cpp \
     cameracontroller.cpp \
     gyrocontroller.cpp \
-    rangefindercontroller.cpp
+    rangefindercontroller.cpp \
+    udpReceiveAndDecode.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -37,7 +52,8 @@ HEADERS += \
     cameracontroller.h \
     gyrocontroller.h \
     rangefindercontroller.h \
-    simplebgc_protocol.h
+    simplebgc_protocol.h \
+    udpReceiveAndDecode.h
 
 FORMS += \
     mainwindow.ui
