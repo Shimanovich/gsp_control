@@ -207,7 +207,6 @@ namespace SimpleBGC {
 
          QByteArray packet;
          uint8_t size = static_cast<uint8_t>(payload.size());
-
          packet.append(static_cast<char>(START_BYTE_V1));
          packet.append(static_cast<char>(cmd));
          packet.append(static_cast<char>(size));

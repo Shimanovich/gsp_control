@@ -42,6 +42,15 @@ udpDec::udpDec(PlayerInitStructure* param)
     ReceiverAddr.sin_port        = htons(m_recudpport);
     ReceiverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
+    int timeout = param->udptimeout;
+    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+
+    u_int yes = 1;
+    setsockopt(ReceivingSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes));
+
+    int rcvbuf = 4 * 1024 * 1024;
+    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&rcvbuf, sizeof(rcvbuf));
+
     if (bind(ReceivingSocket, (SOCKADDR*)&ReceiverAddr, sizeof(ReceiverAddr)) == SOCKET_ERROR) {
         printf("udpDec: bind() failed %d\n", WSAGetLastError());
         closesocket(ReceivingSocket);
@@ -51,11 +60,7 @@ udpDec::udpDec(PlayerInitStructure* param)
     }
     printf("udpDec: bound to port %u\n", m_recudpport);
 
-    int timeout = param->udptimeout;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
 
-    u_int yes = 1;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes));
 
     // // Multicast (optional)
     // struct ip_mreq mreq;
@@ -65,8 +70,7 @@ udpDec::udpDec(PlayerInitStructure* param)
     //     printf("udpDec: multicast join failed (ok for unicast)\n");
     // }
 
-    int rcvbuf = 4 * 1024 * 1024;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&rcvbuf, sizeof(rcvbuf));
+
 
     // ---- FFmpeg (modern API) ----
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)

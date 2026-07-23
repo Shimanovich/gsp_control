@@ -32,8 +32,8 @@ private slots:
 
 private:
     UdpCommunicator* m_udp = nullptr;
-    //uint8_t m_targetId = 41;
-    uint8_t m_targetId = 0xff;
+    uint8_t m_targetId = 41;
+    //uint8_t m_targetId = 0xff;
     int m_pollIntervalMs = 1000; // 10 Hz // интервал опроса углов гироплатформы
 
     QTimer* m_pollTimer = nullptr;

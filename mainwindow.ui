@@ -197,6 +197,54 @@
            <string>Gyro Platform</string>
           </property>
           <layout class="QGridLayout" name="gridLayout">
+           <item row="2" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayoutMode">
+             <item>
+              <widget class="QRadioButton" name="radioZeroMode">
+               <property name="text">
+                <string>Zero Position</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QRadioButton" name="radioSpeedMode">
+               <property name="text">
+                <string>Speed Control</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="labelRoll">
+             <property name="text">
+              <string>Roll: 0.0°</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>AutoRead</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="labelPitch">
+             <property name="text">
+              <string>Pitch: 0.0°</string>
+             </property>
+            </widget>
+           </item>
            <item row="3" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
              <item>
@@ -224,54 +272,6 @@
              </item>
             </layout>
            </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="labelRoll">
-             <property name="text">
-              <string>Roll: 0.0°</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0" colspan="4">
-            <layout class="QHBoxLayout" name="horizontalLayoutMode">
-             <item>
-              <widget class="QRadioButton" name="radioZeroMode">
-               <property name="text">
-                <string>Zero Position</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="radioSpeedMode">
-               <property name="text">
-                <string>Speed Control</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item row="0" column="2">
-            <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>AutoRead</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLabel" name="labelPitch">
-             <property name="text">
-              <string>Pitch: 0.0°</string>
-             </property>
-            </widget>
-           </item>
            <item row="1" column="0">
             <widget class="QPushButton" name="btMotor_on">
              <property name="text">
@@ -282,18 +282,46 @@
           </layout>
          </widget>
         </item>
+        <item>
+         <layout class="QHBoxLayout" name="videoBtnLayout">
+          <item>
+           <widget class="QPushButton" name="btnVideoStart">
+            <property name="text">
+             <string>Start Video</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnVideoStop">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Stop Video</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelVideoStatus">
+            <property name="text">
+             <string>Stopped</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
        </layout>
       </item>
       <item>
        <widget class="QGroupBox" name="groupVideo">
-        <property name="title">
-         <string>Video Stream</string>
-        </property>
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>1</horstretch>
           <verstretch>1</verstretch>
          </sizepolicy>
+        </property>
+        <property name="title">
+         <string>Video Stream</string>
         </property>
         <layout class="QVBoxLayout" name="videoVLayout">
          <item>
@@ -307,44 +335,16 @@
            <property name="styleSheet">
             <string notr="true">background-color: #1a1a1a; color: #888; border: 1px solid #444;</string>
            </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
            <property name="text">
             <string>No signal</string>
            </property>
            <property name="scaledContents">
             <bool>false</bool>
            </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
           </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="videoBtnLayout">
-           <item>
-            <widget class="QPushButton" name="btnVideoStart">
-             <property name="text">
-              <string>Start Video</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btnVideoStop">
-             <property name="text">
-              <string>Stop Video</string>
-             </property>
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="labelVideoStatus">
-             <property name="text">
-              <string>Stopped</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
          </item>
         </layout>
        </widget>
