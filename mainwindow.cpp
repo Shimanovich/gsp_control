@@ -136,25 +136,23 @@ void MainWindow::onJoystickButtonPressed(int button)
     switch (button) {
 
 
-    case 9:  m_camera->zoomIn();          break;
-    case 7:  m_camera->zoomOut();         break;
-
-
+    case 9:  m_camera->zoomIn();                        break;
+    case 7:  m_camera->zoomOut();                       break;
     case 6:  m_camera->setZoomPosition_next();          break;
-    case 8:  m_camera->setZoomPosition_prev();         break;
+    case 8:  m_camera->setZoomPosition_prev();          break;
 
-    case 10:  m_camera->brightnessUp();    break;
-    case 12:  m_camera->brightnessDown();  break;
+    case 10:  m_camera->brightnessUp();                 break;
+    case 12:  m_camera->brightnessDown();               break;
 
     case 1:  if (ui->checkSafety->isChecked())
             m_rangefinder->shoot();
         break;
 
-    // case 10:  m_camera->autofocus();       break;
-    // case 13:  m_camera->focusInfinity();   break;
+    case 2:  m_camera->autofocus();                     break;
+    case 3:  m_camera->focusInfinity();                 break;
 
 
-    // позже: читать номера из INI
+
     default: break;
     }
 }

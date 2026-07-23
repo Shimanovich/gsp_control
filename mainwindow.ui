@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>316</width>
-    <height>468</height>
+    <width>433</width>
+    <height>505</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,267 +16,282 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QGroupBox" name="groupNetwork">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="title">
-       <string>Network</string>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QPushButton" name="btnConnect">
-         <property name="text">
-          <string>Connect</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnDisconnect">
-         <property name="text">
-          <string>Disconnect</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelGyroStatus">
-         <property name="text">
-          <string>Gyro: Disconnected</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelJoystickStatus">
-         <property name="text">
-          <string>Joystick: Disconnected</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QGroupBox" name="groupGyro">
-      <property name="title">
-       <string>Gyro Platform</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout">
-       <item row="3" column="0" colspan="4">
-        <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
-         <item>
-          <widget class="QLabel" name="labelMultiplier">
-           <property name="text">
-            <string>Speed Multiplier:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QDoubleSpinBox" name="spinSpeedMultiplier">
-           <property name="minimum">
-            <double>0.100000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>10.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.100000000000000</double>
-           </property>
-           <property name="value">
-            <double>1.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="labelRoll">
-         <property name="text">
-          <string>Roll: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="4">
-        <layout class="QHBoxLayout" name="horizontalLayoutMode">
-         <item>
-          <widget class="QRadioButton" name="radioZeroMode">
-           <property name="text">
-            <string>Zero Position</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="radioSpeedMode">
-           <property name="text">
-            <string>Speed Control</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="0" column="2">
-        <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>AutoRead</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="labelPitch">
-         <property name="text">
-          <string>Pitch: 0.0°</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QPushButton" name="btMotor_on">
-         <property name="text">
-          <string>Motor ON</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QGroupBox" name="groupCamera">
-      <property name="title">
-       <string>Camera (VISCA)</string>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <layout class="QHBoxLayout" name="horizontalLayout_7">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <widget class="QGroupBox" name="groupNetwork">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="title">
+           <string>Network</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
-            <widget class="QPushButton" name="btnZoomIn">
+            <widget class="QPushButton" name="btnConnect">
              <property name="text">
-              <string>Zoom +</string>
+              <string>Connect</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btnZoomOut">
+            <widget class="QPushButton" name="btnDisconnect">
              <property name="text">
-              <string>Zoom -</string>
+              <string>Disconnect</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btnAutofocus">
+            <widget class="QLabel" name="labelGyroStatus">
              <property name="text">
-              <string>Autofocus</string>
+              <string>Gyro: Disconnected</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btnFocusInf">
+            <widget class="QLabel" name="labelJoystickStatus">
              <property name="text">
-              <string>Focus ∞</string>
+              <string>Joystick: Disconnected</string>
              </property>
             </widget>
            </item>
           </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_5">
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupCamera">
+          <property name="title">
+           <string>Camera (VISCA)</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
-            <widget class="QLabel" name="zoomVal">
+            <layout class="QVBoxLayout" name="verticalLayout_3">
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_4">
+               <item>
+                <widget class="QPushButton" name="btnZoomIn">
+                 <property name="text">
+                  <string>Zoom +</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnZoomOut">
+                 <property name="text">
+                  <string>Zoom -</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnAutofocus">
+                 <property name="text">
+                  <string>Autofocus</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnFocusInf">
+                 <property name="text">
+                  <string>Focus ∞</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_5">
+               <item>
+                <widget class="QLabel" name="zoomVal">
+                 <property name="text">
+                  <string>Zoom </string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="zoom_prev">
+                 <property name="text">
+                  <string>Zoom Prev</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="zoom_next">
+                 <property name="text">
+                  <string>Zoom Next</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="BrIghtUP">
+                 <property name="text">
+                  <string>bright +</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="BrightDW">
+                 <property name="text">
+                  <string>Bright -</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupRangefinder">
+          <property name="title">
+           <string>Laser Rangefinder</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_2">
+             <item>
+              <widget class="QCheckBox" name="checkSafety">
+               <property name="text">
+                <string>Safety Lock</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnShoot">
+               <property name="text">
+                <string>SHOOT</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_6">
+               <item>
+                <widget class="QLabel" name="ldDistance">
+                 <property name="text">
+                  <string> 0 m</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="Ld_status">
+                 <property name="text">
+                  <string>Status ---</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupGyro">
+          <property name="title">
+           <string>Gyro Platform</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="3" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayoutMultiplier">
+             <item>
+              <widget class="QLabel" name="labelMultiplier">
+               <property name="text">
+                <string>Speed Multiplier:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinSpeedMultiplier">
+               <property name="minimum">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>10.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="labelRoll">
              <property name="text">
-              <string>Zoom </string>
+              <string>Roll: 0.0°</string>
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QPushButton" name="zoom_prev">
+           <item row="2" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayoutMode">
+             <item>
+              <widget class="QRadioButton" name="radioZeroMode">
+               <property name="text">
+                <string>Zero Position</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QRadioButton" name="radioSpeedMode">
+               <property name="text">
+                <string>Speed Control</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="0" column="2">
+            <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
              <property name="text">
-              <string>Zoom Prev</string>
+              <string>AutoRead</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QPushButton" name="zoom_next">
+           <item row="0" column="1">
+            <widget class="QLabel" name="labelPitch">
              <property name="text">
-              <string>Zoom Next</string>
+              <string>Pitch: 0.0°</string>
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QPushButton" name="BrIghtUP">
+           <item row="1" column="0">
+            <widget class="QPushButton" name="btMotor_on">
              <property name="text">
-              <string>bright +</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="BrightDW">
-             <property name="text">
-              <string>Bright -</string>
+              <string>Motor ON</string>
              </property>
             </widget>
            </item>
           </layout>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QGroupBox" name="groupRangefinder">
-      <property name="title">
-       <string>Laser Rangefinder</string>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <item>
-        <layout class="QVBoxLayout" name="verticalLayout_2">
-         <item>
-          <widget class="QCheckBox" name="checkSafety">
-           <property name="text">
-            <string>Safety Lock</string>
-           </property>
-           <property name="checked">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btnShoot">
-           <property name="text">
-            <string>SHOOT</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_6">
-           <item>
-            <widget class="QLabel" name="ldDistance">
-             <property name="text">
-              <string> 0 m</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="Ld_status">
-             <property name="text">
-              <string>Status ---</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </widget>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
