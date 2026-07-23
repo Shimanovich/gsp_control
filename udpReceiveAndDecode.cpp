@@ -57,13 +57,13 @@ udpDec::udpDec(PlayerInitStructure* param)
     u_int yes = 1;
     setsockopt(ReceivingSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes));
 
-    // Multicast (optional)
-    struct ip_mreq mreq;
-    mreq.imr_multiaddr.s_addr = inet_addr("232.32.32.32");
-    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(ReceivingSocket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) < 0) {
-        printf("udpDec: multicast join failed (ok for unicast)\n");
-    }
+    // // Multicast (optional)
+    // struct ip_mreq mreq;
+    // mreq.imr_multiaddr.s_addr = inet_addr("232.32.32.32");
+    // mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+    // if (setsockopt(ReceivingSocket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) < 0) {
+    //     printf("udpDec: multicast join failed (ok for unicast)\n");
+    // }
 
     int rcvbuf = 4 * 1024 * 1024;
     setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&rcvbuf, sizeof(rcvbuf));

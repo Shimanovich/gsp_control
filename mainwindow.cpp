@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include <QDebug>
 #include <QMessageBox>
+#include <QSettings>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,19 +29,35 @@ MainWindow::MainWindow(QWidget *parent)
     // Initialize control mode after everything is ready
     QTimer::singleShot(50, this, &MainWindow::updateControlMode);
 
-    // Connect UI signals (example buttons)
+    // Connect UI signals
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
-    //connect(ui->btnGoToZero, &QPushButton::clicked, this, &MainWindow::onGoToZeroClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
+
+    // Video buttons
+    connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
+    connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
 
     // Status labels
     ui->labelGyroStatus->setText("Disconnected");
     ui->labelJoystickStatus->setText("Disconnected");
+    ui->labelVideoStatus->setText("Stopped");
+
+    setupVideo();
 }
 
 MainWindow::~MainWindow()
 {
+    stopVideo();
+    if (m_videoDec) {
+        m_videoDec->stopThread();
+        delete m_videoDec;
+        m_videoDec = nullptr;
+    }
+    if (m_frameMutex) {
+        CloseHandle(m_frameMutex);
+        m_frameMutex = nullptr;
+    }
     delete ui;
 }
 
@@ -72,6 +89,10 @@ void MainWindow::loadAllSettings()
     m_camera->loadSettings(m_configPath);
     m_gyro->loadSettings(m_configPath);
     m_rangefinder->loadSettings(m_configPath);
+
+    QSettings s(m_configPath, QSettings::IniFormat);
+    m_videoPort = s.value("Video/port", 5004).toInt();
+    m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
 }
 
 void MainWindow::onConnectClicked()
@@ -361,3 +382,100 @@ void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
     ui->Ld_status->setText("Status: " + statusText);
 }
 
+
+// ============================================================================
+// Video
+// ============================================================================
+void MainWindow::setupVideo()
+{
+    m_frameMutex = CreateMutexA(nullptr, FALSE, nullptr);
+
+    udpDec::PlayerInitStructure p{};
+    p.udpport        = m_videoPort;
+    p.udptimeout     = m_videoTimeoutMs;
+    p.imageWidth     = 0;
+    p.imageHeight    = 0;
+    p.pFrameOutQueue = &m_frameQueue;
+    p.pHframeMutex   = &m_frameMutex;
+
+    m_videoDec = new udpDec(&p);
+
+    m_videoTimer = new QTimer(this);
+    connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
+}
+
+void MainWindow::onVideoStartClicked()
+{
+    if (!m_videoDec) return;
+    m_videoDec->on();
+    m_videoTimer->start(33);
+    ui->labelVideoStatus->setText("Running");
+    ui->labelVideoStatus->setStyleSheet("color: green;");
+    ui->btnVideoStart->setEnabled(false);
+    ui->btnVideoStop->setEnabled(true);
+    ui->videoLabel->setText("");
+}
+
+void MainWindow::onVideoStopClicked()
+{
+    stopVideo();
+}
+
+void MainWindow::stopVideo()
+{
+    if (m_videoTimer)
+        m_videoTimer->stop();
+    if (m_videoDec)
+        m_videoDec->off();
+
+    if (m_frameMutex)
+        WaitForSingleObject(m_frameMutex, INFINITE);
+    while (!m_frameQueue.empty()) {
+        AVFrame f = m_frameQueue.front();
+        m_frameQueue.pop();
+        if (f.data[0]) av_free(f.data[0]);
+    }
+    if (m_frameMutex)
+        ReleaseMutex(m_frameMutex);
+
+    ui->videoLabel->clear();
+    ui->videoLabel->setText("No signal");
+    ui->labelVideoStatus->setText("Stopped");
+    ui->labelVideoStatus->setStyleSheet("color: gray;");
+    ui->btnVideoStart->setEnabled(true);
+    ui->btnVideoStop->setEnabled(false);
+}
+
+void MainWindow::onVideoTimer()
+{
+    AVFrame frame{};
+    bool hasFrame = false;
+
+    if (m_frameMutex)
+        WaitForSingleObject(m_frameMutex, INFINITE);
+    if (!m_frameQueue.empty()) {
+        frame = m_frameQueue.front();
+        m_frameQueue.pop();
+        hasFrame = true;
+    }
+    if (m_frameMutex)
+        ReleaseMutex(m_frameMutex);
+
+    if (!hasFrame || !frame.data[0])
+        return;
+
+    QImage img(frame.data[0], frame.width, frame.height,
+               frame.linesize[0], QImage::Format_BGR888);
+
+    QPixmap pix = QPixmap::fromImage(img).scaled(
+        ui->videoLabel->size(),
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation);
+
+    ui->videoLabel->setPixmap(pix);
+
+    if (frame.data[0]) {
+        av_free(frame.data[0]);
+        frame.data[0] = nullptr;
+    }
+}

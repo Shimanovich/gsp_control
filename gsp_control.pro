@@ -22,6 +22,8 @@ win32 {
     INCLUDEPATH += d:/work/6176/ffmpeg-8.1.2-full_build-shared/include/
     LIBS += -Ld:/work/6176/ffmpeg-8.1.2-full_build-shared/lib/ \
             -lavcodec -lavutil -lswscale -lavformat
+    # Winsock for udpReceiveAndDecode
+    LIBS += -lws2_32
 }
 unix {
     # Вариант через pkg-config (рекомендуется)
