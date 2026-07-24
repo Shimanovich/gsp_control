@@ -1,4 +1,6 @@
 #include "udpReceiveAndDecode.h"
+#include "qdebug.h"
+#include "qlogging.h"
 
 #include <chrono>
 
@@ -8,7 +10,7 @@
 udpDec::udpDec(PlayerInitStructure* param)
 {
     if (!param) {
-        printf("udpDec: null param\n");
+        qDebug()<<"udpDec: null param\n";
         return;
     }
 
@@ -26,13 +28,14 @@ udpDec::udpDec(PlayerInitStructure* param)
 
     // ---- Winsock ----
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        printf("udpDec: WSAStartup failed %d\n", WSAGetLastError());
+        qDebug()<< "udpDec: WSAStartup failed " << WSAGetLastError();
         return;
     }
 
+    Sleep(500);
     ReceivingSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (ReceivingSocket == INVALID_SOCKET) {
-        printf("udpDec: socket() failed %d\n", WSAGetLastError());
+         qDebug()<<"udpDec: socket() failed "<< WSAGetLastError();
         WSACleanup();
         return;
     }
@@ -52,13 +55,13 @@ udpDec::udpDec(PlayerInitStructure* param)
     setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&rcvbuf, sizeof(rcvbuf));
 
     if (bind(ReceivingSocket, (SOCKADDR*)&ReceiverAddr, sizeof(ReceiverAddr)) == SOCKET_ERROR) {
-        printf("udpDec: bind() failed %d\n", WSAGetLastError());
+         qDebug()<<"udpDec: bind() failed "<< WSAGetLastError();
         closesocket(ReceivingSocket);
         ReceivingSocket = INVALID_SOCKET;
         WSACleanup();
         return;
     }
-    printf("udpDec: bound to port %u\n", m_recudpport);
+     qDebug()<<"udpDec: bound to port "<< m_recudpport;
 
 
 
@@ -99,26 +102,27 @@ udpDec::udpDec(PlayerInitStructure* param)
     context->delay = 0;
 
     if (avcodec_open2(context, codec, nullptr) < 0) {
-        printf("udpDec: cannot open codec\n");
+         qDebug()<<"udpDec: cannot open codec";
         return;
     }
 
     frame_yuv = av_frame_alloc();
     if (!frame_yuv) {
-        printf("udpDec: cannot allocate frame\n");
+         qDebug()<<"udpDec: cannot allocate frame";
         return;
     }
 
     packet = av_packet_alloc();
     if (!packet) {
-        printf("udpDec: cannot allocate packet\n");
+         qDebug()<<"udpDec: cannot allocate packet";
         return;
     }
-
-    m_recvThread   = std::thread(&udpDec::receiveLoop, this);
+    on();
     m_decodeThread = std::thread(&udpDec::decodeLoop, this);
+    m_recvThread   = std::thread(&udpDec::receiveLoop, this);
 
-    printf("udpDec: threads started (modern FFmpeg API)\n");
+
+     qDebug()<<"udpDec: threads started (modern FFmpeg API)";
 }
 
 // ============================================================================
