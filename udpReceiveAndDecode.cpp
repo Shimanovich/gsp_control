@@ -1,16 +1,16 @@
 #include "udpReceiveAndDecode.h"
-#include "qdebug.h"
-#include "qlogging.h"
-
+#include "qvariant.h"
+#include <QNetworkProxy>
 #include <chrono>
 
 // ============================================================================
 // Constructor
 // ============================================================================
-udpDec::udpDec(PlayerInitStructure* param)
+udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
+    : QObject(parent)
 {
     if (!param) {
-        qDebug()<<"udpDec: null param\n";
+        qDebug() << "udpDec: null param";
         return;
     }
 
@@ -26,55 +26,6 @@ udpDec::udpDec(PlayerInitStructure* param)
     m_enable = false;
     m_active = true;
 
-    // ---- Winsock ----
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        qDebug()<< "udpDec: WSAStartup failed " << WSAGetLastError();
-        return;
-    }
-
-    Sleep(500);
-    ReceivingSocket = socket(AF_INET, SOCK_DGRAM, 0);
-    if (ReceivingSocket == INVALID_SOCKET) {
-         qDebug()<<"udpDec: socket() failed "<< WSAGetLastError();
-        WSACleanup();
-        return;
-    }
-
-    memset(&ReceiverAddr, 0, sizeof(ReceiverAddr));
-    ReceiverAddr.sin_family      = AF_INET;
-    ReceiverAddr.sin_port        = htons(m_recudpport);
-    ReceiverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    int timeout = param->udptimeout;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
-
-    u_int yes = 1;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes));
-
-    int rcvbuf = 4 * 1024 * 1024;
-    setsockopt(ReceivingSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&rcvbuf, sizeof(rcvbuf));
-
-    if (bind(ReceivingSocket, (SOCKADDR*)&ReceiverAddr, sizeof(ReceiverAddr)) == SOCKET_ERROR) {
-         qDebug()<<"udpDec: bind() failed "<< WSAGetLastError();
-        closesocket(ReceivingSocket);
-        ReceivingSocket = INVALID_SOCKET;
-        WSACleanup();
-        return;
-    }
-     qDebug()<<"udpDec: bound to port "<< m_recudpport;
-
-
-
-    // // Multicast (optional)
-    // struct ip_mreq mreq;
-    // mreq.imr_multiaddr.s_addr = inet_addr("232.32.32.32");
-    // mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    // if (setsockopt(ReceivingSocket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) < 0) {
-    //     printf("udpDec: multicast join failed (ok for unicast)\n");
-    // }
-
-
-
     // ---- FFmpeg (modern API) ----
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
     av_register_all();
@@ -84,13 +35,13 @@ udpDec::udpDec(PlayerInitStructure* param)
 
     codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!codec) {
-        printf("udpDec: H.264 decoder not found\n");
+        qDebug() << "udpDec: H.264 decoder not found";
         return;
     }
 
     context = avcodec_alloc_context3(codec);
     if (!context) {
-        printf("udpDec: cannot allocate codec context\n");
+        qDebug() << "udpDec: cannot allocate codec context";
         return;
     }
 
@@ -102,27 +53,44 @@ udpDec::udpDec(PlayerInitStructure* param)
     context->delay = 0;
 
     if (avcodec_open2(context, codec, nullptr) < 0) {
-         qDebug()<<"udpDec: cannot open codec";
+        qDebug() << "udpDec: cannot open codec";
         return;
     }
 
     frame_yuv = av_frame_alloc();
     if (!frame_yuv) {
-         qDebug()<<"udpDec: cannot allocate frame";
+        qDebug() << "udpDec: cannot allocate frame";
         return;
     }
 
     packet = av_packet_alloc();
     if (!packet) {
-         qDebug()<<"udpDec: cannot allocate packet";
+        qDebug() << "udpDec: cannot allocate packet";
         return;
     }
-    on();
+
+    // ---- QUdpSocket ----
+    m_socket_video = new QUdpSocket(this);
+
+    // Large receive buffer (best effort)
+    // const QVariant val = 4 * 1024 * 1024;
+    // m_socket->setSocketOption(QAbstractSocket::ReceiveBufferSizeSocketOption, val);
+
+    m_socket_video->setProxy(QNetworkProxy::NoProxy);
+    if (!m_socket_video->bind(QHostAddress::AnyIPv4, m_recudpport,
+                        QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+        qDebug() << "udpDec: bind() failed" << m_socket_video->errorString();
+        return;
+    }
+    qDebug() << "udpDec: bound to port" << m_recudpport;
+
+    connect(m_socket_video, &QUdpSocket::readyRead, this, &udpDec::onReadyRead);
+
+    // Start enabled and decode thread (matches previous behaviour)
+
     m_decodeThread = std::thread(&udpDec::decodeLoop, this);
-    m_recvThread   = std::thread(&udpDec::receiveLoop, this);
 
-
-     qDebug()<<"udpDec: threads started (modern FFmpeg API)";
+    qDebug() << "udpDec: decode thread started (QUdpSocket + modern FFmpeg API)";
 }
 
 // ============================================================================
@@ -149,11 +117,7 @@ udpDec::~udpDec()
     if (context) {
         avcodec_free_context(&context);
     }
-    if (ReceivingSocket != INVALID_SOCKET) {
-        closesocket(ReceivingSocket);
-        ReceivingSocket = INVALID_SOCKET;
-    }
-    WSACleanup();
+    // m_socket is child of this, deleted automatically
 }
 
 // ============================================================================
@@ -164,13 +128,34 @@ void udpDec::stopThread()
     m_active = false;
     m_queueCv.notify_all();
 
-    if (ReceivingSocket != INVALID_SOCKET) {
-        closesocket(ReceivingSocket);
-        ReceivingSocket = INVALID_SOCKET;
+    if (m_socket_video) {
+        m_socket_video->disconnect(this);
+        m_socket_video->close();
     }
 
-    if (m_recvThread.joinable())   m_recvThread.join();
-    if (m_decodeThread.joinable()) m_decodeThread.join();
+    if (m_decodeThread.joinable())
+        m_decodeThread.join();
+}
+
+// ============================================================================
+// Qt readyRead → RTP processing
+// ============================================================================
+void udpDec::onReadyRead()
+{
+    if (!m_socket_video)
+        return;
+
+    while (m_socket_video->hasPendingDatagrams()) {
+        QByteArray datagram;
+        datagram.resize(static_cast<int>(m_socket_video->pendingDatagramSize()));
+        m_socket_video->readDatagram(datagram.data(), datagram.size());
+
+        if (!m_enable)
+            continue;
+
+        processRtpPacket(reinterpret_cast<const uint8_t*>(datagram.constData()),
+                         datagram.size());
+    }
 }
 
 // ============================================================================
@@ -249,28 +234,6 @@ bool udpDec::processRtpPacket(const uint8_t* rtp, int len)
 }
 
 // ============================================================================
-// Receive thread
-// ============================================================================
-void udpDec::receiveLoop()
-{
-    while (m_active) {
-        int n = recvfrom(ReceivingSocket,
-                         reinterpret_cast<char*>(m_rtpBuf),
-                         MAX_UDP_SIZE,
-                         0, nullptr, nullptr);
-
-        if (n <= 0) {
-            if (!m_active) break;
-            continue;
-        }
-
-        if (!m_enable) continue;
-
-        processRtpPacket(m_rtpBuf, n);
-    }
-}
-
-// ============================================================================
 // Decode thread  (modern FFmpeg API)
 // ============================================================================
 void udpDec::decodeLoop()
@@ -327,7 +290,7 @@ void udpDec::decodeLoop()
                 src_pixfmt = static_cast<AVPixelFormat>(frame_yuv->format);
                 first_frame = 0;
 
-                printf("udpDec: first frame %dx%d\n", frame_yuv->width, frame_yuv->height);
+                qDebug() << "udpDec: first frame" << frame_yuv->width << "x" << frame_yuv->height;
 
                 convert_ctx = sws_getContext(
                     frame_yuv->width, frame_yuv->height, src_pixfmt,
@@ -335,7 +298,7 @@ void udpDec::decodeLoop()
                     SWS_BICUBIC, nullptr, nullptr, nullptr);
 
                 if (!convert_ctx) {
-                    printf("udpDec: cannot create sws context\n");
+                    qDebug() << "udpDec: cannot create sws context";
                     continue;
                 }
             }

@@ -1,20 +1,17 @@
 #pragma once
 
 // Modernized H.264 RTP decoder for FFmpeg 4.0+ / 5.x / 6.x / 7.x / 8.x
-// - No ByteFifo
+// - Uses QUdpSocket (no raw Winsock)
 // - std::queue of complete Annex-B NAL units between threads
-// - FU-A reassembly in receive thread
+// - FU-A reassembly in readyRead handler
 // - New FFmpeg API: avcodec_send_packet / avcodec_receive_frame
-// - Compatible with MinGW / MSVC / Clang
+// - Compatible with MinGW / MSVC / Clang + Qt
 
-#include <winsock2.h>
-#include <Ws2tcpip.h>
+#include <QObject>
+#include <QUdpSocket>
+#include <QHostAddress>
+#include <QDebug>
 
-#ifdef _MSC_VER
-#pragma comment(lib, "Ws2_32.lib")
-#endif
-
-#include <Windows.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -26,6 +23,10 @@
 #include <mutex>
 #include <condition_variable>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
@@ -34,12 +35,14 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-class udpDec
+class udpDec : public QObject
 {
+    Q_OBJECT
+
 public:
     struct PlayerInitStructure {
         int  udpport      = 5000;
-        int  udptimeout   = 50;
+        int  udptimeout   = 50;          // kept for compatibility, not used with QUdpSocket
         char adapterName[64] = {0};
         int  imageWidth   = 0;
         int  imageHeight  = 0;
@@ -47,13 +50,16 @@ public:
         HANDLE* pHframeMutex = nullptr;
     };
 
-    explicit udpDec(PlayerInitStructure* param);
-    ~udpDec();
+    explicit udpDec(PlayerInitStructure* param, QObject* parent = nullptr);
+    ~udpDec() override;
 
     void stopThread();
     void on()  { m_enable = true;  }
     void off() { m_enable = false; }
     bool state() const { return m_enable; }
+
+private slots:
+    void onReadyRead();
 
 private:
     typedef struct nalu_header {
@@ -72,13 +78,10 @@ private:
     static constexpr int    MAX_UDP_SIZE   = 1500;
     static constexpr size_t MAX_NAL_QUEUE  = 64;
 
-    // Winsock
-    WSADATA     wsaData{};
-    SOCKET      ReceivingSocket = INVALID_SOCKET;
-    SOCKADDR_IN ReceiverAddr{};
+    // Qt UDP
+    QUdpSocket* m_socket_video = nullptr;
 
-    // Threads
-    std::thread          m_recvThread;
+    // Decode thread only (receive is via Qt signal)
     std::thread          m_decodeThread;
     std::atomic<bool>    m_active{true};
 
@@ -96,7 +99,7 @@ private:
     const AVCodec*      codec       = nullptr;
     AVCodecContext*     context     = nullptr;
     AVFrame*            frame_yuv   = nullptr;
-    AVPacket*           packet      = nullptr;   // av_packet_alloc
+    AVPacket*           packet      = nullptr;
     AVFrame             dst{};
     struct SwsContext*  convert_ctx = nullptr;
     AVPixelFormat       src_pixfmt  = AV_PIX_FMT_NONE;
@@ -109,13 +112,10 @@ private:
 
     std::queue<AVFrame>* m_frameQueue = nullptr;
 
-    uint8_t m_rtpBuf[MAX_UDP_SIZE]{};
-
     // FU-A state
     std::vector<uint8_t> m_fuBuffer;
     bool                 m_inFuA = false;
 
-    void receiveLoop();
     void decodeLoop();
     bool processRtpPacket(const uint8_t* rtp, int len);
 
