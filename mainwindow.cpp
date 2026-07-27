@@ -1,4 +1,3 @@
-
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -394,11 +393,8 @@ void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
 // ============================================================================
 void MainWindow::setupVideo()
 {
-
-}
-
-void MainWindow::onVideoStartClicked()
-{
+    // Decoder and timer are created once here.
+    // This avoids leaks and allows clean Stop/Start cycles.
     m_frameMutex = CreateMutexA(nullptr, FALSE, nullptr);
 
     udpDec::PlayerInitStructure p{};
@@ -411,14 +407,26 @@ void MainWindow::onVideoStartClicked()
 
     m_videoDec = new udpDec(&p, this);
 
-     m_videoTimer = new QTimer(this);
-     connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
+    m_videoTimer = new QTimer(this);
+    connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
+}
 
-
-
-
+void MainWindow::onVideoStartClicked()
+{
+    if (!m_videoDec) {
+        // Fallback if setupVideo was not called
+        setupVideo();
+    }
     if (!m_videoDec) return;
-    m_videoDec->on();
+
+    if (!m_videoDec->on()) {
+        ui->labelVideoStatus->setText("Open failed");
+        ui->labelVideoStatus->setStyleSheet("color: red;");
+        ui->btnVideoStart->setEnabled(true);
+        ui->btnVideoStop->setEnabled(false);
+        return;
+    }
+
     m_videoTimer->start(33);
     ui->labelVideoStatus->setText("Running");
     ui->labelVideoStatus->setStyleSheet("color: green;");
