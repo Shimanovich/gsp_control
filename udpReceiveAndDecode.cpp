@@ -1,6 +1,7 @@
 #include "udpReceiveAndDecode.h"
-#include "qvariant.h"
+
 #include <chrono>
+#include <thread>
 
 // ============================================================================
 // Constructor
@@ -13,73 +14,90 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
         return;
     }
 
-     m_frameQueue   = param->pFrameOutQueue;
-     m_winHeight    = param->imageHeight;
-     m_winWidth     = param->imageWidth;
-     m_recudpport   = static_cast<uint16_t>(param->udpport);
-     m_pHframeMutex = param->pHframeMutex;
+    m_frameQueue   = param->pFrameOutQueue;
+    m_winHeight    = param->imageHeight;
+    m_winWidth     = param->imageWidth;
+    m_recudpport   = static_cast<uint16_t>(param->udpport);
+    m_pHframeMutex = param->pHframeMutex;
 
+    strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
+    m_adapterName[sizeof(m_adapterName) - 1] = '\0';
 
+    m_enable = false;
+    m_active = true;
+    m_opened = false;
 
-    codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    if (!codec) {
-        qDebug() << "udpDec: H.264 decoder not found";
-        return;
-    }
+    // Приглушаем спам логов FFmpeg
+    av_log_set_level(AV_LOG_ERROR);
 
-    context = avcodec_alloc_context3(codec);
-    if (!context) {
-        qDebug() << "udpDec: cannot allocate codec context";
-        return;
-    }
-
-    context->flags  |= AV_CODEC_FLAG_LOW_DELAY;
-    context->flags2 |= AV_CODEC_FLAG2_CHUNKS;
-    context->thread_count = 4;
-    context->thread_type  = FF_THREAD_SLICE;
-    context->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
-    context->delay = 0;
-
-    if (avcodec_open2(context, codec, nullptr) < 0) {
-        qDebug() << "udpDec: cannot open codec";
-        return;
-    }
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+    av_register_all();
+    avcodec_register_all();
+#endif
+    avformat_network_init();
 
     frame_yuv = av_frame_alloc();
-    if (!frame_yuv) {
-        qDebug() << "udpDec: cannot allocate frame";
+    packet    = av_packet_alloc();
+
+    if (!frame_yuv || !packet) {
+        qDebug() << "udpDec: cannot allocate frame/packet";
         return;
     }
 
-    packet = av_packet_alloc();
-    if (!packet) {
-        qDebug() << "udpDec: cannot allocate packet";
-        return;
-    }
-
-    // ---- QUdpSocket ----
-    m_socket_video = new QUdpSocket(this);
-
-    // Large receive buffer (best effort)
-     const QVariant val = 4 * 1024 * 1024;
-     m_socket_video->setSocketOption(QAbstractSocket::ReceiveBufferSizeSocketOption, val);
-
-    if (!m_socket_video->bind(QHostAddress::AnyIPv4, m_recudpport,
-                        QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
-        qDebug() << "udpDec: bind() failed" << m_socket_video->errorString();
-        return;
-    }
-    qDebug() << "udpDec: bound to port" << m_recudpport;
-
-    connect(m_socket_video, &QUdpSocket::readyRead, this, &udpDec::onReadyRead);
-
+    // Поток запускаем сразу — он ждёт m_enable / m_opened
     m_decodeThread = std::thread(&udpDec::decodeLoop, this);
 
-    qDebug() << "udpDec: decode thread started (QUdpSocket + modern FFmpeg API)";
+    qDebug() << "udpDec: constructed (FFmpeg demuxer mode, port" << m_recudpport << ")";
+}
 
+// ============================================================================
+// on() — открыть вход и начать приём
+// ============================================================================
+void udpDec::on()
+{
+    if (m_enable.load())
+        return;
 
-     m_enable = false;
-     m_active = true;
+    if (!openInput()) {
+        qDebug() << "udpDec: openInput failed";
+        return;
+    }
+    m_enable = true;
+    qDebug() << "udpDec: on() — receiving";
+}
+
+// ============================================================================
+// off() — остановить приём (поток продолжает жить)
+// ============================================================================
+void udpDec::off()
+{
+    m_enable = false;
+    // Не закрываем input сразу — даём decodeLoop корректно выйти из av_read_frame
+    // Полное закрытие произойдёт при следующем on() или stopThread()
+}
+
+// ============================================================================
+// startListening — оставлен для совместимости API (ничего не делает)
+// ============================================================================
+bool udpDec::startListening()
+{
+    return true;
+}
+
+// ============================================================================
+// stopThread — полное завершение
+// ============================================================================
+void udpDec::stopThread()
+{
+    m_enable = false;
+    m_active = false;
+
+    // Разбудить поток, если он ждёт
+    // (av_read_frame может блокироваться, поэтому закрываем input)
+    closeInput();
+
+    if (m_decodeThread.joinable())
+        m_decodeThread.join();
 }
 
 // ============================================================================
@@ -99,236 +117,348 @@ udpDec::~udpDec()
     }
     if (frame_yuv) {
         av_frame_free(&frame_yuv);
+        frame_yuv = nullptr;
     }
     if (packet) {
         av_packet_free(&packet);
-    }
-    if (context) {
-        avcodec_free_context(&context);
-    }
-    // m_socket is child of this, deleted automatically
-}
-
-// ============================================================================
-// Graceful stop
-// ============================================================================
-void udpDec::stopThread()
-{
-    m_active = false;
-    m_queueCv.notify_all();
-
-    if (m_socket_video) {
-        m_socket_video->disconnect(this);
-        m_socket_video->close();
-    }
-
-    if (m_decodeThread.joinable())
-        m_decodeThread.join();
-}
-
-// ============================================================================
-// Qt readyRead → RTP processing
-// ============================================================================
-void udpDec::onReadyRead()
-{
-    if (!m_socket_video)
-        return;
-
-    while (m_socket_video->hasPendingDatagrams()) {
-        QByteArray datagram;
-        datagram.resize(static_cast<int>(m_socket_video->pendingDatagramSize()));
-        m_socket_video->readDatagram(datagram.data(), datagram.size());
-
-        if (!m_enable)
-            continue;
-
-        processRtpPacket(reinterpret_cast<const uint8_t*>(datagram.constData()),
-                         datagram.size());
-
-
+        packet = nullptr;
     }
 }
 
 // ============================================================================
-// RTP → complete Annex-B NAL (with FU-A reassembly)
+// openInput — avformat_open_input("udp://@:port")
 // ============================================================================
-bool udpDec::processRtpPacket(const uint8_t* rtp, int len)
+bool udpDec::openInput()
 {
-    if (len < 13) return false;
+    std::lock_guard<std::mutex> lock(m_openMutex);
 
-    const nalu_header_t* nalu = reinterpret_cast<const nalu_header_t*>(&rtp[12]);
-
-    // ---------- Single NAL unit ----------
-    if (nalu->type != 28) {
-        std::vector<uint8_t> nal;
-        nal.reserve(static_cast<size_t>(len - 12) + 4);
-
-        nal.push_back(0);
-        nal.push_back(0);
-        nal.push_back(0);
-        nal.push_back(1);
-
-        uint8_t hdr = (nalu->type & 0x1f) | (nalu->nri << 5) | (nalu->f << 7);
-        nal.push_back(hdr);
-        nal.insert(nal.end(), rtp + 13, rtp + len);
-
-        {
-            std::lock_guard<std::mutex> lock(m_queueMutex);
-            if (m_nalQueue.size() >= MAX_NAL_QUEUE)
-                m_nalQueue.pop();
-            m_nalQueue.push(std::move(nal));
-        }
-        m_queueCv.notify_one();
-        return true;
+    if (m_opened.load()) {
+        // Уже открыт — сначала закрываем
+        closeInputUnlocked();
     }
 
-    // ---------- FU-A ----------
-    if (len < 14) return false;
+    // Поток — RTP/H.264 без SDP.
+    // Минимальный SDP приведён к виду, который работает в VLC:
+    //   c=IN IP4 127.0.0.1
+    //   m=video 5000 RTP/AVP 96
+    //   a=rtpmap:96 H264/90000
+    // c= ставим 0.0.0.0, чтобы слушать на всех интерфейсах.
 
-    const fu_header_t* fu = reinterpret_cast<const fu_header_t*>(&rtp[13]);
+    char sdp[512];
+    snprintf(sdp, sizeof(sdp),
+             "v=0\r\n"
+             "o=- 0 0 IN IP4 127.0.0.1\r\n"
+             "s=GSP\r\n"
+             "c=IN IP4 0.0.0.0\r\n"
+             "t=0 0\r\n"
+             "m=video %u RTP/AVP 96\r\n"
+             "a=rtpmap:96 H264/90000\r\n",
+             static_cast<unsigned>(m_recudpport));
 
-    if (fu->s) {                                // start
-        m_fuBuffer.clear();
-        m_fuBuffer.reserve(4096);
+    AVDictionary* opts = nullptr;
+    av_dict_set(&opts, "protocol_whitelist", "file,udp,rtp,tcp", 0);
+    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt", 0);
+    av_dict_set(&opts, "flags", "low_delay", 0);
+    av_dict_set(&opts, "probesize", "32768", 0);
+    av_dict_set(&opts, "analyzeduration", "500000", 0);
+    av_dict_set(&opts, "max_delay", "100000", 0);
 
-        m_fuBuffer.push_back(0);
-        m_fuBuffer.push_back(0);
-        m_fuBuffer.push_back(0);
-        m_fuBuffer.push_back(1);
-
-        uint8_t hdr = (fu->type & 0x1f) | (nalu->nri << 5) | (nalu->f << 7);
-        m_fuBuffer.push_back(hdr);
-        m_fuBuffer.insert(m_fuBuffer.end(), rtp + 14, rtp + len);
-        m_inFuA = true;
+    // Открываем SDP из памяти через AVIO
+    // (avformat_open_input с "sdp" + custom IO)
+    fmt_ctx = avformat_alloc_context();
+    if (!fmt_ctx) {
+        qDebug() << "udpDec: avformat_alloc_context failed";
+        av_dict_free(&opts);
         return false;
     }
 
-    if (!m_inFuA)
+    // Буфер SDP (FFmpeg скопирует данные)
+    AVIOContext* avio = nullptr;
+    unsigned char* sdp_buf = static_cast<unsigned char*>(av_malloc(strlen(sdp) + 1));
+    if (!sdp_buf) {
+        av_dict_free(&opts);
+        avformat_free_context(fmt_ctx);
+        fmt_ctx = nullptr;
         return false;
+    }
+    memcpy(sdp_buf, sdp, strlen(sdp) + 1);
 
-    m_fuBuffer.insert(m_fuBuffer.end(), rtp + 14, rtp + len);
+    avio = avio_alloc_context(sdp_buf, static_cast<int>(strlen(sdp)), 0,
+                              nullptr, nullptr, nullptr, nullptr);
+    if (!avio) {
+        av_free(sdp_buf);
+        av_dict_free(&opts);
+        avformat_free_context(fmt_ctx);
+        fmt_ctx = nullptr;
+        return false;
+    }
+    fmt_ctx->pb = avio;
 
-    if (fu->e) {                                // end
-        m_inFuA = false;
-        {
-            std::lock_guard<std::mutex> lock(m_queueMutex);
-            if (m_nalQueue.size() >= MAX_NAL_QUEUE)
-                m_nalQueue.pop();
-            m_nalQueue.push(std::move(m_fuBuffer));
+    const AVInputFormat* sdp_fmt = av_find_input_format("sdp");
+    int ret = avformat_open_input(&fmt_ctx, "memory.sdp", sdp_fmt, &opts);
+    av_dict_free(&opts);
+
+    if (ret < 0) {
+        char errbuf[128];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        qDebug() << "udpDec: avformat_open_input (SDP) failed:" << errbuf;
+        // avio_context и sdp_buf освободятся при close
+        if (fmt_ctx) {
+            if (fmt_ctx->pb) {
+                av_freep(&fmt_ctx->pb->buffer);
+                avio_context_free(&fmt_ctx->pb);
+            }
+            avformat_free_context(fmt_ctx);
+            fmt_ctx = nullptr;
         }
-        m_fuBuffer.clear();
-        m_queueCv.notify_one();
-        return true;
+        return false;
     }
 
-    return false;
+
+    // Находим потоки
+    ret = avformat_find_stream_info(fmt_ctx, nullptr);
+    if (ret < 0) {
+        qDebug() << "udpDec: avformat_find_stream_info failed";
+        avformat_close_input(&fmt_ctx);
+        return false;
+    }
+
+    // Ищем видео-поток
+    video_stream_index = -1;
+    for (unsigned i = 0; i < fmt_ctx->nb_streams; ++i) {
+        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            video_stream_index = static_cast<int>(i);
+            break;
+        }
+    }
+
+    if (video_stream_index < 0) {
+        // Иногда поток определяется как data — пробуем первый
+        if (fmt_ctx->nb_streams > 0) {
+            video_stream_index = 0;
+            qDebug() << "udpDec: no explicit video stream, using stream 0";
+        } else {
+            qDebug() << "udpDec: no streams found";
+            avformat_close_input(&fmt_ctx);
+            return false;
+        }
+    }
+
+    AVCodecParameters* par = fmt_ctx->streams[video_stream_index]->codecpar;
+
+    codec = avcodec_find_decoder(par->codec_id);
+    if (!codec) {
+        // Часто приходит как AV_CODEC_ID_NONE / data — форсируем H.264
+        codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+        if (!codec) {
+            qDebug() << "udpDec: H.264 decoder not found";
+            avformat_close_input(&fmt_ctx);
+            return false;
+        }
+        qDebug() << "udpDec: forced H.264 decoder";
+    }
+
+    codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        qDebug() << "udpDec: cannot allocate codec context";
+        avformat_close_input(&fmt_ctx);
+        return false;
+    }
+
+    if (avcodec_parameters_to_context(codec_ctx, par) < 0) {
+        qDebug() << "udpDec: parameters_to_context failed, continuing with defaults";
+    }
+
+    codec_ctx->flags  |= AV_CODEC_FLAG_LOW_DELAY;
+    codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+    codec_ctx->thread_count = 1;
+    codec_ctx->thread_type  = FF_THREAD_SLICE;
+    codec_ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+    codec_ctx->err_recognition   = AV_EF_CAREFUL;
+    codec_ctx->delay = 0;
+
+    if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
+        qDebug() << "udpDec: avcodec_open2 failed";
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&fmt_ctx);
+        return false;
+    }
+
+    m_opened = true;
+    qDebug() << "udpDec: input opened, stream" << video_stream_index
+             << "codec" << codec->name
+             << "size" << codec_ctx->width << "x" << codec_ctx->height;
+    return true;
 }
 
 // ============================================================================
-// Decode thread  (modern FFmpeg API)
+// closeInput helpers
 // ============================================================================
-void udpDec::decodeLoop()
+void udpDec::closeInput()
 {
-    int first_frame = 1;
+    std::lock_guard<std::mutex> lock(m_openMutex);
+    closeInputUnlocked();
+}
 
-    while (m_active) {
-        std::vector<uint8_t> nal;
-
-        {
-            std::unique_lock<std::mutex> lock(m_queueMutex);
-            m_queueCv.wait(lock, [this] {
-                return !m_nalQueue.empty() || !m_active;
-            });
-
-            if (!m_active) break;
-
-            nal = std::move(m_nalQueue.front());
-            m_nalQueue.pop();
-        }
-
-        if (nal.size() < 5) continue;
-
-        // ---- Modern send / receive API ----
-        av_packet_unref(packet);
-        packet->data = nal.data();
-        packet->size = static_cast<int>(nal.size());
-
-        int ret = avcodec_send_packet(context, packet);
-        if (ret < 0) {
-            if (ret != AVERROR(EAGAIN))
-                continue;
-        }
-
-        while (ret >= 0) {
-            ret = avcodec_receive_frame(context, frame_yuv);
-            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-                break;
-            if (ret < 0)
-                break;
-
-            // ---- got a frame ----
-            if (first_frame) {
-                if (m_winHeight == 0 || m_winWidth == 0) {
-                    m_winHeight = frame_yuv->height;
-                    m_winWidth  = frame_yuv->width;
-                }
-
-                int numBytes = av_image_get_buffer_size(dst_pixfmt, m_winWidth, m_winHeight, 1);
-                dst.data[0] = static_cast<uint8_t*>(av_malloc(numBytes));
-                av_image_fill_arrays(dst.data, dst.linesize, dst.data[0],
-                                     dst_pixfmt, m_winWidth, m_winHeight, 1);
-
-                src_pixfmt = static_cast<AVPixelFormat>(frame_yuv->format);
-                first_frame = 0;
-
-                qDebug() << "udpDec: first frame" << frame_yuv->width << "x" << frame_yuv->height;
-
-                convert_ctx = sws_getContext(
-                    frame_yuv->width, frame_yuv->height, src_pixfmt,
-                    m_winWidth, m_winHeight, dst_pixfmt,
-                    SWS_BICUBIC, nullptr, nullptr, nullptr);
-
-                if (!convert_ctx) {
-                    qDebug() << "udpDec: cannot create sws context";
-                    continue;
-                }
-            }
-
-            sws_scale(convert_ctx,
-                      frame_yuv->data, frame_yuv->linesize,
-                      0, frame_yuv->height,
-                      dst.data, dst.linesize);
-
-            dst.width  = frame_yuv->width;
-            dst.height = frame_yuv->height;
-
-            if (m_enable && m_frameQueue) {
-                AVFrame copy = deepCopyFrame(dst);
-
-                if (m_pHframeMutex)
-                    WaitForSingleObject(*m_pHframeMutex, INFINITE);
-
-                while (m_frameQueue->size() >= 2) {
-                    AVFrame old = m_frameQueue->front();
-                    m_frameQueue->pop();
-                    freeFrameData(old);
-                }
-                m_frameQueue->push(copy);
-
-                if (m_pHframeMutex)
-                    ReleaseMutex(*m_pHframeMutex);
-            }
-        }
+void udpDec::closeInputUnlocked()
+{
+    if (codec_ctx) {
+        avcodec_free_context(&codec_ctx);
+        codec_ctx = nullptr;
     }
+    if (fmt_ctx) {
+        // Мы сами создавали AVIO для SDP — освобождаем аккуратно
+        if (fmt_ctx->pb) {
+            if (fmt_ctx->pb->buffer)
+                av_freep(&fmt_ctx->pb->buffer);
+            avio_context_free(&fmt_ctx->pb);
+            fmt_ctx->pb = nullptr;
+        }
+        avformat_close_input(&fmt_ctx);   // nullptr-safe
+        fmt_ctx = nullptr;
+    }
+    video_stream_index = -1;
+    m_opened = false;
 
     if (convert_ctx) {
         sws_freeContext(convert_ctx);
         convert_ctx = nullptr;
     }
+    if (dst.data[0]) {
+        av_free(dst.data[0]);
+        dst.data[0] = nullptr;
+    }
+    src_pixfmt = AV_PIX_FMT_NONE;
+}
+
+
+// ============================================================================
+// processOnePacket — один цикл av_read_frame + decode
+// ============================================================================
+bool udpDec::processOnePacket()
+{
+    if (!fmt_ctx || !codec_ctx || !m_opened.load())
+        return false;
+
+    av_packet_unref(packet);
+
+    int ret = av_read_frame(fmt_ctx, packet);
+    if (ret < 0) {
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            return false;
+        // Ошибка чтения — можно попробовать продолжить
+        return false;
+    }
+
+    if (packet->stream_index != video_stream_index) {
+        av_packet_unref(packet);
+        return false;
+    }
+
+    ret = avcodec_send_packet(codec_ctx, packet);
+    av_packet_unref(packet);
+
+    if (ret < 0 && ret != AVERROR(EAGAIN)) {
+        avcodec_flush_buffers(codec_ctx);
+        return false;
+    }
+
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(codec_ctx, frame_yuv);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            break;
+        if (ret < 0) {
+            avcodec_flush_buffers(codec_ctx);
+            break;
+        }
+
+        // ---- получили кадр ----
+        if (src_pixfmt == AV_PIX_FMT_NONE || !convert_ctx) {
+            if (m_winHeight == 0 || m_winWidth == 0) {
+                m_winHeight = frame_yuv->height;
+                m_winWidth  = frame_yuv->width;
+            }
+            if (m_winWidth <= 0 || m_winHeight <= 0)
+                continue;
+
+            int numBytes = av_image_get_buffer_size(dst_pixfmt, m_winWidth, m_winHeight, 1);
+            if (numBytes <= 0)
+                continue;
+
+            if (dst.data[0])
+                av_free(dst.data[0]);
+            dst.data[0] = static_cast<uint8_t*>(av_malloc(numBytes));
+            av_image_fill_arrays(dst.data, dst.linesize, dst.data[0],
+                                 dst_pixfmt, m_winWidth, m_winHeight, 1);
+
+            src_pixfmt = static_cast<AVPixelFormat>(frame_yuv->format);
+
+            convert_ctx = sws_getContext(
+                frame_yuv->width, frame_yuv->height, src_pixfmt,
+                m_winWidth, m_winHeight, dst_pixfmt,
+                SWS_BICUBIC, nullptr, nullptr, nullptr);
+
+            if (!convert_ctx) {
+                qDebug() << "udpDec: cannot create sws context";
+                continue;
+            }
+            qDebug() << "udpDec: first frame" << frame_yuv->width << "x" << frame_yuv->height
+                     << "fmt" << src_pixfmt;
+        }
+
+        sws_scale(convert_ctx,
+                  frame_yuv->data, frame_yuv->linesize,
+                  0, frame_yuv->height,
+                  dst.data, dst.linesize);
+
+        dst.width  = frame_yuv->width;
+        dst.height = frame_yuv->height;
+
+        if (m_enable && m_frameQueue) {
+            AVFrame copy = deepCopyFrame(dst);
+
+            if (m_pHframeMutex)
+                WaitForSingleObject(*m_pHframeMutex, INFINITE);
+
+            while (m_frameQueue->size() >= 2) {
+                AVFrame old = m_frameQueue->front();
+                m_frameQueue->pop();
+                freeFrameData(old);
+            }
+            m_frameQueue->push(copy);
+
+            if (m_pHframeMutex)
+                ReleaseMutex(*m_pHframeMutex);
+        }
+    }
+
+    return true;
 }
 
 // ============================================================================
-// Deep copy / free
+// decodeLoop
+// ============================================================================
+void udpDec::decodeLoop()
+{
+    while (m_active.load()) {
+        if (!m_enable.load() || !m_opened.load()) {
+            // Ждём включения
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+
+        // Читаем пакеты
+        if (!processOnePacket()) {
+            // Небольшая пауза при отсутствии данных / ошибке
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+
+    closeInput();
+}
+
+// ============================================================================
+// Deep copy / free (same as before)
 // ============================================================================
 AVFrame udpDec::deepCopyFrame(const AVFrame& src)
 {

@@ -478,6 +478,7 @@ void MainWindow::onVideoTimer()
     QImage img(frame.data[0], frame.width, frame.height,
                frame.linesize[0], QImage::Format_BGR888);
 
+    img = img.mirrored(false, true);
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
