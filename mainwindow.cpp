@@ -394,6 +394,11 @@ void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
 // ============================================================================
 void MainWindow::setupVideo()
 {
+
+}
+
+void MainWindow::onVideoStartClicked()
+{
     m_frameMutex = CreateMutexA(nullptr, FALSE, nullptr);
 
     udpDec::PlayerInitStructure p{};
@@ -404,14 +409,14 @@ void MainWindow::setupVideo()
     p.pFrameOutQueue = &m_frameQueue;
     p.pHframeMutex   = &m_frameMutex;
 
-     m_videoDec = new udpDec(&p, this);
+    m_videoDec = new udpDec(&p, this);
 
-    // m_videoTimer = new QTimer(this);
-    // connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
-}
+     m_videoTimer = new QTimer(this);
+     connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
 
-void MainWindow::onVideoStartClicked()
-{
+
+
+
     if (!m_videoDec) return;
     m_videoDec->on();
     m_videoTimer->start(33);

@@ -63,7 +63,7 @@ namespace SimpleBGC {
     // Max. size of a payload data
 #define SBGC_CMD_DATA_SIZE (SBGC_CMD_MAX_BYTES - SBGC_CMD_NON_PAYLOAD_BYTES)
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
     // CMD_CONTROL
     typedef struct {
@@ -135,7 +135,7 @@ namespace SimpleBGC {
         uint8_t CRCsumm[2];
     } SerialCommand_t;
 
-#pragma pop(0)
+#pragma pack(pop)
 
 
     inline void crc16_update(uint16_t length,const uint8_t *data, uint8_t crc[2]) {
