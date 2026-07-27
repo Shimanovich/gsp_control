@@ -53,27 +53,32 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
 // ============================================================================
 // on() — открыть вход и начать приём
 // ============================================================================
-void udpDec::on()
+bool udpDec::on()
 {
     if (m_enable.load())
-        return;
+        return true;
 
     if (!openInput()) {
         qDebug() << "udpDec: openInput failed";
-        return;
+        return false;
     }
     m_enable = true;
     qDebug() << "udpDec: on() — receiving";
+    return true;
 }
 
 // ============================================================================
-// off() — остановить приём (поток продолжает жить)
+// off() — остановить приём и полностью закрыть input
+// (критично для корректного повторного Start после Stop)
 // ============================================================================
 void udpDec::off()
 {
     m_enable = false;
-    // Не закрываем input сразу — даём decodeLoop корректно выйти из av_read_frame
-    // Полное закрытие произойдёт при следующем on() или stopThread()
+    // Закрываем сразу: освобождаем UDP-сокет и контекст FFmpeg.
+    // Иначе при следующем on() возникает гонка с av_read_frame и
+    // возможна ошибка "address already in use" / зависание.
+    closeInput();
+    qDebug() << "udpDec: off() — stopped and closed";
 }
 
 // ============================================================================
