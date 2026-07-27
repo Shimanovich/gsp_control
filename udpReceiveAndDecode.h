@@ -52,8 +52,8 @@ public:
     ~udpDec() override;
 
     void stopThread();
-    void on();                          // open input + start decode loop
-    void off();                         // stop reading, keep thread alive
+    bool on();                          // open input + start decode loop; returns false on failure
+    void off();                         // stop reading + close input (clean restart possible)
     bool state() const { return m_enable.load(); }
 
     bool startListening();              // kept for API compatibility (now no-op / internal)
@@ -96,4 +96,3 @@ private:
     static AVFrame deepCopyFrame(const AVFrame& src);
     static void    freeFrameData(AVFrame& f);
 };
-
