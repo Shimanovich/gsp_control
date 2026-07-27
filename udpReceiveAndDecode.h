@@ -43,7 +43,6 @@ public:
     struct PlayerInitStructure {
         int  udpport      = 5000;
         int  udptimeout   = 50;          // kept for compatibility, not used with QUdpSocket
-        char adapterName[64] = {0};
         int  imageWidth   = 0;
         int  imageHeight  = 0;
         std::queue<AVFrame>* pFrameOutQueue = nullptr;
@@ -93,7 +92,6 @@ private:
     HANDLE* m_pHframeMutex = nullptr;
 
     uint16_t m_recudpport = 0;
-    char     m_adapterName[64] = {0};
 
     // FFmpeg (modern)
     const AVCodec*      codec       = nullptr;

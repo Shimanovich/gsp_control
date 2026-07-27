@@ -1,6 +1,5 @@
 #include "udpReceiveAndDecode.h"
 #include "qvariant.h"
-#include <QNetworkProxy>
 #include <chrono>
 
 // ============================================================================
@@ -14,83 +13,73 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
         return;
     }
 
-    m_frameQueue   = param->pFrameOutQueue;
-    m_winHeight    = param->imageHeight;
-    m_winWidth     = param->imageWidth;
-    m_recudpport   = static_cast<uint16_t>(param->udpport);
-    m_pHframeMutex = param->pHframeMutex;
+     m_frameQueue   = param->pFrameOutQueue;
+     m_winHeight    = param->imageHeight;
+     m_winWidth     = param->imageWidth;
+     m_recudpport   = static_cast<uint16_t>(param->udpport);
+     m_pHframeMutex = param->pHframeMutex;
 
-    strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
-    m_adapterName[sizeof(m_adapterName) - 1] = '\0';
+    // m_enable = false;
+    // m_active = true;
 
-    m_enable = false;
-    m_active = true;
 
-    // ---- FFmpeg (modern API) ----
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
-    av_register_all();
-    avcodec_register_all();
-#endif
-    avformat_network_init();
 
-    codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    if (!codec) {
-        qDebug() << "udpDec: H.264 decoder not found";
-        return;
-    }
 
-    context = avcodec_alloc_context3(codec);
-    if (!context) {
-        qDebug() << "udpDec: cannot allocate codec context";
-        return;
-    }
+    // codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+    // if (!codec) {
+    //     qDebug() << "udpDec: H.264 decoder not found";
+    //     return;
+    // }
 
-    context->flags  |= AV_CODEC_FLAG_LOW_DELAY;
-    context->flags2 |= AV_CODEC_FLAG2_CHUNKS;
-    context->thread_count = 1;
-    context->thread_type  = FF_THREAD_SLICE;
-    context->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
-    context->delay = 0;
+    // context = avcodec_alloc_context3(codec);
+    // if (!context) {
+    //     qDebug() << "udpDec: cannot allocate codec context";
+    //     return;
+    // }
 
-    if (avcodec_open2(context, codec, nullptr) < 0) {
-        qDebug() << "udpDec: cannot open codec";
-        return;
-    }
+    // context->flags  |= AV_CODEC_FLAG_LOW_DELAY;
+    // context->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+    // context->thread_count = 4;
+    // context->thread_type  = FF_THREAD_SLICE;
+    // context->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
+    // context->delay = 0;
 
-    frame_yuv = av_frame_alloc();
-    if (!frame_yuv) {
-        qDebug() << "udpDec: cannot allocate frame";
-        return;
-    }
+    // if (avcodec_open2(context, codec, nullptr) < 0) {
+    //     qDebug() << "udpDec: cannot open codec";
+    //     return;
+    // }
 
-    packet = av_packet_alloc();
-    if (!packet) {
-        qDebug() << "udpDec: cannot allocate packet";
-        return;
-    }
+    // frame_yuv = av_frame_alloc();
+    // if (!frame_yuv) {
+    //     qDebug() << "udpDec: cannot allocate frame";
+    //     return;
+    // }
 
-    // ---- QUdpSocket ----
-    m_socket_video = new QUdpSocket(this);
+    // packet = av_packet_alloc();
+    // if (!packet) {
+    //     qDebug() << "udpDec: cannot allocate packet";
+    //     return;
+    // }
 
-    // Large receive buffer (best effort)
-    // const QVariant val = 4 * 1024 * 1024;
-    // m_socket->setSocketOption(QAbstractSocket::ReceiveBufferSizeSocketOption, val);
+    // // ---- QUdpSocket ----
+    // m_socket_video = new QUdpSocket(this);
 
-    m_socket_video->setProxy(QNetworkProxy::NoProxy);
-    if (!m_socket_video->bind(QHostAddress::AnyIPv4, m_recudpport,
-                        QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
-        qDebug() << "udpDec: bind() failed" << m_socket_video->errorString();
-        return;
-    }
-    qDebug() << "udpDec: bound to port" << m_recudpport;
+    // // Large receive buffer (best effort)
+    //  const QVariant val = 4 * 1024 * 1024;
+    //  m_socket_video->setSocketOption(QAbstractSocket::ReceiveBufferSizeSocketOption, val);
 
-    connect(m_socket_video, &QUdpSocket::readyRead, this, &udpDec::onReadyRead);
+    // if (!m_socket_video->bind(QHostAddress::AnyIPv4, m_recudpport,
+    //                     QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+    //     qDebug() << "udpDec: bind() failed" << m_socket_video->errorString();
+    //     return;
+    // }
+    // qDebug() << "udpDec: bound to port" << m_recudpport;
 
-    // Start enabled and decode thread (matches previous behaviour)
+    //connect(m_socket_video, &QUdpSocket::readyRead, this, &udpDec::onReadyRead);
 
-    m_decodeThread = std::thread(&udpDec::decodeLoop, this);
+    //m_decodeThread = std::thread(&udpDec::decodeLoop, this);
 
-    qDebug() << "udpDec: decode thread started (QUdpSocket + modern FFmpeg API)";
+    //qDebug() << "udpDec: decode thread started (QUdpSocket + modern FFmpeg API)";
 }
 
 // ============================================================================
@@ -155,6 +144,8 @@ void udpDec::onReadyRead()
 
         processRtpPacket(reinterpret_cast<const uint8_t*>(datagram.constData()),
                          datagram.size());
+
+
     }
 }
 

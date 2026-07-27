@@ -404,10 +404,10 @@ void MainWindow::setupVideo()
     p.pFrameOutQueue = &m_frameQueue;
     p.pHframeMutex   = &m_frameMutex;
 
-    m_videoDec = new udpDec(&p);
+     m_videoDec = new udpDec(&p, this);
 
-    m_videoTimer = new QTimer(this);
-    connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
+    // m_videoTimer = new QTimer(this);
+    // connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
 }
 
 void MainWindow::onVideoStartClicked()
