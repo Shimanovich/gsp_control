@@ -18,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_udp = new UdpCommunicator(this);
     m_joystick = new JoystickManager(this);
+    m_keyboard = new KeyboardManager(this);
     m_camera = new CameraController(m_udp, this);
     m_gyro = new GyroController(m_udp, this);
     m_rangefinder = new RangefinderController(m_udp, this);
@@ -85,6 +86,11 @@ void MainWindow::setupControllers()
 
     connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
 
+    connect(m_keyboard, &KeyboardManager::buttonPressed,
+            this, &MainWindow::onJoystickButtonPressed);
+    connect(m_keyboard, &KeyboardManager::buttonReleased,
+            this, &MainWindow::onJoystickButtonReleased);
+
 
 }
 
@@ -95,6 +101,7 @@ void MainWindow::loadAllSettings()
     m_camera->loadSettings(m_configPath);
     m_gyro->loadSettings(m_configPath);
     m_rangefinder->loadSettings(m_configPath);
+    m_keyboard->loadSettings(m_configPath);
 
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
@@ -106,6 +113,9 @@ void MainWindow::onConnectClicked()
     if (m_udp->start()) {
         m_joystick->initialize();
 
+        m_keyboard->installOn(this);          // this = MainWindow
+        this->setFocusPolicy(Qt::StrongFocus);
+        this->setFocus();
 
 
         if (ui->cBoxAutoSimpleIntr->isChecked())
@@ -205,6 +215,7 @@ void MainWindow::onDisconnectClicked()
     if (m_joystick) m_joystick->shutdown();
     if (m_gyro) m_gyro->stopAnglePolling();
     if (m_camera) m_camera->stopZoomPolling();
+    if (m_keyboard) m_keyboard->uninstall();
 
     ui->btnConnect->setEnabled(true);
     ui->btnDisconnect->setEnabled(false);

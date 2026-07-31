@@ -47,6 +47,7 @@ TARGET = gsp_control
 TEMPLATE = app
 
 SOURCES += \
+    keyboardmanager.cpp \
     main.cpp \
     mainwindow.cpp \
     udpcommunicator.cpp \
@@ -54,9 +55,11 @@ SOURCES += \
     cameracontroller.cpp \
     gyrocontroller.cpp \
     rangefindercontroller.cpp \
-    udpReceiveAndDecode.cpp
+    udpReceiveAndDecode.cpp \
+    keyboardmanager.cpp
 
 HEADERS += \
+    keyboardmanager.h \
     mainwindow.h \
     udpcommunicator.h \
     joystickmanager.h \
@@ -64,7 +67,8 @@ HEADERS += \
     gyrocontroller.h \
     rangefindercontroller.h \
     simplebgc_protocol.h \
-    udpReceiveAndDecode.h
+    udpReceiveAndDecode.h \
+    keyboardmanager.h
 
 FORMS += \
     mainwindow.ui

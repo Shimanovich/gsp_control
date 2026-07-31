@@ -13,6 +13,8 @@
 #include "gyrocontroller.h"
 #include "rangefindercontroller.h"
 #include "udpReceiveAndDecode.h"
+#include "keyboardmanager.h"
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -67,6 +69,8 @@ private:
 
     UdpCommunicator* m_udp = nullptr;
     JoystickManager* m_joystick = nullptr;
+    KeyboardManager* m_keyboard = nullptr;
+
     CameraController* m_camera = nullptr;
     GyroController* m_gyro = nullptr;
     RangefinderController* m_rangefinder = nullptr;
