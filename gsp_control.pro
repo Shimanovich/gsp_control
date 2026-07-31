@@ -7,6 +7,7 @@ DEFINES += QT_NO_ENTRYPOINT
 DEFINES += SDL_MAIN_HANDLED
 
 CONFIG += c++17
+CONFIG += static
 
 SDL2_PATH = d:/work/SDL2-2.0.14/x86_64-w64-mingw32/
 
@@ -32,6 +33,14 @@ unix {
     # Или вручную:
     # INCLUDEPATH += /usr/include/ffmpeg
     # LIBS += -lavcodec -lavutil -lswscale -lavformat
+}
+
+
+win32 {
+    CONFIG(release, debug|release): COPIED_DIR = $$OUT_PWD/release
+    else: COPIED_DIR = $$OUT_PWD/debug
+
+    QMAKE_POST_LINK += $$quote(windeployqt --qmldir "$$PWD" "$$COPIED_DIR/gsp_control.exe")
 }
 
 TARGET = gsp_control

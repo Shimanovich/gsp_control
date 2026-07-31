@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QSettings>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -239,7 +240,7 @@ void MainWindow::sendJoystickSpeed()
 {
     if (!m_isSpeedMode || !m_joystick || !m_gyro) return;
 
-    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*10.0;
+    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*1.0;
     float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*1.0;
 
     ui->statusBar->showMessage(
@@ -486,11 +487,42 @@ void MainWindow::onVideoTimer()
     QImage img(frame.data[0], frame.width, frame.height,
                frame.linesize[0], QImage::Format_BGR888);
 
+    // Вертикальное отражение
     img = img.mirrored(true, true);
+
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation);
+
+    // ========== Перекрестие ==========
+    {
+        QPainter painter(&pix);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        // Цвет и толщина (можно вынести в настройки)
+        QPen pen(QColor(0, 255, 0, 220));   // зелёный полупрозрачный
+        pen.setWidth(2);
+        painter.setPen(pen);
+
+        const int cx = pix.width()  / 2;
+        const int cy = pix.height() / 2;
+        const int arm = 28;                 // длина луча от центра
+        const int gap = 6;                  // зазор в центре (чтобы не перекрывать точку)
+
+        // Горизонтальная линия
+        painter.drawLine(cx - arm, cy, cx - gap, cy);
+        painter.drawLine(cx + gap, cy, cx + arm, cy);
+
+        // Вертикальная линия
+        painter.drawLine(cx, cy - arm, cx, cy - gap);
+        painter.drawLine(cx, cy + gap, cx, cy + arm);
+
+        // Маленькая точка в самом центре (опционально)
+        painter.setBrush(QColor(0, 255, 0, 220));
+        painter.drawEllipse(QPoint(cx, cy), 2, 2);
+    }
+    // =================================
 
     ui->videoLabel->setPixmap(pix);
 
