@@ -31,8 +31,14 @@ void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 void GyroController::goToZeroPosition()
 {
     //QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, 0, 0);
-    QByteArray payload = buildZeroPosCmd();
-    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
+
+    // QByteArray payload = buildZeroPosCmd();
+    // QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
+    // if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
+
+    QByteArray payload;
+    payload.append(18);
+    QByteArray fullPacket = SimpleBGC::buildPacket(69, payload);
     if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 

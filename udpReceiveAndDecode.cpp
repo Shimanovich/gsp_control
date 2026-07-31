@@ -162,11 +162,14 @@ bool udpDec::openInput()
 
     AVDictionary* opts = nullptr;
     av_dict_set(&opts, "protocol_whitelist", "file,udp,rtp,tcp", 0);
-    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt", 0);
+    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt+igndts", 0);
     av_dict_set(&opts, "flags", "low_delay", 0);
     av_dict_set(&opts, "probesize", "32768", 0);
-    av_dict_set(&opts, "analyzeduration", "500000", 0);
-    av_dict_set(&opts, "max_delay", "100000", 0);
+    av_dict_set(&opts, "analyzeduration", "200000", 0);   // быстрее
+    av_dict_set(&opts, "max_delay", "50000", 0);
+    av_dict_set(&opts, "reorder_queue_size", "0", 0);      // минимум джиттера
+    av_dict_set(&opts, "timeout", "500000", 0);           // 0.5 с в мкс (использовать m_udptimeout*1000)
+    av_dict_set(&opts, "fifo_size", "500000", 0);         // буфер UDP
 
     // Открываем SDP из памяти через AVIO
     // (avformat_open_input с "sdp" + custom IO)
@@ -275,11 +278,12 @@ bool udpDec::openInput()
     }
 
     codec_ctx->flags  |= AV_CODEC_FLAG_LOW_DELAY;
-    codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+    codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS | AV_CODEC_FLAG2_SHOW_ALL;
     codec_ctx->thread_count = 1;
     codec_ctx->thread_type  = FF_THREAD_SLICE;
     codec_ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-    codec_ctx->err_recognition   = AV_EF_CAREFUL;
+    //codec_ctx->err_recognition   = AV_EF_CAREFUL;
+    codec_ctx->err_recognition   = AV_EF_IGNORE_ERR;
     codec_ctx->delay = 0;
 
     if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
@@ -363,10 +367,19 @@ bool udpDec::processOnePacket()
     ret = avcodec_send_packet(codec_ctx, packet);
     av_packet_unref(packet);
 
-    if (ret < 0 && ret != AVERROR(EAGAIN)) {
-        avcodec_flush_buffers(codec_ctx);
+    // if (ret < 0 && ret != AVERROR(EAGAIN)) {
+    //     avcodec_flush_buffers(codec_ctx);
+    //     return false;
+    // }
+
+    if (ret < 0) {
+        if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+            // логировать, но не flush сразу — дать concealment шанс
+            // flush только при серии ошибок (счётчик)
+        }
         return false;
     }
+
 
     while (ret >= 0) {
         ret = avcodec_receive_frame(codec_ctx, frame_yuv);
