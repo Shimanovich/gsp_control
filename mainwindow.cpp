@@ -87,9 +87,9 @@ void MainWindow::setupControllers()
     connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
 
     connect(m_keyboard, &KeyboardManager::buttonPressed,
-            this, &MainWindow::onJoystickButtonPressed);
+            this, &MainWindow::onKeyBoardButtonPressed);
     connect(m_keyboard, &KeyboardManager::buttonReleased,
-            this, &MainWindow::onJoystickButtonReleased);
+            this, &MainWindow::onKeyBoardButtonReleased);
 
 
 }
@@ -194,6 +194,7 @@ void MainWindow::onJoystickButtonPressed(int button)
     }
 }
 
+
 void MainWindow::onJoystickButtonReleased(int button)
 {
     // Вызов ровно один раз при отпускании (только для непрерывных действий)
@@ -205,6 +206,16 @@ void MainWindow::onJoystickButtonReleased(int button)
     default:
         break;   // остальные действия не требуют release
     }
+}
+
+
+void MainWindow::onKeyBoardButtonPressed(int button)
+{
+
+}
+void MainWindow::onKeyBoardButtonReleased(int button)
+{
+
 }
 
 

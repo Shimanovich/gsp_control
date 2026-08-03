@@ -39,6 +39,10 @@ private slots:
     void onJoystickButtonPressed(int button);
     void onJoystickButtonReleased(int button);
 
+
+    void onKeyBoardButtonPressed(int button);
+    void onKeyBoardButtonReleased(int button);
+
     void on_radioZeroMode_clicked(bool checked);
     void on_radioSpeedMode_clicked(bool checked);
     void onDisconnectClicked();

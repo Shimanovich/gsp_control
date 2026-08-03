@@ -55,8 +55,8 @@ SOURCES += \
     cameracontroller.cpp \
     gyrocontroller.cpp \
     rangefindercontroller.cpp \
-    udpReceiveAndDecode.cpp \
-    keyboardmanager.cpp
+    udpReceiveAndDecode.cpp
+
 
 HEADERS += \
     keyboardmanager.h \
@@ -67,8 +67,7 @@ HEADERS += \
     gyrocontroller.h \
     rangefindercontroller.h \
     simplebgc_protocol.h \
-    udpReceiveAndDecode.h \
-    keyboardmanager.h
+    udpReceiveAndDecode.h
 
 FORMS += \
     mainwindow.ui
