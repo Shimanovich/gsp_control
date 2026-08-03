@@ -18,6 +18,9 @@ public:
     void installOn(QObject* target);   // обычно MainWindow
     void uninstall();
 
+    float getAxisYaw() {return keyYaw;};
+    float getAxisPitch() {return keyPitch;};
+
 signals:
     void buttonPressed(int button);    // те же номера, что у джойстика
     void buttonReleased(int button);
@@ -26,6 +29,10 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
+
+    float keyYaw = 0.0f;
+    float keyPitch = 0.0f;
+
     // Qt::Key → виртуальный номер кнопки (совпадает с case в MainWindow)
     QHash<int, int> m_keyToButton;
 

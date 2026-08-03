@@ -27,8 +27,8 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     add("zoom_out",         Qt::Key_Minus,    7);
     add("zoom_next",        Qt::Key_PageUp,   6);
     add("zoom_prev",        Qt::Key_PageDown, 8);
-    add("brightness_up",    Qt::Key_Up,      10);
-    add("brightness_down",  Qt::Key_Down,    12);
+    add("brightness_up",    Qt::Key_0,        10);
+    add("brightness_down",  Qt::Key_9,        12);
     //add("shoot",            Qt::Key_Space,    1);
     add("autofocus",        Qt::Key_F,        2);
     add("focus_infinity",   Qt::Key_I,        3);
@@ -69,7 +69,7 @@ bool KeyboardManager::eventFilter(QObject *obj, QEvent *event)
 
 void KeyboardManager::handleKeyEvent(QKeyEvent* keyEvent, bool isPress)
 {
-    // Игнорируем автоповтор (иначе zoomIn будет сыпаться)
+    // Игнорируем автоповтор
     if (keyEvent->isAutoRepeat())
         return;
 
@@ -77,12 +77,13 @@ void KeyboardManager::handleKeyEvent(QKeyEvent* keyEvent, bool isPress)
     if (!m_keyToButton.contains(key))
         return;
 
+
     const int button = m_keyToButton.value(key);
 
     if (isPress) {
         if (!m_pressedButtons.contains(button)) {
             m_pressedButtons.insert(button);
-            emit buttonPressed(button);
+            emit buttonPressed (button);
         }
     } else {
         if (m_pressedButtons.contains(button)) {

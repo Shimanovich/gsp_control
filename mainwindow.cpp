@@ -265,6 +265,10 @@ void MainWindow::sendJoystickSpeed()
     float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*1.0;
     float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*1.0;
 
+    // Добавить клавиатуру
+    yaw   += m_keyboard->getAxisYaw();
+    pitch += m_keyboard->getAxisPitch();   // с учётом нужного знака
+
     ui->statusBar->showMessage(
         QString("Yaw: %1   Pitch: %2")
             .arg(yaw,0, 'f', 3)
