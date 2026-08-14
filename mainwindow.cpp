@@ -211,11 +211,12 @@ void MainWindow::onJoystickButtonReleased(int button)
 
 void MainWindow::onKeyBoardButtonPressed(int button)
 {
-
+    onJoystickButtonPressed(button);
 }
+
 void MainWindow::onKeyBoardButtonReleased(int button)
 {
-
+    onJoystickButtonReleased(button);
 }
 
 
@@ -260,20 +261,21 @@ void MainWindow::updateControlMode()
 
 void MainWindow::sendJoystickSpeed()
 {
-    if (!m_isSpeedMode || !m_joystick || !m_gyro) return;
+    if (!m_isSpeedMode || !m_gyro) return;
 
-    float yaw   = m_joystick->getAxisYaw()   * m_speedMultiplier*1.0;
-    float pitch = -m_joystick->getAxisPitch() * m_speedMultiplier*1.0;
+    float joyYaw   = m_joystick ? m_joystick->getAxisYaw()   : 0.0f;
+    float joyPitch = m_joystick ? m_joystick->getAxisPitch() : 0.0f;
 
-    // Добавить клавиатуру
-    yaw   += m_keyboard->getAxisYaw();
-    pitch += m_keyboard->getAxisPitch();   // с учётом нужного знака
+    float keyYaw   = m_keyboard ? m_keyboard->getAxisYaw()   : 0.0f;
+    float keyPitch = m_keyboard ? m_keyboard->getAxisPitch() : 0.0f;
+
+    float yaw   = (joyYaw   + keyYaw)   * m_speedMultiplier;
+    float pitch = -(joyPitch + keyPitch) * m_speedMultiplier;
 
     ui->statusBar->showMessage(
         QString("Yaw: %1   Pitch: %2")
-            .arg(yaw,0, 'f', 3)
-            .arg(pitch,0, 'f', 3),0
-        );
+            .arg(yaw, 0, 'f', 3)
+            .arg(pitch, 0, 'f', 3), 0);
 
     m_gyro->setSpeed(yaw, pitch);
 }

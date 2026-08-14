@@ -17,12 +17,14 @@ public:
     bool initialize();
     void shutdown();
 
+    float mapValueClamped(float value, float inMin, float inMax, float outMin, float outMax);
+
     bool isConnected() const;
     int getDeviceIndex() const;
 
     // Get normalized axis values (-1.0 .. 1.0)
-    float getAxisYaw() const;
-    float getAxisPitch() const;
+    float getAxisYaw();
+    float getAxisPitch();
 
 signals:
     void connectedChanged(bool connected);
@@ -35,6 +37,7 @@ private slots:
 
 private:
 
+
     QVector<bool> m_prevButtonStates;
     SDL_Joystick* m_joystick = nullptr;
     int m_deviceIndex = -1;
@@ -42,6 +45,7 @@ private:
     bool m_invertPitch = false;
 
     QTimer* m_pollTimer = nullptr;
+
 
     void openJoystick(int index);
     void closeJoystick();

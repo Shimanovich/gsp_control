@@ -14,6 +14,21 @@ JoystickManager::~JoystickManager()
     shutdown();
 }
 
+
+
+float JoystickManager::mapValueClamped(float value, float inMin, float inMax, float outMin, float outMax) {
+    if (qFuzzyCompare(inMax, inMin)) {
+        return outMin;
+    }
+    float result = outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
+
+    // Ensure outMin is always the lower bound for qBound to work properly
+    float actualMin = qMin(outMin, outMax);
+    float actualMax = qMax(outMin, outMax);
+
+    return qBound(actualMin, result, actualMax);
+}
+
 bool JoystickManager::loadSettings(const QString& iniPath)
 {
     QSettings settings(iniPath, QSettings::IniFormat);
@@ -61,19 +76,31 @@ int JoystickManager::getDeviceIndex() const
     return m_deviceIndex;
 }
 
-float JoystickManager::getAxisYaw() const
+float JoystickManager::getAxisYaw()
 {
     if (!m_joystick) return 0.0f;
     Sint16 raw = SDL_JoystickGetAxis(m_joystick, 0); // X axis usually
     float value = raw / 32767.0f;
+
+    if (value>0)
+            value = mapValueClamped(value,0.1f,1.0f,0.0f,1.0f);
+    else
+            value = mapValueClamped(value,-1.0f,-0.1f,-1.0f,0.0f);
+
     return m_invertYaw ? -value : value;
 }
 
-float JoystickManager::getAxisPitch() const
+float JoystickManager::getAxisPitch()
 {
     if (!m_joystick) return 0.0f;
     Sint16 raw = SDL_JoystickGetAxis(m_joystick, 1); // Y axis usually
     float value = raw / 32767.0f;
+
+    if (value>0)
+        value = mapValueClamped(value,0.1f,1.0f,0.0f,1.0f);
+    else
+        value = mapValueClamped(value,-1.0f,-0.1f,-1.0f,0.0f);
+
     return m_invertPitch ? -value : value;
 }
 
