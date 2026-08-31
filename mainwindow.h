@@ -16,6 +16,7 @@
 #include "rangefindercontroller.h"
 #include "udpReceiveAndDecode.h"
 #include "keyboardmanager.h"
+#include "jetsoncontroller.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -48,7 +49,6 @@ private slots:
     void on_radioSpeedMode_clicked(bool checked);
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
-    void on_spinSpeedMultiplier_valueChanged(double arg1);
     void on_btMotor_on_clicked();
 
     void on_btnZoomIn_clicked();
@@ -69,6 +69,18 @@ private slots:
     void onVideoStopClicked();
     void onVideoTimer();
 
+    // Jetson / JEP
+    void onJetsonPlayClicked();
+    void onJetsonStopClicked();
+    void onJetsonSetClicked();
+    void onTrackStartClicked();
+    void onTrackStopClicked();
+    void onMdplStatus(const QString& stat);
+    void onCaptAck(const QString& stat);
+    void onCaptStateUpdated(CaptState state);
+
+    void on_spinSpeedMultiplier_valueChanged(int value);
+
 private:
     Ui::MainWindow *ui;
 
@@ -79,6 +91,7 @@ private:
     CameraController* m_camera = nullptr;
     GyroController* m_gyro = nullptr;
     RangefinderController* m_rangefinder = nullptr;
+    JetsonController* m_jetson = nullptr;
 
     QString m_configPath = "config.ini";
 
@@ -94,6 +107,11 @@ private:
     int                     m_videoPort = 5004;
     int                     m_videoTimeoutMs = 40;
 
+    CaptState               m_captState;
+    int                     m_lastFrameW = 0;
+    int                     m_lastFrameH = 0;
+    int                     m_trackButton = 4;
+
     void setupControllers();
     void loadAllSettings();
     void updateControlMode();
@@ -102,6 +120,10 @@ private:
 
     void setupVideo();
     void stopVideo();
+    void applyJetsonUiDefaults();
+    void sendTrackCommand(int trackCmd);
+    void drawOverlays(QPixmap& pix, int srcW, int srcH);
 };
+
 
 #endif // MAINWINDOW_H

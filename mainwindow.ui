@@ -255,18 +255,24 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="spinSpeedMultiplier">
+              <widget class="QSlider" name="spinSpeedMultiplier">
                <property name="minimum">
-                <double>0.100000000000000</double>
+                <number>1</number>
                </property>
                <property name="maximum">
-                <double>10.000000000000000</double>
+                <number>20</number>
                </property>
                <property name="singleStep">
-                <double>0.100000000000000</double>
+                <number>1</number>
+               </property>
+               <property name="pageStep">
+                <number>1</number>
                </property>
                <property name="value">
-                <double>1.000000000000000</double>
+                <number>1</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
                </property>
               </widget>
              </item>
@@ -309,6 +315,215 @@
            </widget>
           </item>
          </layout>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupJetson">
+          <property name="title">
+           <string>Jetson Stream (JEP MDPL)</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayoutJetson">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutJetsonBtns">
+             <item>
+              <widget class="QPushButton" name="btnJetsonPlay">
+               <property name="text">
+                <string>Play Stream</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnJetsonStop">
+               <property name="text">
+                <string>Stop Stream</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnJetsonSet">
+               <property name="text">
+                <string>Apply Settings</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutJetsonSet">
+             <item>
+              <widget class="QLabel" name="labelResolut">
+               <property name="text">
+                <string>Resolut</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboResolut">
+               <item>
+                <property name="text">
+                 <string>SD</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>HD</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>FHD</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelBitrate">
+               <property name="text">
+                <string>Bitrate</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="spinBitrate">
+               <property name="minimum">
+                <number>250000</number>
+               </property>
+               <property name="maximum">
+                <number>20000000</number>
+               </property>
+               <property name="singleStep">
+                <number>250000</number>
+               </property>
+               <property name="value">
+                <number>2500000</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="labelJetsonStatus">
+             <property name="text">
+              <string>JEP: idle</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupTracking">
+          <property name="title">
+           <string>Tracking (JEP CAPT)</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayoutTrack">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutStrobe">
+             <item>
+              <widget class="QLabel" name="labelStrobeW">
+               <property name="text">
+                <string>Strobe W</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="spinStrobeW">
+               <property name="minimum">
+                <number>8</number>
+               </property>
+               <property name="maximum">
+                <number>255</number>
+               </property>
+               <property name="value">
+                <number>64</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelStrobeH">
+               <property name="text">
+                <string>Strobe H</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="spinStrobeH">
+               <property name="minimum">
+                <number>8</number>
+               </property>
+               <property name="maximum">
+                <number>255</number>
+               </property>
+               <property name="value">
+                <number>64</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutTrackMode">
+             <item>
+              <widget class="QComboBox" name="comboVideoChannel">
+               <item>
+                <property name="text">
+                 <string>TV camera</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Thermal</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboTrackCmd">
+               <item>
+                <property name="text">
+                 <string>Off</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Track + GSP</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Track only</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutTrackBtns">
+             <item>
+              <widget class="QPushButton" name="btnTrackStart">
+               <property name="text">
+                <string>Start Track</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnTrackStop">
+               <property name="text">
+                <string>Stop Track</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="labelTrackStatus">
+             <property name="text">
+              <string>Track: off</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </item>

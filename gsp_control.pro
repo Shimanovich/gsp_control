@@ -75,7 +75,9 @@ SOURCES += \
     cameracontroller.cpp \
     gyrocontroller.cpp \
     rangefindercontroller.cpp \
-    udpReceiveAndDecode.cpp
+    udpReceiveAndDecode.cpp \
+    jepprotocol.cpp \
+    jetsoncontroller.cpp
 
 HEADERS += \
     gsp_control_global.h \
@@ -87,7 +89,9 @@ HEADERS += \
     gyrocontroller.h \
     rangefindercontroller.h \
     simplebgc_protocol.h \
-    udpReceiveAndDecode.h
+    udpReceiveAndDecode.h \
+    jepprotocol.h \
+    jetsoncontroller.h
 
 FORMS += \
     mainwindow.ui

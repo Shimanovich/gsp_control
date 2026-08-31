@@ -22,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_camera = new CameraController(m_udp, this);
     m_gyro = new GyroController(m_udp, this);
     m_rangefinder = new RangefinderController(m_udp, this);
+    m_jetson = new JetsonController(this);
 
     // Create 10Hz timer for speed control
     m_speedSendTimer = new QTimer(this);
@@ -44,6 +45,12 @@ MainWindow::MainWindow(QWidget *parent)
     // Video buttons
     connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
     connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
+
+    connect(ui->btnJetsonPlay, &QPushButton::clicked, this, &MainWindow::onJetsonPlayClicked);
+    connect(ui->btnJetsonStop, &QPushButton::clicked, this, &MainWindow::onJetsonStopClicked);
+    connect(ui->btnJetsonSet,  &QPushButton::clicked, this, &MainWindow::onJetsonSetClicked);
+    connect(ui->btnTrackStart, &QPushButton::clicked, this, &MainWindow::onTrackStartClicked);
+    connect(ui->btnTrackStop,  &QPushButton::clicked, this, &MainWindow::onTrackStopClicked);
 
     // Status labels
     ui->labelGyroStatus->setText("Disconnected");
@@ -91,7 +98,13 @@ void MainWindow::setupControllers()
     connect(m_keyboard, &KeyboardManager::buttonReleased,
             this, &MainWindow::onKeyBoardButtonReleased);
 
-
+    connect(m_jetson, &JetsonController::mdplStatus, this, &MainWindow::onMdplStatus);
+    connect(m_jetson, &JetsonController::captAck, this, &MainWindow::onCaptAck);
+    connect(m_jetson, &JetsonController::captStateUpdated, this, &MainWindow::onCaptStateUpdated);
+    connect(m_jetson, &JetsonController::errorOccurred, this, [this](const QString& e) {
+        ui->statusBar->showMessage(e, 4000);
+        qWarning() << e;
+    });
 }
 
 void MainWindow::loadAllSettings()
@@ -102,10 +115,14 @@ void MainWindow::loadAllSettings()
     m_gyro->loadSettings(m_configPath);
     m_rangefinder->loadSettings(m_configPath);
     m_keyboard->loadSettings(m_configPath);
+    m_jetson->loadSettings(m_configPath);
 
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
+    m_trackButton = s.value("Joystick/button_track", 4).toInt();
+
+    applyJetsonUiDefaults();
 }
 
 void MainWindow::onConnectClicked()
@@ -123,6 +140,12 @@ void MainWindow::onConnectClicked()
             m_gyro->startAnglePolling();
         }
         m_camera->startZoomPolling();
+        if (m_jetson && !m_jetson->isStarted()) {
+            if (!m_jetson->start()) {
+                QMessageBox::warning(this, "Jetson",
+                    "JEP UDP не открыт. Проверьте [Jetson] listen_port в config.ini");
+            }
+        }
         ui->btnConnect->setEnabled(false);
         ui->btnDisconnect->setEnabled(true);
 
@@ -170,6 +193,14 @@ void MainWindow::onJoystickButtonPressed(int button)
 
     qDebug() << "MainWindow: processing pressed button" << button;
 
+    if (button == m_trackButton) {
+        const int cmd = (m_captState.trackStatus != 0)
+            ? 0
+            : qMax(1, ui->comboTrackCmd->currentData().toInt());
+        sendTrackCommand(cmd);
+        return;
+    }
+
     switch (button) {
 
 
@@ -187,8 +218,6 @@ void MainWindow::onJoystickButtonPressed(int button)
 
     case 2:  m_camera->autofocus();                     break;
     case 3:  m_camera->focusInfinity();                 break;
-
-
 
     default: break;
     }
@@ -228,6 +257,7 @@ void MainWindow::onDisconnectClicked()
     if (m_gyro) m_gyro->stopAnglePolling();
     if (m_camera) m_camera->stopZoomPolling();
     if (m_keyboard) m_keyboard->uninstall();
+    if (m_jetson) m_jetson->stop();
 
     ui->btnConnect->setEnabled(true);
     ui->btnDisconnect->setEnabled(false);
@@ -320,9 +350,13 @@ void MainWindow::onZoomPositionUpdated(float position)
 
 
 
-void MainWindow::on_spinSpeedMultiplier_valueChanged(double arg1)
+
+void MainWindow::on_spinSpeedMultiplier_valueChanged(int value)
 {
-    m_speedMultiplier = arg1;
+    m_speedMultiplier = (double)value;
+
+    //ui->labelRoll->setText(QString::number(yaw, 'f', 1) + "°");
+    ui->labelMultiplier->setText("speed " + QString::number((float)m_speedMultiplier, 'f', 1));
 }
 
 void MainWindow::sendZeroPos()
@@ -518,39 +552,15 @@ void MainWindow::onVideoTimer()
     // Вертикальное отражение
     img = img.mirrored(true, true);
 
+    m_lastFrameW = frame.width;
+    m_lastFrameH = frame.height;
+
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation);
 
-    // ========== Перекрестие ==========
-    {
-        QPainter painter(&pix);
-        painter.setRenderHint(QPainter::Antialiasing, true);
-
-        // Цвет и толщина (можно вынести в настройки)
-        QPen pen(QColor(0, 255, 0, 220));   // зелёный полупрозрачный
-        pen.setWidth(2);
-        painter.setPen(pen);
-
-        const int cx = pix.width()  / 2;
-        const int cy = pix.height() / 2;
-        const int arm = 28;                 // длина луча от центра
-        const int gap = 6;                  // зазор в центре (чтобы не перекрывать точку)
-
-        // Горизонтальная линия
-        painter.drawLine(cx - arm, cy, cx - gap, cy);
-        painter.drawLine(cx + gap, cy, cx + arm, cy);
-
-        // Вертикальная линия
-        painter.drawLine(cx, cy - arm, cx, cy - gap);
-        painter.drawLine(cx, cy + gap, cx, cy + arm);
-
-        // Маленькая точка в самом центре (опционально)
-        painter.setBrush(QColor(0, 255, 0, 220));
-        painter.drawEllipse(QPoint(cx, cy), 2, 2);
-    }
-    // =================================
+    drawOverlays(pix, frame.width, frame.height);
 
     ui->videoLabel->setPixmap(pix);
 
@@ -559,3 +569,203 @@ void MainWindow::onVideoTimer()
         frame.data[0] = nullptr;
     }
 }
+
+void MainWindow::drawOverlays(QPixmap& pix, int srcW, int srcH)
+{
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    const int cx = pix.width()  / 2;
+    const int cy = pix.height() / 2;
+
+    QPen pen(QColor(0, 255, 0, 220));
+    pen.setWidth(2);
+    painter.setPen(pen);
+
+    const int arm = 28;
+    const int gap = 6;
+    painter.drawLine(cx - arm, cy, cx - gap, cy);
+    painter.drawLine(cx + gap, cy, cx + arm, cy);
+    painter.drawLine(cx, cy - arm, cx, cy - gap);
+    painter.drawLine(cx, cy + gap, cx, cy + arm);
+    painter.setBrush(QColor(0, 255, 0, 220));
+    painter.drawEllipse(QPoint(cx, cy), 2, 2);
+
+    // Strobe from CAPT get_set: STROB_*_POS = 0 is the frame center.
+    if (m_captState.trackStatus == 0)
+        return;
+
+    const float sx = (srcW > 0) ? float(pix.width())  / float(srcW) : 1.0f;
+    const float sy = (srcH > 0) ? float(pix.height()) / float(srcH) : 1.0f;
+
+    const int rw = qMax(4, int(m_captState.strobXSz * sx));
+    const int rh = qMax(4, int(m_captState.strobYSz * sy));
+    const int rx = cx + int(m_captState.strobXPos * sx) - rw / 2;
+    const int ry = cy + int(m_captState.strobYPos * sy) - rh / 2;
+
+    QPen strobePen(QColor(255, 200, 0, 230));
+    strobePen.setWidth(2);
+    painter.setPen(strobePen);
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(rx, ry, rw, rh);
+
+    painter.setPen(QColor(255, 200, 0, 230));
+    painter.drawText(rx, qMax(12, ry - 4),
+                     QString("TRACK %1").arg(m_captState.trackStatus));
+}
+
+void MainWindow::applyJetsonUiDefaults()
+{
+    if (!m_jetson)
+        return;
+
+    if (ui->comboVideoChannel->itemData(0).isNull()) {
+        ui->comboVideoChannel->setItemData(0, 1);
+        ui->comboVideoChannel->setItemData(1, 2);
+        ui->comboTrackCmd->setItemData(0, 0);
+        ui->comboTrackCmd->setItemData(1, 1);
+        ui->comboTrackCmd->setItemData(2, 2);
+    }
+
+    const QString res = m_jetson->defaultResolut();
+    const int resIdx = ui->comboResolut->findText(res);
+    ui->comboResolut->setCurrentIndex(resIdx >= 0 ? resIdx : 1);
+    ui->spinBitrate->setValue(m_jetson->defaultBitrate());
+    ui->spinStrobeW->setValue(m_jetson->defaultStrobeW());
+    ui->spinStrobeH->setValue(m_jetson->defaultStrobeH());
+
+    const int ch = m_jetson->defaultVideoChannel();
+    const int chIdx = ui->comboVideoChannel->findData(ch);
+    ui->comboVideoChannel->setCurrentIndex(chIdx >= 0 ? chIdx : 0);
+
+    const int cmd = m_jetson->defaultTrackCmd();
+    const int cmdIdx = ui->comboTrackCmd->findData(cmd);
+    ui->comboTrackCmd->setCurrentIndex(cmdIdx >= 0 ? cmdIdx : 1);
+
+    ui->labelJetsonStatus->setText("JEP: idle");
+    ui->labelTrackStatus->setText("Track: off");
+}
+
+void MainWindow::sendTrackCommand(int trackCmd)
+{
+    if (!m_jetson) {
+        ui->statusBar->showMessage("Jetson controller is not created", 3000);
+        return;
+    }
+    if (!m_jetson->isStarted() && !m_jetson->start()) {
+        QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
+        return;
+    }
+
+    const int channel = ui->comboVideoChannel->currentData().toInt();
+    const int w = ui->spinStrobeW->value();
+    const int h = ui->spinStrobeH->value();
+
+    // 0,0 = центр отображаемого кадра по протоколу CAPT
+    if (!m_jetson->sendTrackSet(trackCmd, channel, 0, 0, w, h)) {
+        ui->statusBar->showMessage("JEP CAPT set send failed", 3000);
+        return;
+    }
+
+    ui->labelTrackStatus->setText(trackCmd == 0
+        ? QStringLiteral("Track: stopping")
+        : QString("Track: cmd %1 sent").arg(trackCmd));
+}
+
+void MainWindow::onJetsonPlayClicked()
+{
+    if (!m_jetson) return;
+    if (!m_jetson->isStarted() && !m_jetson->start()) {
+        QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
+        return;
+    }
+
+    const QString ip = m_jetson->playIp();
+    const int port = m_jetson->playPort() != 0 ? m_jetson->playPort() : m_videoPort;
+    if (!m_jetson->sendPlay(ip, port)) {
+        ui->labelJetsonStatus->setText("JEP play failed");
+        ui->labelJetsonStatus->setStyleSheet("color: red;");
+        return;
+    }
+    ui->labelJetsonStatus->setText(QString("JEP play %1:%2").arg(ip).arg(port));
+    ui->labelJetsonStatus->setStyleSheet("color: orange;");
+
+    if (ui->btnVideoStart->isEnabled())
+        onVideoStartClicked();
+}
+
+void MainWindow::onJetsonStopClicked()
+{
+    if (!m_jetson) return;
+    if (!m_jetson->isStarted() && !m_jetson->start())
+        return;
+    if (!m_jetson->sendStop()) {
+        ui->labelJetsonStatus->setText("JEP stop failed");
+        ui->labelJetsonStatus->setStyleSheet("color: red;");
+        return;
+    }
+    ui->labelJetsonStatus->setText("JEP stop sent");
+    ui->labelJetsonStatus->setStyleSheet("color: orange;");
+}
+
+void MainWindow::onJetsonSetClicked()
+{
+    if (!m_jetson) return;
+    if (!m_jetson->isStarted() && !m_jetson->start()) {
+        QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
+        return;
+    }
+    const int bitrate = ui->spinBitrate->value();
+    const QString res = ui->comboResolut->currentText();
+    if (!m_jetson->sendSet(bitrate, res)) {
+        ui->labelJetsonStatus->setText("JEP set failed");
+        ui->labelJetsonStatus->setStyleSheet("color: red;");
+        return;
+    }
+    ui->labelJetsonStatus->setText(QString("JEP set %1 %2").arg(res).arg(bitrate));
+    ui->labelJetsonStatus->setStyleSheet("color: orange;");
+}
+
+void MainWindow::onTrackStartClicked()
+{
+    int cmd = ui->comboTrackCmd->currentData().toInt();
+    if (cmd == 0)
+        cmd = 1;
+    sendTrackCommand(cmd);
+}
+
+void MainWindow::onTrackStopClicked()
+{
+    sendTrackCommand(0);
+}
+
+void MainWindow::onMdplStatus(const QString& stat)
+{
+    ui->labelJetsonStatus->setText(QString("JEP: %1").arg(stat));
+    ui->labelJetsonStatus->setStyleSheet("color: green;");
+}
+
+void MainWindow::onCaptAck(const QString& stat)
+{
+    ui->statusBar->showMessage(QString("CAPT %1").arg(stat), 1500);
+}
+
+void MainWindow::onCaptStateUpdated(CaptState state)
+{
+    m_captState = state;
+    if (state.trackStatus == 0) {
+        ui->labelTrackStatus->setText("Track: off");
+        ui->labelTrackStatus->setStyleSheet("color: gray;");
+    } else {
+        ui->labelTrackStatus->setText(
+            QString("Track: ON (%1) ch=%2  %3x%4")
+                .arg(state.trackStatus)
+                .arg(state.videoChannel)
+                .arg(state.strobXSz)
+                .arg(state.strobYSz));
+        ui->labelTrackStatus->setStyleSheet("color: orange;");
+    }
+}
+
+
+
