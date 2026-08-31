@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "gsp_control_global.h"
+
 #include <QMainWindow>
 #include <QTimer>
 #include <QImage>
@@ -20,12 +22,12 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class GSP_CONTROL_EXPORT MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -38,7 +40,6 @@ private slots:
 
     void onJoystickButtonPressed(int button);
     void onJoystickButtonReleased(int button);
-
 
     void onKeyBoardButtonPressed(int button);
     void onKeyBoardButtonReleased(int button);
