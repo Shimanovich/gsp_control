@@ -9,8 +9,8 @@
 // JSON Exchange Protocol (JEP)
 // Packet: Header(4 ASCII) | Size(4 BE) | MD5 hex(32) | Unitime(8 BE ms) | JSON
 //
-// MD5 = hex( PRIVATE_KEY + Unitime_BE + JSON ), word-byte order as on Jetson
-// (boost::uuids::detail::md5 digest words printed as 8-digit hex each).
+// MD5 = hex(PRIVATE_KEY + Unitime_BE + JSON).
+// На LE + Boost >= 1.71 перестановка из JepProtocol.cpp даёт обычный RFC 1321 hex.
 //
 // Header "MDPL" — MediaPlayer control
 // Header "CAPT" — Capture / tracking

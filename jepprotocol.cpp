@@ -33,22 +33,43 @@ QByteArray JEPProtocol::buildMd5Data(quint64 unitime, const QByteArray& jsonData
 
 QString JEPProtocol::calculateMd5Hex(const QByteArray& data)
 {
-    // Must match Jetson JepProtocol.cpp:
-    // boost digest words printed as 8-digit hex (MSB first within each word).
-    const QByteArray digest = QCryptographicHash::hash(data, QCryptographicHash::Md5);
-    if (digest.size() != 16)
-        return QString();
+    // 1:1 with JepProtocol.cpp::calculate_md5
+    //
+    // Qt gives RFC 1321 raw bytes: LE(A) LE(B) LE(C) LE(D).
+    // boost::uuids::detail::md5::get_digest on LE + Boost >= 1.71 writes
+    // each word via BOOST_UUID_DETAIL_MD5_BYTE_OUT as BE, so the uint32_t
+    // view of digest[] is bswap(rfc_word). Then the file does:
+    //   sh = digest[3], digest[2], digest[1], digest[0]
+    //   hex = sh[15] .. sh[0]
+    // Those two transforms cancel → result is the ordinary lowercase MD5 hex.
+    //
+    // The previous panel version applied only the print-swap to RFC bytes
+    // and produced the pre-1.71 Boost hex. Jetson validate() would reject it.
+
+    const QByteArray rfc = QCryptographicHash::hash(data, QCryptographicHash::Md5);
+    if (rfc.size() != 16)
+        return {};
+
+    quint32 digest[4];
+    for (int i = 0; i < 4; ++i) {
+        const quint32 rfcWord =
+            quint32(quint8(rfc[i * 4])) |
+            (quint32(quint8(rfc[i * 4 + 1])) << 8) |
+            (quint32(quint8(rfc[i * 4 + 2])) << 16) |
+            (quint32(quint8(rfc[i * 4 + 3])) << 24);
+        digest[i] = qbswap(rfcWord);
+    }
+
+    quint8 sh[16] = {};
+    memcpy(sh + 0,  &digest[3], 4);
+    memcpy(sh + 4,  &digest[2], 4);
+    memcpy(sh + 8,  &digest[1], 4);
+    memcpy(sh + 12, &digest[0], 4);
 
     QString result;
-    result.resize(32);
-    int out = 0;
-    for (int w = 0; w < 4; ++w) {
-        for (int b = 3; b >= 0; --b) {
-            const quint8 v = static_cast<quint8>(digest[w * 4 + b]);
-            result[out++] = QChar(QLatin1Char("0123456789abcdef"[v >> 4]));
-            result[out++] = QChar(QLatin1Char("0123456789abcdef"[v & 0x0F]));
-        }
-    }
+    result.reserve(32);
+    for (int i = 0; i < 16; ++i)
+        result += QString("%1").arg(sh[15 - i], 2, 16, QLatin1Char('0'));
     return result;
 }
 
