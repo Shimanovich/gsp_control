@@ -193,6 +193,8 @@ void MainWindow::onJoystickButtonPressed(int button)
 
     qDebug() << "MainWindow: processing pressed button" << button;
 
+
+    // special for track start
     if (button == m_trackButton) {
         const int cmd = (m_captState.trackStatus != 0)
             ? 0
