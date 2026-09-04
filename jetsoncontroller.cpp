@@ -7,6 +7,22 @@
 #include <QSettings>
 #include <QDebug>
 
+namespace {
+
+// CAPT parser treats PID fields as floats; compact JSON must keep a decimal
+// point so 0 is sent as 0.0 rather than integer 0.
+QByteArray jsonPidNumber(float v)
+{
+    if (v == 0.f)
+        return QByteArrayLiteral("0.0");
+    QByteArray s = QByteArray::number(static_cast<double>(v), 'g', 8);
+    if (!s.contains('.') && !s.contains('e') && !s.contains('E'))
+        s += ".0";
+    return s;
+}
+
+} // namespace
+
 JetsonController::JetsonController(QObject *parent)
     : QObject(parent)
 {
@@ -178,12 +194,12 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
             QByteArrayLiteral(",\"STROB_Y_POS\":") + QByteArray::number(strobY) +
             QByteArrayLiteral(",\"STROB_X_SZ\":") + QByteArray::number(strobW) +
             QByteArrayLiteral(",\"STROB_Y_SZ\":") + QByteArray::number(strobH) +
-            QByteArrayLiteral(",\"PID_X_P\":") + QByteArray::number(static_cast<double>(m_pid.pidXp), 'g', 8) +
-            QByteArrayLiteral(",\"PID_X_I\":") + QByteArray::number(static_cast<double>(m_pid.pidXi), 'g', 8) +
-            QByteArrayLiteral(",\"PID_X_D\":") + QByteArray::number(static_cast<double>(m_pid.pidXd), 'g', 8) +
-            QByteArrayLiteral(",\"PID_Y_P\":") + QByteArray::number(static_cast<double>(m_pid.pidYp), 'g', 8) +
-            QByteArrayLiteral(",\"PID_Y_I\":") + QByteArray::number(static_cast<double>(m_pid.pidYi), 'g', 8) +
-            QByteArrayLiteral(",\"PID_Y_D\":") + QByteArray::number(static_cast<double>(m_pid.pidYd), 'g', 8) +
+            QByteArrayLiteral(",\"PID_X_P\":") + jsonPidNumber(m_pid.pidXp) +
+            QByteArrayLiteral(",\"PID_X_I\":") + jsonPidNumber(m_pid.pidXi) +
+            QByteArrayLiteral(",\"PID_X_D\":") + jsonPidNumber(m_pid.pidXd) +
+            QByteArrayLiteral(",\"PID_Y_P\":") + jsonPidNumber(m_pid.pidYp) +
+            QByteArrayLiteral(",\"PID_Y_I\":") + jsonPidNumber(m_pid.pidYi) +
+            QByteArrayLiteral(",\"PID_Y_D\":") + jsonPidNumber(m_pid.pidYd) +
             QByteArrayLiteral(",\"INV_AZ\":") + QByteArray::number(m_pid.invAz) +
             QByteArrayLiteral(",\"INV_EL\":") + QByteArray::number(m_pid.invEl) +
             QByteArrayLiteral("}");
