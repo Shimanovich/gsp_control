@@ -7,7 +7,7 @@ namespace {
 
 constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x1C, 0x54, 0x49, 0x4D, 0x45 };
 constexpr int     kSeiTimeSigLen = 7;
-constexpr int     kSeiTimeFields = 24; // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2)
+constexpr int     kSeiTimeFields = (24 + 4); // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2) + w(2) + h(2)
 
 uint16_t rd_be16(const uint8_t* p)
 {

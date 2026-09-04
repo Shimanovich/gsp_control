@@ -551,18 +551,44 @@ void MainWindow::onVideoTimer()
     QImage img(frame.data[0], frame.width, frame.height,
                frame.linesize[0], QImage::Format_BGR888);
 
-    // Вертикальное отражение
-    img = img.mirrored(true, true);
+    // Отражение как у изображения: оба оси. Координаты SEI — в исходном кадре.
+    const int srcW = frame.width;
+    const int srcH = frame.height;
+    const bool hasStrobe = (frame.crop_right == 1);
+    const int capX = static_cast<int>(frame.crop_left);
+    const int capY = static_cast<int>(frame.crop_top);
 
-    m_lastFrameW = frame.width;
-    m_lastFrameH = frame.height;
+    img = img.mirrored(true, true);
 
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
         Qt::SmoothTransformation);
 
-    drawOverlays(pix, frame.width, frame.height);
+    {
+        QPainter painter(&pix);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        QPen pen(QColor(0, 255, 0, 220));
+        pen.setWidth(2);
+        painter.setPen(pen);
+
+        const int cx = pix.width()  / 2;
+        const int cy = pix.height() / 2;
+        const int arm = 28;
+        const int gap = 6;
+
+        painter.drawLine(cx - arm, cy, cx - gap, cy);
+        painter.drawLine(cx + gap, cy, cx + arm, cy);
+        painter.drawLine(cx, cy - arm, cx, cy - gap);
+        painter.drawLine(cx, cy + gap, cx, cy + arm);
+
+        painter.setBrush(QColor(0, 255, 0, 220));
+        painter.drawEllipse(QPoint(cx, cy), 2, 2);
+
+        if (hasStrobe && srcW > 0 && srcH > 0)
+            drawCaptureStrobe(painter, pix.size(), srcW, srcH, capX, capY);
+    }
 
     ui->videoLabel->setPixmap(pix);
 
@@ -570,6 +596,51 @@ void MainWindow::onVideoTimer()
         av_free(frame.data[0]);
         frame.data[0] = nullptr;
     }
+}
+
+void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
+                                   int frameW, int frameH,
+                                   int capX, int capY)
+{
+    if (frameW <= 0 || frameH <= 0 || pixSize.isEmpty())
+        return;
+    if (capX < 0 || capY < 0 || capX >= frameW || capY >= frameH)
+        return;
+
+    // То же mirrored(true, true), что и у кадра: поворот 180°.
+    const int srcX = frameW - 1 - capX;
+    const int srcY = frameH - 1 - capY;
+
+    const double sx = double(pixSize.width())  / double(frameW);
+    const double sy = double(pixSize.height()) / double(frameH);
+    const int x = int(srcX * sx + 0.5);
+    const int y = int(srcY * sy + 0.5);
+
+    // Уголковый строб. Размер от меньшей стороны кадра, не меньше 16 px на экране.
+    const int halfSrc = qMax(16, qMin(frameW, frameH) / 40);
+    const int half = qMax(12, int(halfSrc * qMin(sx, sy) + 0.5));
+    const int corner = qMax(6, half / 2);
+
+    QPen pen(QColor(255, 220, 0, 230));
+    pen.setWidth(2);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    // левый верх
+    painter.drawLine(x - half, y - half, x - half + corner, y - half);
+    painter.drawLine(x - half, y - half, x - half, y - half + corner);
+    // правый верх
+    painter.drawLine(x + half, y - half, x + half - corner, y - half);
+    painter.drawLine(x + half, y - half, x + half, y - half + corner);
+    // левый низ
+    painter.drawLine(x - half, y + half, x - half + corner, y + half);
+    painter.drawLine(x - half, y + half, x - half, y + half - corner);
+    // правый низ
+    painter.drawLine(x + half, y + half, x + half - corner, y + half);
+    painter.drawLine(x + half, y + half, x + half, y + half - corner);
+
+    painter.setBrush(QColor(255, 220, 0, 230));
+    painter.drawEllipse(QPoint(x, y), 2, 2);
 }
 
 void MainWindow::drawOverlays(QPixmap& pix, int srcW, int srcH)

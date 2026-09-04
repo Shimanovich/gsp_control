@@ -120,9 +120,16 @@ private:
 
     void setupVideo();
     void stopVideo();
+
+    void drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
+                           int frameW, int frameH,
+                           int capX, int capY);
+
     void applyJetsonUiDefaults();
     void sendTrackCommand(int trackCmd);
     void drawOverlays(QPixmap& pix, int srcW, int srcH);
+
+
 };
 
 
