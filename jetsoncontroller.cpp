@@ -168,24 +168,26 @@ bool JetsonController::sendSet(int bitrate, const QString& resolut)
 bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
                                     int strobX, int strobY, int strobW, int strobH)
 {
-    QJsonObject o;
-    o.insert(QStringLiteral("command"), QStringLiteral("set"));
-    o.insert(QStringLiteral("TRACK_CMD"), trackCmd);
-    o.insert(QStringLiteral("VIDEO_CHANEL"), videoChannel);
-    o.insert(QStringLiteral("STROB_X_POS"), strobX);
-    o.insert(QStringLiteral("STROB_Y_POS"), strobY);
-    o.insert(QStringLiteral("STROB_X_SZ"), strobW);
-    o.insert(QStringLiteral("STROB_Y_SZ"), strobH);
-    o.insert(QStringLiteral("PID_X_P"), static_cast<double>(m_pid.pidXp));
-    o.insert(QStringLiteral("PID_X_I"), static_cast<double>(m_pid.pidXi));
-    o.insert(QStringLiteral("PID_X_D"), static_cast<double>(m_pid.pidXd));
-    o.insert(QStringLiteral("PID_Y_P"), static_cast<double>(m_pid.pidYp));
-    o.insert(QStringLiteral("PID_Y_I"), static_cast<double>(m_pid.pidYi));
-    o.insert(QStringLiteral("PID_Y_D"), static_cast<double>(m_pid.pidYd));
-    o.insert(QStringLiteral("INV_AZ"), m_pid.invAz);
-    o.insert(QStringLiteral("INV_EL"), m_pid.invEl);
+    // QJsonDocument в Qt 5 сортирует ключи по алфавиту.
+    // Сервер CAPT ожидает фиксированный порядок полей протокола.
+    const QByteArray json =
+            QByteArrayLiteral("{\"command\":\"set\","
+                              "\"TRACK_CMD\":") + QByteArray::number(trackCmd) +
+            QByteArrayLiteral(",\"VIDEO_CHANEL\":") + QByteArray::number(videoChannel) +
+            QByteArrayLiteral(",\"STROB_X_POS\":") + QByteArray::number(strobX) +
+            QByteArrayLiteral(",\"STROB_Y_POS\":") + QByteArray::number(strobY) +
+            QByteArrayLiteral(",\"STROB_X_SZ\":") + QByteArray::number(strobW) +
+            QByteArrayLiteral(",\"STROB_Y_SZ\":") + QByteArray::number(strobH) +
+            QByteArrayLiteral(",\"PID_X_P\":") + QByteArray::number(static_cast<double>(m_pid.pidXp), 'g', 8) +
+            QByteArrayLiteral(",\"PID_X_I\":") + QByteArray::number(static_cast<double>(m_pid.pidXi), 'g', 8) +
+            QByteArrayLiteral(",\"PID_X_D\":") + QByteArray::number(static_cast<double>(m_pid.pidXd), 'g', 8) +
+            QByteArrayLiteral(",\"PID_Y_P\":") + QByteArray::number(static_cast<double>(m_pid.pidYp), 'g', 8) +
+            QByteArrayLiteral(",\"PID_Y_I\":") + QByteArray::number(static_cast<double>(m_pid.pidYi), 'g', 8) +
+            QByteArrayLiteral(",\"PID_Y_D\":") + QByteArray::number(static_cast<double>(m_pid.pidYd), 'g', 8) +
+            QByteArrayLiteral(",\"INV_AZ\":") + QByteArray::number(m_pid.invAz) +
+            QByteArrayLiteral(",\"INV_EL\":") + QByteArray::number(m_pid.invEl) +
+            QByteArrayLiteral("}");
 
-    const QByteArray json = QJsonDocument(o).toJson(QJsonDocument::Compact);
     const bool ok = sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));
     if (ok)
         QTimer::singleShot(80, this, &JetsonController::sendGetSet);
