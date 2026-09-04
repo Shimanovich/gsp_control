@@ -67,6 +67,12 @@ private:
     std::queue<AVFrame>* m_frameQueue = nullptr;
     HANDLE*              m_pHframeMutex = nullptr;
 
+    // Последние capture x/y из SEI "TIME" текущего access unit.
+    // В очередь кадр уходит с crop_left=x, crop_top=y, crop_right=1 если строб валиден.
+    uint16_t m_seiCapX = 0;
+    uint16_t m_seiCapY = 0;
+    bool     m_seiCapValid = false;
+
     // ---- control ----
     std::atomic<bool> m_active{true};   // thread lifetime
     std::atomic<bool> m_enable{false};  // receiving/decoding enabled
@@ -92,7 +98,9 @@ private:
     void closeInput();                  // safe close under lock
     void closeInputUnlocked();          // internal, without lock
     bool processOnePacket();            // av_read_frame + decode + push frame
+    void tryParseSeiTime(const uint8_t* data, int size);
 
     static AVFrame deepCopyFrame(const AVFrame& src);
     static void    freeFrameData(AVFrame& f);
+    static bool    isUsableCaptureXY(uint16_t x, uint16_t y);
 };

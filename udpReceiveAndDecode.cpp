@@ -3,6 +3,45 @@
 #include <chrono>
 #include <thread>
 
+namespace {
+
+constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x1C, 0x54, 0x49, 0x4D, 0x45 };
+constexpr int     kSeiTimeSigLen = 7;
+constexpr int     kSeiTimeFields = 24; // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2)
+
+uint16_t rd_be16(const uint8_t* p)
+{
+    return static_cast<uint16_t>((p[0] << 8) | p[1]);
+}
+
+} // namespace
+
+bool udpDec::isUsableCaptureXY(uint16_t x, uint16_t y)
+{
+    return x != 0x0000 && x != 0xFFFF && y != 0x0000 && y != 0xFFFF;
+}
+
+void udpDec::tryParseSeiTime(const uint8_t* data, int size)
+{
+    if (!data || size < kSeiTimeSigLen + kSeiTimeFields)
+        return;
+
+    const int last = size - (kSeiTimeSigLen + kSeiTimeFields);
+    for (int i = 0; i <= last; ++i) {
+        if (memcmp(data + i, kSeiTimeSig, kSeiTimeSigLen) != 0)
+            continue;
+
+        const uint8_t* fields = data + i + kSeiTimeSigLen;
+        const uint16_t x = rd_be16(fields + 20);
+        const uint16_t y = rd_be16(fields + 22);
+
+        m_seiCapX = x;
+        m_seiCapY = y;
+        m_seiCapValid = isUsableCaptureXY(x, y);
+        return;
+    }
+}
+
 // ============================================================================
 // Constructor
 // ============================================================================
@@ -364,6 +403,11 @@ bool udpDec::processOnePacket()
         return false;
     }
 
+    // SEI только из этого пакета: не тянуть старые x/y на кадр без SEI.
+    m_seiCapValid = false;
+    if (packet->data && packet->size > 0)
+        tryParseSeiTime(packet->data, packet->size);
+
     ret = avcodec_send_packet(codec_ctx, packet);
     av_packet_unref(packet);
 
@@ -432,6 +476,14 @@ bool udpDec::processOnePacket()
         dst.width  = frame_yuv->width;
         dst.height = frame_yuv->height;
 
+        // Координаты строба из последнего SEI этого AU.
+        // crop_* у копии — единственное место, куда их можно положить
+        // без смены типа очереди AVFrame.
+        dst.crop_left  = m_seiCapX;
+        dst.crop_top   = m_seiCapY;
+        dst.crop_right = m_seiCapValid ? 1 : 0;
+        dst.crop_bottom = 0;
+
         if (m_enable && m_frameQueue) {
             AVFrame copy = deepCopyFrame(dst);
 
@@ -485,6 +537,10 @@ AVFrame udpDec::deepCopyFrame(const AVFrame& src)
     dstf.width  = src.width;
     dstf.height = src.height;
     dstf.format = src.format;
+    dstf.crop_left   = src.crop_left;
+    dstf.crop_top    = src.crop_top;
+    dstf.crop_right  = src.crop_right;
+    dstf.crop_bottom = src.crop_bottom;
 
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_BGR24, src.width, src.height, 1);
     if (numBytes <= 0 || !src.data[0])
