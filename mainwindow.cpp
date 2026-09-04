@@ -554,9 +554,17 @@ void MainWindow::onVideoTimer()
     // Отражение как у изображения: оба оси. Координаты SEI — в исходном кадре.
     const int srcW = frame.width;
     const int srcH = frame.height;
+
+    if (srcW > 0 && srcH > 0) {
+        m_lastFrameW = srcW;
+        m_lastFrameH = srcH;
+    }
+
     const bool hasStrobe = (frame.crop_right == 1);
     const int capX = static_cast<int>(frame.crop_left);
     const int capY = static_cast<int>(frame.crop_top);
+
+    qDebug()<<"cX="<<capX<<" cY="<<capY;
 
     img = img.mirrored(true, true);
 
@@ -734,8 +742,13 @@ void MainWindow::sendTrackCommand(int trackCmd)
     const int w = ui->spinStrobeW->value();
     const int h = ui->spinStrobeH->value();
 
+    const int frameW = (m_lastFrameW > 0) ? m_lastFrameW : 1920;
+    const int frameH = (m_lastFrameH > 0) ? m_lastFrameH : 1080;
+    const int strobX = frameW / 2;
+    const int strobY = frameH / 2;
+
     // 0,0 = центр отображаемого кадра по протоколу CAPT
-    if (!m_jetson->sendTrackSet(trackCmd, channel, 0, 0, w, h)) {
+    if (!m_jetson->sendTrackSet(trackCmd, channel, strobX, strobY, w, h)) {
         ui->statusBar->showMessage("JEP CAPT set send failed", 3000);
         return;
     }

@@ -169,21 +169,21 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
                                     int strobX, int strobY, int strobW, int strobH)
 {
     QJsonObject o;
-    o.insert(QStringLiteral("command"), QStringLiteral("set"));
-    o.insert(QStringLiteral("TRACK_CMD"), trackCmd);
-    o.insert(QStringLiteral("VIDEO_CHANEL"), videoChannel);
-    o.insert(QStringLiteral("STROB_X_POS"), strobX);
-    o.insert(QStringLiteral("STROB_Y_POS"), strobY);
-    o.insert(QStringLiteral("STROB_X_SZ"), strobW);
-    o.insert(QStringLiteral("STROB_Y_SZ"), strobH);
-    o.insert(QStringLiteral("PID_X_P"), static_cast<double>(m_pid.pidXp));
-    o.insert(QStringLiteral("PID_X_I"), static_cast<double>(m_pid.pidXi));
-    o.insert(QStringLiteral("PID_X_D"), static_cast<double>(m_pid.pidXd));
-    o.insert(QStringLiteral("PID_Y_P"), static_cast<double>(m_pid.pidYp));
-    o.insert(QStringLiteral("PID_Y_I"), static_cast<double>(m_pid.pidYi));
-    o.insert(QStringLiteral("PID_Y_D"), static_cast<double>(m_pid.pidYd));
-    o.insert(QStringLiteral("INV_AZ"), m_pid.invAz);
     o.insert(QStringLiteral("INV_EL"), m_pid.invEl);
+    o.insert(QStringLiteral("INV_AZ"), m_pid.invAz);
+    o.insert(QStringLiteral("PID_Y_D"), static_cast<double>(m_pid.pidYd));
+    o.insert(QStringLiteral("PID_Y_I"), static_cast<double>(m_pid.pidYi));
+    o.insert(QStringLiteral("PID_Y_P"), static_cast<double>(m_pid.pidYp));
+    o.insert(QStringLiteral("PID_X_D"), static_cast<double>(m_pid.pidXd));
+    o.insert(QStringLiteral("PID_X_I"), static_cast<double>(m_pid.pidXi));
+    o.insert(QStringLiteral("PID_X_P"), static_cast<double>(m_pid.pidXp));
+    o.insert(QStringLiteral("STROB_Y_SZ"), strobH);
+    o.insert(QStringLiteral("STROB_X_SZ"), strobW);
+    o.insert(QStringLiteral("STROB_Y_POS"), strobY);
+    o.insert(QStringLiteral("STROB_X_POS"), strobX);
+    o.insert(QStringLiteral("VIDEO_CHANEL"), videoChannel);
+    o.insert(QStringLiteral("TRACK_CMD"), trackCmd);
+    o.insert(QStringLiteral("command"), QStringLiteral("set"));
 
     const QByteArray json = QJsonDocument(o).toJson(QJsonDocument::Compact);
     const bool ok = sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));

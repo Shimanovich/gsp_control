@@ -11,6 +11,9 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+
+
     a.setApplicationName("GSP Control");
     a.setOrganizationName("GSP");
 

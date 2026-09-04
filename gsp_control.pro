@@ -24,6 +24,7 @@ TARGET = gsp_control
 #  Режим: приложение или библиотека
 # ------------------------------------------------------------
 equals(GSP_BUILD_AS, app) {
+    CONFIG += console
     TEMPLATE = app
     DEFINES += GSP_CONTROL_APP
     SOURCES += main.cpp
