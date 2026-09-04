@@ -18,16 +18,19 @@ DEFINES += SDL_MAIN_HANDLED
 DEFINES += QT_NO_ENTRYPOINT
 DEFINES += QT_DEPRECATED_WARNINGS
 
+DEFINES -= QT_NO_DEBUG_OUTPUT
+DEFINES -= QT_NO_WARNING_OUTPUT
+
 TARGET = gsp_control
 
 # ------------------------------------------------------------
 #  Режим: приложение или библиотека
 # ------------------------------------------------------------
 equals(GSP_BUILD_AS, app) {
-    CONFIG += console
     TEMPLATE = app
     DEFINES += GSP_CONTROL_APP
     SOURCES += main.cpp
+    CONFIG += console
     message(Building gsp_control as APPLICATION)
 } else {
     TEMPLATE = lib

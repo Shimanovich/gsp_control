@@ -5,9 +5,9 @@
 
 namespace {
 
-constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x1C, 0x54, 0x49, 0x4D, 0x45 };
+constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x20, 0x54, 0x49, 0x4D, 0x45 };
 constexpr int     kSeiTimeSigLen = 7;
-constexpr int     kSeiTimeFields = (24 + 4); // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2) + w(2) + h(2)
+constexpr int     kSeiTimeFields = (24+2); // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2) + w(2) + h(2)
 
 uint16_t rd_be16(const uint8_t* p)
 {
@@ -21,10 +21,26 @@ bool udpDec::isUsableCaptureXY(uint16_t x, uint16_t y)
     return x != 0x0000 && x != 0xFFFF && y != 0x0000 && y != 0xFFFF;
 }
 
+void printHex(const uint8_t* data, int size)
+{
+    if (!data || size <= 0) {
+        qDebug() << "empty / null";
+        return;
+    }
+
+    const QByteArray ba = QByteArray::fromRawData(
+        reinterpret_cast<const char*>(data), size);
+
+    qDebug().noquote() << ba.toHex(' ');
+
+}
+
 void udpDec::tryParseSeiTime(const uint8_t* data, int size)
 {
     if (!data || size < kSeiTimeSigLen + kSeiTimeFields)
         return;
+
+
 
     const int last = size - (kSeiTimeSigLen + kSeiTimeFields);
     for (int i = 0; i <= last; ++i) {
@@ -35,6 +51,10 @@ void udpDec::tryParseSeiTime(const uint8_t* data, int size)
         const uint16_t x = rd_be16(fields + 20);
         const uint16_t y = rd_be16(fields + 22);
 
+
+        //printHex(fields,kSeiTimeFields);
+
+        qDebug()<<"P x"<< x <<" P y"<<y;
         m_seiCapX = x;
         m_seiCapY = y;
         m_seiCapValid = isUsableCaptureXY(x, y);

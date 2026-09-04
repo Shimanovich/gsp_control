@@ -564,8 +564,6 @@ void MainWindow::onVideoTimer()
     const int capX = static_cast<int>(frame.crop_left);
     const int capY = static_cast<int>(frame.crop_top);
 
-    qDebug()<<"cX="<<capX<<" cY="<<capY;
-
     img = img.mirrored(true, true);
 
     QPixmap pix = QPixmap::fromImage(img).scaled(
