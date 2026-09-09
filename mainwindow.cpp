@@ -614,8 +614,10 @@ void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
         return;
 
     // То же mirrored(true, true), что и у кадра: поворот 180°.
-    const int srcX = frameW - 1 - capX;
-    const int srcY = frameH - 1 - capY;
+    const int srcX = frameW - 1 - (capX);
+    const int srcY = frameH - 1 - (capY);
+
+
 
     const double sx = double(pixSize.width())  / double(frameW);
     const double sy = double(pixSize.height()) / double(frameH);
@@ -627,7 +629,7 @@ void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
     const int half = qMax(12, int(halfSrc * qMin(sx, sy) + 0.5));
     const int corner = qMax(6, half / 2);
 
-    QPen pen(QColor(255, 220, 0, 230));
+    QPen pen(QColor(255, 0, 0, 230));
     pen.setWidth(2);
     painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
