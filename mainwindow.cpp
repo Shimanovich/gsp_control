@@ -68,10 +68,6 @@ MainWindow::~MainWindow()
         delete m_videoDec;
         m_videoDec = nullptr;
     }
-    if (m_frameMutex) {
-        CloseHandle(m_frameMutex);
-        m_frameMutex = nullptr;
-    }
     delete ui;
 }
 
@@ -460,7 +456,7 @@ void MainWindow::setupVideo()
 {
     // Decoder and timer are created once here.
     // This avoids leaks and allows clean Stop/Start cycles.
-    m_frameMutex = CreateMutexA(nullptr, FALSE, nullptr);
+
 
     udpDec::PlayerInitStructure p{};
     p.udpport        = m_videoPort;
@@ -468,7 +464,7 @@ void MainWindow::setupVideo()
     p.imageWidth     = 0;
     p.imageHeight    = 0;
     p.pFrameOutQueue = &m_frameQueue;
-    p.pHframeMutex   = &m_frameMutex;
+    p.phframeMutex   = &m_frameMutex;
 
     m_videoDec = new udpDec(&p, this);
 
@@ -512,15 +508,15 @@ void MainWindow::stopVideo()
     if (m_videoDec)
         m_videoDec->off();
 
-    if (m_frameMutex)
-        WaitForSingleObject(m_frameMutex, INFINITE);
-    while (!m_frameQueue.empty()) {
-        AVFrame f = m_frameQueue.front();
-        m_frameQueue.pop();
-        if (f.data[0]) av_free(f.data[0]);
+    // ЗАМЕНА: используем std::lock_guard вместо WaitForSingleObject/ReleaseMutex
+    {
+        std::lock_guard<std::mutex> lock(m_frameMutex);
+        while (!m_frameQueue.empty()) {
+            AVFrame f = m_frameQueue.front();
+            m_frameQueue.pop();
+            if (f.data[0]) av_free(f.data[0]);
+        }
     }
-    if (m_frameMutex)
-        ReleaseMutex(m_frameMutex);
 
     ui->videoLabel->clear();
     ui->videoLabel->setText("No signal");
@@ -535,16 +531,15 @@ void MainWindow::onVideoTimer()
     AVFrame frame{};
     bool hasFrame = false;
 
-    if (m_frameMutex)
-        WaitForSingleObject(m_frameMutex, INFINITE);
-    if (!m_frameQueue.empty()) {
-        frame = m_frameQueue.front();
-        m_frameQueue.pop();
-        hasFrame = true;
+    // ЗАМЕНА: используем std::lock_guard вместо WaitForSingleObject/ReleaseMutex
+    {
+        std::lock_guard<std::mutex> lock(m_frameMutex);
+        if (!m_frameQueue.empty()) {
+            frame = m_frameQueue.front();
+            m_frameQueue.pop();
+            hasFrame = true;
+        }
     }
-    if (m_frameMutex)
-        ReleaseMutex(m_frameMutex);
-
     if (!hasFrame || !frame.data[0])
         return;
 

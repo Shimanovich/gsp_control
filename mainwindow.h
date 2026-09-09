@@ -8,6 +8,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <queue>
+#include <mutex>
 
 #include "udpcommunicator.h"
 #include "joystickmanager.h"
@@ -102,7 +103,7 @@ private:
     // Video
     udpDec*                 m_videoDec = nullptr;
     std::queue<AVFrame>     m_frameQueue;
-    HANDLE                  m_frameMutex = nullptr;
+    std::mutex              m_frameMutex;  // Вместо HANDLE m_frameMutex = nullptr;
     QTimer*                 m_videoTimer = nullptr;
     int                     m_videoPort = 5004;
     int                     m_videoTimeoutMs = 40;

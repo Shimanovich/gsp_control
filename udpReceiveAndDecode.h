@@ -45,7 +45,7 @@ public:
         int  imageWidth   = 0;
         int  imageHeight  = 0;
         std::queue<AVFrame>* pFrameOutQueue = nullptr;
-        HANDLE* pHframeMutex = nullptr;
+        std::mutex *phframeMutex = nullptr;
     };
 
     explicit udpDec(PlayerInitStructure* param, QObject* parent = nullptr);
@@ -65,7 +65,7 @@ private:
     int                  m_winWidth  = 0;
     int                  m_winHeight = 0;
     std::queue<AVFrame>* m_frameQueue = nullptr;
-    HANDLE*              m_pHframeMutex = nullptr;
+    std::mutex*          m_phframeMutex = nullptr;
 
     // Последние capture x/y из SEI "TIME" текущего access unit.
     // В очередь кадр уходит с crop_left=x, crop_top=y, crop_right=1 если строб валиден.

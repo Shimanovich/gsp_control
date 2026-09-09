@@ -77,7 +77,7 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     m_winHeight    = param->imageHeight;
     m_winWidth     = param->imageWidth;
     m_recudpport   = static_cast<uint16_t>(param->udpport);
-    m_pHframeMutex = param->pHframeMutex;
+    m_phframeMutex = param->phframeMutex;
 
     strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
     m_adapterName[sizeof(m_adapterName) - 1] = '\0';
@@ -506,19 +506,25 @@ bool udpDec::processOnePacket()
 
         if (m_enable && m_frameQueue) {
             AVFrame copy = deepCopyFrame(dst);
+            if (m_phframeMutex) {
+                std::lock_guard<std::mutex> lock(*m_phframeMutex);
 
-            if (m_pHframeMutex)
-                WaitForSingleObject(*m_pHframeMutex, INFINITE);
-
-            while (m_frameQueue->size() >= 2) {
-                AVFrame old = m_frameQueue->front();
-                m_frameQueue->pop();
-                freeFrameData(old);
+                while (m_frameQueue->size() >= 2) {
+                    AVFrame old = m_frameQueue->front();
+                    m_frameQueue->pop();
+                    freeFrameData(old);
+                }
+                m_frameQueue->push(copy);
+            } else {
+                // Если мьютекса нет - всё равно защищаем доступ
+                while (m_frameQueue->size() >= 2) {
+                    AVFrame old = m_frameQueue->front();
+                    m_frameQueue->pop();
+                    freeFrameData(old);
+                }
+                m_frameQueue->push(copy);
             }
-            m_frameQueue->push(copy);
 
-            if (m_pHframeMutex)
-                ReleaseMutex(*m_pHframeMutex);
         }
     }
 
