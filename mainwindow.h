@@ -76,6 +76,7 @@ private slots:
     void onJetsonSetClicked();
     void onTrackStartClicked();
     void onTrackStopClicked();
+    void onPidSettingsClicked();
     void onMdplStatus(const QString& stat);
     void onCaptAck(const QString& stat);
     void onCaptStateUpdated(CaptState state);
@@ -112,6 +113,9 @@ private:
     int                     m_lastFrameW = 0;
     int                     m_lastFrameH = 0;
     int                     m_trackButton = 4;
+    int                     m_trackCancelButton = 4;
+    int                     m_drawStrobeW = 64;
+    int                     m_drawStrobeH = 64;
 
     void setupControllers();
     void loadAllSettings();

@@ -53,6 +53,7 @@ public:
     int defaultVideoChannel() const { return m_defaultVideoChannel; }
     int trackButton() const { return m_trackButton; }
     TrackingParams trackingParams() const { return m_pid; }
+    void setTrackingParams(const TrackingParams& params) { m_pid = params; }
     CaptState lastCaptState() const { return m_capt; }
 
     bool sendPlay(const QString& playIp, int playPort);
