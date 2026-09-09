@@ -30,28 +30,19 @@ MainWindow::MainWindow(QWidget *parent)
     m_rangefinder = new RangefinderController(m_udp, this);
     m_jetson = new JetsonController(this);
 
-    // Create 10Hz timer for speed control
     m_speedSendTimer = new QTimer(this);
-    m_speedSendTimer->setInterval(100); // 10 Hz
+    m_speedSendTimer->setInterval(100);
     connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
-
-
 
     setupControllers();
     loadAllSettings();
-
-    // Initialize control mode after everything is ready
     QTimer::singleShot(50, this, &MainWindow::updateControlMode);
 
-    // Connect UI signals
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
-
-    // Video buttons
     connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
     connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
-
     connect(ui->btnJetsonPlay, &QPushButton::clicked, this, &MainWindow::onJetsonPlayClicked);
     connect(ui->btnJetsonStop, &QPushButton::clicked, this, &MainWindow::onJetsonStopClicked);
     connect(ui->btnJetsonSet,  &QPushButton::clicked, this, &MainWindow::onJetsonSetClicked);
@@ -59,10 +50,19 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnTrackStop,  &QPushButton::clicked, this, &MainWindow::onTrackStopClicked);
     connect(ui->btnPidSettings, &QPushButton::clicked, this, &MainWindow::onPidSettingsClicked);
 
-    // Status labels
     ui->labelGyroStatus->setText("Disconnected");
     ui->labelJoystickStatus->setText("Disconnected");
     ui->labelVideoStatus->setText("Stopped");
-
     setupVideo();
+}
+
+MainWindow::~MainWindow()
+{
+    stopVideo();
+    if (m_videoDec) {
+        m_videoDec->stopThread();
+        delete m_videoDec;
+        m_videoDec = nullptr;
+    }
+    delete ui;
 }
