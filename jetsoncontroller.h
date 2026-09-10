@@ -60,6 +60,7 @@ public:
     bool sendStop();
     bool sendSet(int bitrate, const QString& resolut);
     bool sendTrackSet(int trackCmd, int videoChannel, int strobX, int strobY, int strobW, int strobH);
+    bool sendPidSet();
     bool sendGetSet();
 
 signals:

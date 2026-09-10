@@ -27,6 +27,7 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     add("autofocus",        Qt::Key_F,        2);
     add("focus_infinity",   Qt::Key_I,        3);
     add("track",            Qt::Key_T,        settings.value("Joystick/button_track", 4).toInt());
+    add("track_cancel",     Qt::Key_Escape,   settings.value("Joystick/button_track_cancel", 5).toInt());
 
     // Оси (стрелки)
     m_keyYawLeft   = settings.value("Keyboard/yaw_left",   Qt::Key_Left).toInt();

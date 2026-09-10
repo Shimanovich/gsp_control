@@ -124,7 +124,7 @@ void MainWindow::loadAllSettings()
     m_videoPort = s.value("Video/port", 5004).toInt();
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
     m_trackButton = s.value("Joystick/button_track", 4).toInt();
-    m_trackCancelButton = s.value("Joystick/button_track_cancel", m_trackButton).toInt();
+    m_trackCancelButton = s.value("Joystick/button_track_cancel", 5).toInt();
     m_drawStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
     m_drawStrobeH = s.value("Tracking/strobe_y_sz", 64).toInt();
 
@@ -200,17 +200,14 @@ void MainWindow::onJoystickButtonPressed(int button)
     qDebug() << "MainWindow: processing pressed button" << button;
 
 
-    // Отмена слежения отдельной кнопкой джойстика.
-    if (button == m_trackCancelButton && m_captState.trackStatus != 0) {
+    // Отдельная кнопка отмены слежения (не та, что старт).
+    if (button == m_trackCancelButton) {
         sendTrackCommand(0);
         return;
     }
 
-    // Старт / повторное нажатие той же кнопки (если cancel == track — тумблер).
     if (button == m_trackButton) {
-        const int cmd = (m_captState.trackStatus != 0)
-            ? 0
-            : qMax(1, ui->comboTrackCmd->currentData().toInt());
+        const int cmd = qMax(1, ui->comboTrackCmd->currentData().toInt());
         sendTrackCommand(cmd);
         return;
     }
@@ -893,9 +890,18 @@ void MainWindow::onPidSettingsClicked()
     pid.invEl = 1;
     m_jetson->setTrackingParams(pid);
 
+    if (!m_jetson->isStarted() && !m_jetson->start()) {
+        QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
+        return;
+    }
+    if (!m_jetson->sendPidSet()) {
+        ui->statusBar->showMessage(QStringLiteral("CAPT PID set send failed"), 3000);
+        return;
+    }
     ui->statusBar->showMessage(
-        QString("PID сохранены, применятся при следующем старте слежения  Xp=%1 Yi=%2")
-            .arg(pid.pidXp).arg(pid.pidYi), 4000);
+        QString("PID отправлены (только PID_*): Xp=%1 Xi=%2 Xd=%3 Yp=%4 Yi=%5 Yd=%6")
+            .arg(pid.pidXp).arg(pid.pidXi).arg(pid.pidXd)
+            .arg(pid.pidYp).arg(pid.pidYi).arg(pid.pidYd), 4000);
 }
 
 void MainWindow::onTrackStartClicked()

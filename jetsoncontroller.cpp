@@ -210,6 +210,21 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
     return ok;
 }
 
+bool JetsonController::sendPidSet()
+{
+    // Только command + PID_*. Без TRACK/STROB, чтобы не сбрасывать слежение.
+    const QByteArray json =
+            QByteArrayLiteral("{\"command\":\"set\"") +
+            QByteArrayLiteral(",\"PID_X_P\":") + jsonPidNumber(m_pid.pidXp) +
+            QByteArrayLiteral(",\"PID_X_I\":") + jsonPidNumber(m_pid.pidXi) +
+            QByteArrayLiteral(",\"PID_X_D\":") + jsonPidNumber(m_pid.pidXd) +
+            QByteArrayLiteral(",\"PID_Y_P\":") + jsonPidNumber(m_pid.pidYp) +
+            QByteArrayLiteral(",\"PID_Y_I\":") + jsonPidNumber(m_pid.pidYi) +
+            QByteArrayLiteral(",\"PID_Y_D\":") + jsonPidNumber(m_pid.pidYd) +
+            QByteArrayLiteral("}");
+    return sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));
+}
+
 bool JetsonController::sendGetSet()
 {
     const QByteArray json = QByteArrayLiteral("{\"command\":\"get_set\"}");
