@@ -27,8 +27,8 @@ struct TrackingParams
     float pidYp = 0.0f;
     float pidYi = 0.0f;
     float pidYd = 0.0f;
-    int invAz = 0;
-    int invEl = 0;
+    int invAz = 1;
+    int invEl = 1;
 };
 
 class JetsonController : public QObject

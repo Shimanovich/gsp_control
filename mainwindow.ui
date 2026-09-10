@@ -516,6 +516,13 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="btnPidSettings">
+               <property name="text">
+                <string>PID…</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item>
