@@ -132,12 +132,12 @@ bool udpDec::on()
 // ============================================================================
 void udpDec::off()
 {
+    // Не закрываем FFmpeg из UI-потока: decodeLoop ещё может быть
+    // в av_read_frame / avcodec_send_packet. Иначе Stop Video падает.
     m_enable = false;
-    // Закрываем сразу: освобождаем UDP-сокет и контекст FFmpeg.
-    // Иначе при следующем on() возникает гонка с av_read_frame и
-    // возможна ошибка "address already in use" / зависание.
-    closeInput();
-    qDebug() << "udpDec: off() — stopped and closed";
+    for (int i = 0; i < 80 && m_opened.load(); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    qDebug() << "udpDec: off() — stop requested, opened=" << m_opened.load();
 }
 
 // ============================================================================
@@ -155,13 +155,11 @@ void udpDec::stopThread()
 {
     m_enable = false;
     m_active = false;
-
-    // Разбудить поток, если он ждёт
-    // (av_read_frame может блокироваться, поэтому закрываем input)
-    closeInput();
-
+    // Не closeInput() до join: interrupt_callback разблокирует av_read_frame,
+    // decodeLoop сам закроет контекст.
     if (m_decodeThread.joinable())
         m_decodeThread.join();
+    closeInput();
 }
 
 // ============================================================================
@@ -238,6 +236,8 @@ bool udpDec::openInput()
         av_dict_free(&opts);
         return false;
     }
+    fmt_ctx->interrupt_callback.callback = &udpDec::decodeInterruptCb;
+    fmt_ctx->interrupt_callback.opaque = this;
 
     // Буфер SDP (FFmpeg скопирует данные)
     AVIOContext* avio = nullptr;
@@ -403,9 +403,17 @@ void udpDec::closeInputUnlocked()
 // ============================================================================
 // processOnePacket — один цикл av_read_frame + decode
 // ============================================================================
+int udpDec::decodeInterruptCb(void* opaque)
+{
+    auto* self = static_cast<udpDec*>(opaque);
+    if (!self)
+        return 1;
+    return (!self->m_enable.load() || !self->m_active.load()) ? 1 : 0;
+}
+
 bool udpDec::processOnePacket()
 {
-    if (!fmt_ctx || !codec_ctx || !m_opened.load())
+    if (!m_enable.load() || !fmt_ctx || !codec_ctx || !m_opened.load())
         return false;
 
     av_packet_unref(packet);
@@ -427,6 +435,11 @@ bool udpDec::processOnePacket()
     m_seiCapValid = false;
     if (packet->data && packet->size > 0)
         tryParseSeiTime(packet->data, packet->size);
+
+    if (!m_enable.load() || !codec_ctx || !m_opened.load()) {
+        av_packet_unref(packet);
+        return false;
+    }
 
     ret = avcodec_send_packet(codec_ctx, packet);
     av_packet_unref(packet);
@@ -537,17 +550,19 @@ bool udpDec::processOnePacket()
 void udpDec::decodeLoop()
 {
     while (m_active.load()) {
-        if (!m_enable.load() || !m_opened.load()) {
-            // Ждём включения
+        if (!m_enable.load()) {
+            if (m_opened.load())
+                closeInput();
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+        if (!m_opened.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
 
-        // Читаем пакеты
-        if (!processOnePacket()) {
-            // Небольшая пауза при отсутствии данных / ошибке
+        if (!processOnePacket())
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        }
     }
 
     closeInput();

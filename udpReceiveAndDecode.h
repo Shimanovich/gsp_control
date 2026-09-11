@@ -99,6 +99,7 @@ private:
     void closeInputUnlocked();          // internal, without lock
     bool processOnePacket();            // av_read_frame + decode + push frame
     void tryParseSeiTime(const uint8_t* data, int size);
+    static int decodeInterruptCb(void* opaque);
 
     static AVFrame deepCopyFrame(const AVFrame& src);
     static void    freeFrameData(AVFrame& f);
