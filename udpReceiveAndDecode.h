@@ -58,6 +58,12 @@ public:
 
     bool startListening();              // kept for API compatibility (now no-op / internal)
 
+    int incomingWidth()  const { return m_winWidth; }
+    int incomingHeight() const { return m_winHeight; }
+
+signals:
+    void incomingResolutionChanged(int width, int height);
+
 private:
     // ---- parameters from MainWindow ----
     uint16_t             m_recudpport = 0;

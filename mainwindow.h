@@ -69,6 +69,7 @@ private slots:
     void onVideoStartClicked();
     void onVideoStopClicked();
     void onVideoTimer();
+    void onIncomingResolutionChanged(int width, int height);
 
     // Jetson / JEP
     void onJetsonPlayClicked();
@@ -112,6 +113,8 @@ private:
     CaptState               m_captState;
     int                     m_lastFrameW = 0;
     int                     m_lastFrameH = 0;
+    int                     m_dispResW = 0;
+    int                     m_dispResH = 0;
     int                     m_trackButton = 4;
     int                     m_trackCancelButton = 5;
     int                     m_drawStrobeW = 64;

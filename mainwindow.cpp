@@ -480,6 +480,9 @@ void MainWindow::setupVideo()
     p.phframeMutex   = &m_frameMutex;
 
     m_videoDec = new udpDec(&p, this);
+    connect(m_videoDec, &udpDec::incomingResolutionChanged,
+            this, &MainWindow::onIncomingResolutionChanged,
+            Qt::QueuedConnection);
 
     m_videoTimer = new QTimer(this);
     connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
@@ -535,8 +538,44 @@ void MainWindow::stopVideo()
     ui->videoLabel->setText("No signal");
     ui->labelVideoStatus->setText("Stopped");
     ui->labelVideoStatus->setStyleSheet("color: gray;");
+    ui->labelVideoStatus->setToolTip(QString());
+    m_lastFrameW = 0;
+    m_lastFrameH = 0;
+    m_dispResW = 0;
+    m_dispResH = 0;
     ui->btnVideoStart->setEnabled(true);
     ui->btnVideoStop->setEnabled(false);
+}
+
+namespace {
+QString resolutionClassName(int w, int h)
+{
+    if (w <= 0 || h <= 0)
+        return QString();
+    const int pixels = w * h;
+    if (pixels >= 1920 * 1000)
+        return QStringLiteral("FHD");
+    if (pixels >= 1280 * 700)
+        return QStringLiteral("HD");
+    return QStringLiteral("SD");
+}
+} // namespace
+
+void MainWindow::onIncomingResolutionChanged(int width, int height)
+{
+    if (width <= 0 || height <= 0)
+        return;
+    m_dispResW = width;
+    m_dispResH = height;
+    const QString cls = resolutionClassName(width, height);
+    const QString text = QStringLiteral("Running %1x%2 (%3)")
+                             .arg(width)
+                             .arg(height)
+                             .arg(cls);
+    ui->labelVideoStatus->setText(text);
+    ui->labelVideoStatus->setStyleSheet("color: green;");
+    ui->labelVideoStatus->setToolTip(
+        QStringLiteral("Фактический размер входящего декодированного кадра"));
 }
 
 void MainWindow::onVideoTimer()
@@ -605,6 +644,11 @@ void MainWindow::onVideoTimer()
     }
 
     ui->videoLabel->setPixmap(pix);
+
+    if (srcW > 0 && srcH > 0 &&
+        (srcW != m_dispResW || srcH != m_dispResH)) {
+        onIncomingResolutionChanged(srcW, srcH);
+    }
 
     if (frame.data[0]) {
         av_free(frame.data[0]);

@@ -397,6 +397,8 @@ void udpDec::closeInputUnlocked()
         dst.data[0] = nullptr;
     }
     src_pixfmt = AV_PIX_FMT_NONE;
+    m_winWidth = 0;
+    m_winHeight = 0;
 }
 
 
@@ -468,28 +470,47 @@ bool udpDec::processOnePacket()
         }
 
         // ---- получили кадр ----
-        if (src_pixfmt == AV_PIX_FMT_NONE || !convert_ctx) {
-            if (m_winHeight == 0 || m_winWidth == 0) {
-                m_winHeight = frame_yuv->height;
-                m_winWidth  = frame_yuv->width;
+        const int fw = frame_yuv->width;
+        const int fh = frame_yuv->height;
+        if (fw <= 0 || fh <= 0)
+            continue;
+
+        const AVPixelFormat curFmt = static_cast<AVPixelFormat>(frame_yuv->format);
+        const bool needRebuild =
+            !convert_ctx ||
+            src_pixfmt == AV_PIX_FMT_NONE ||
+            fw != m_winWidth ||
+            fh != m_winHeight ||
+            curFmt != src_pixfmt;
+
+        if (needRebuild) {
+            if (convert_ctx) {
+                sws_freeContext(convert_ctx);
+                convert_ctx = nullptr;
             }
-            if (m_winWidth <= 0 || m_winHeight <= 0)
-                continue;
+            if (dst.data[0]) {
+                av_free(dst.data[0]);
+                dst.data[0] = nullptr;
+            }
+
+            const int prevW = m_winWidth;
+            const int prevH = m_winHeight;
+            m_winWidth  = fw;
+            m_winHeight = fh;
+            src_pixfmt  = curFmt;
 
             int numBytes = av_image_get_buffer_size(dst_pixfmt, m_winWidth, m_winHeight, 1);
             if (numBytes <= 0)
                 continue;
 
-            if (dst.data[0])
-                av_free(dst.data[0]);
             dst.data[0] = static_cast<uint8_t*>(av_malloc(numBytes));
+            if (!dst.data[0])
+                continue;
             av_image_fill_arrays(dst.data, dst.linesize, dst.data[0],
                                  dst_pixfmt, m_winWidth, m_winHeight, 1);
 
-            src_pixfmt = static_cast<AVPixelFormat>(frame_yuv->format);
-
             convert_ctx = sws_getContext(
-                frame_yuv->width, frame_yuv->height, src_pixfmt,
+                fw, fh, src_pixfmt,
                 m_winWidth, m_winHeight, dst_pixfmt,
                 SWS_BICUBIC, nullptr, nullptr, nullptr);
 
@@ -497,17 +518,19 @@ bool udpDec::processOnePacket()
                 qDebug() << "udpDec: cannot create sws context";
                 continue;
             }
-            qDebug() << "udpDec: first frame" << frame_yuv->width << "x" << frame_yuv->height
-                     << "fmt" << src_pixfmt;
+            qDebug() << "udpDec: frame size" << fw << "x" << fh
+                     << "fmt" << src_pixfmt
+                     << (prevW == 0 ? "(first)" : "(changed)");
+            emit incomingResolutionChanged(fw, fh);
         }
 
         sws_scale(convert_ctx,
                   frame_yuv->data, frame_yuv->linesize,
-                  0, frame_yuv->height,
+                  0, fh,
                   dst.data, dst.linesize);
 
-        dst.width  = frame_yuv->width;
-        dst.height = frame_yuv->height;
+        dst.width  = m_winWidth;
+        dst.height = m_winHeight;
 
         // Координаты строба из последнего SEI этого AU.
         // crop_* у копии — единственное место, куда их можно положить
