@@ -84,6 +84,7 @@ private slots:
     void onCaptStateUpdated(CaptState state);
 
     void on_spinSpeedMultiplier_valueChanged(int value);
+    void on_checkInvertPitch_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QPainter>
 #include <QDialog>
 #include <QFormLayout>
@@ -137,6 +138,14 @@ void MainWindow::loadAllSettings()
     m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
     m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
     m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
+
+    const bool invertPitch = s.value("Joystick/invert_pitch", false).toBool();
+    if (m_joystick)
+        m_joystick->setInvertPitch(invertPitch);
+    if (ui->checkInvertPitch) {
+        QSignalBlocker blocker(ui->checkInvertPitch);
+        ui->checkInvertPitch->setChecked(invertPitch);
+    }
     m_drawStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
     m_drawStrobeH = s.value("Tracking/strobe_y_sz", 64).toInt();
 
@@ -406,6 +415,12 @@ void MainWindow::onZoomPositionUpdated(float position)
 
 
 
+
+void MainWindow::on_checkInvertPitch_toggled(bool checked)
+{
+    if (m_joystick)
+        m_joystick->setInvertPitch(checked);
+}
 
 void MainWindow::on_spinSpeedMultiplier_valueChanged(int value)
 {

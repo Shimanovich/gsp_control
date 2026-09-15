@@ -26,6 +26,9 @@ public:
     float getAxisYaw();
     float getAxisPitch();
 
+    bool invertPitch() const { return m_invertPitch; }
+    void setInvertPitch(bool invert) { m_invertPitch = invert; }
+
 signals:
     void connectedChanged(bool connected);
     void buttonPressed(int button);   // фронт 0→1
