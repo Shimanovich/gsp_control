@@ -199,29 +199,48 @@ void CameraController::focusInfinity()
     sendVisca(cmd);
 }
 
-void CameraController::brightnessUp()
+void CameraController::setAeBrightMode()
 {
-    // CAM_Bright Up (from datasheet page 35)
+    // CAM_AE Bright: 8x 01 04 39 0D FF (MC-108-M3, Approval sheet p.35)
     QByteArray cmd;
     cmd.append(char(0x81));
     cmd.append(char(0x01));
     cmd.append(char(0x04));
+    cmd.append(char(0x39));
     cmd.append(char(0x0D));
-    cmd.append(char(0x02));
     cmd.append(char(0xFF));
     sendVisca(cmd);
 }
 
-void CameraController::                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 brightnessDown()
+void CameraController::brightnessUp()
 {
-    QByteArray cmd;
-    cmd.append(char(0x81));
-    cmd.append(char(0x01));
-    cmd.append(char(0x04));
-    cmd.append(char(0x0D));
-    cmd.append(char(0x03));
-    cmd.append(char(0xFF));
-    sendVisca(cmd);
+    setAeBrightMode();
+    // Камера буферизует одну команду; шаг яркости — после смены AE.
+    QTimer::singleShot(80, this, [this]() {
+        QByteArray cmd;
+        cmd.append(char(0x81));
+        cmd.append(char(0x01));
+        cmd.append(char(0x04));
+        cmd.append(char(0x0D));
+        cmd.append(char(0x02));
+        cmd.append(char(0xFF));
+        sendVisca(cmd);
+    });
+}
+
+void CameraController::brightnessDown()
+{
+    setAeBrightMode();
+    QTimer::singleShot(80, this, [this]() {
+        QByteArray cmd;
+        cmd.append(char(0x81));
+        cmd.append(char(0x01));
+        cmd.append(char(0x04));
+        cmd.append(char(0x0D));
+        cmd.append(char(0x03));
+        cmd.append(char(0xFF));
+        sendVisca(cmd);
+    });
 }
 
 void CameraController::startZoomPolling()

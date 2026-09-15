@@ -34,6 +34,7 @@ public:
     void focusInfinity();
     void brightnessUp();
     void brightnessDown();
+    void setAeBrightMode();
 
     void startZoomPolling();
     void stopZoomPolling();
