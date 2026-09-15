@@ -105,7 +105,20 @@ private:
     double m_speedMultiplier = 1.0;
     float m_headingYawDeg = 0.0f;
     float m_headingPitchDeg = 0.0f;
-    int m_headingButton = 11;
+
+    // SDL-индексы кнопок из [Joystick] config.ini
+    int m_btnZoomIn = 9;
+    int m_btnZoomOut = 7;
+    int m_btnZoomNext = 6;
+    int m_btnZoomPrev = 8;
+    int m_btnBrightnessUp = 10;
+    int m_btnBrightnessDown = 12;
+    int m_btnRangefinderShot = 1;
+    int m_btnAutofocus = 2;
+    int m_btnFocusInfinity = 3;
+    int m_btnTrack = 4;
+    int m_btnTrackCancel = 5;
+    int m_btnHeading = 11;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
@@ -120,8 +133,6 @@ private:
     int                     m_lastFrameH = 0;
     int                     m_dispResW = 0;
     int                     m_dispResH = 0;
-    int                     m_trackButton = 4;
-    int                     m_trackCancelButton = 5;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
 

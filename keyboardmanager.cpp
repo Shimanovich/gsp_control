@@ -17,17 +17,19 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
         m_keyToButton.insert(key, button);
     };
 
-    // Кнопки (совпадают с case в onJoystickButtonPressed)
-    add("zoom_in",          Qt::Key_Plus,     9);
-    add("zoom_out",         Qt::Key_Minus,    7);
-    add("zoom_next",        Qt::Key_PageUp,   6);
-    add("zoom_prev",        Qt::Key_PageDown, 8);
-    add("brightness_up",    Qt::Key_0,        10);
-    add("brightness_down",  Qt::Key_9,        12);
-    add("autofocus",        Qt::Key_F,        2);
-    add("focus_infinity",   Qt::Key_I,        3);
+    // Клавиша -> тот же SDL-индекс, что в [Joystick]
+    add("zoom_in",          Qt::Key_Plus,     settings.value("Joystick/button_zoom_in", 9).toInt());
+    add("zoom_out",         Qt::Key_Minus,    settings.value("Joystick/button_zoom_out", 7).toInt());
+    add("zoom_next",        Qt::Key_PageUp,   settings.value("Joystick/button_zoom_next", 6).toInt());
+    add("zoom_prev",        Qt::Key_PageDown, settings.value("Joystick/button_zoom_prev", 8).toInt());
+    add("brightness_up",    Qt::Key_0,        settings.value("Joystick/button_brightness_up", 10).toInt());
+    add("brightness_down",  Qt::Key_9,        settings.value("Joystick/button_brightness_down", 12).toInt());
+    add("autofocus",        Qt::Key_F,        settings.value("Joystick/button_autofocus", 2).toInt());
+    add("focus_infinity",   Qt::Key_I,        settings.value("Joystick/button_focus_infinity", 3).toInt());
+    add("rangefinder_shot", Qt::Key_Space,    settings.value("Joystick/button_rangefinder_shot", 1).toInt());
     add("track",            Qt::Key_T,        settings.value("Joystick/button_track", 4).toInt());
     add("track_cancel",     Qt::Key_Escape,   settings.value("Joystick/button_track_cancel", 5).toInt());
+    add("heading",          Qt::Key_H,        settings.value("Joystick/button_heading", 11).toInt());
 
     // Оси (стрелки)
     m_keyYawLeft   = settings.value("Keyboard/yaw_left",   Qt::Key_Left).toInt();

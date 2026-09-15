@@ -123,9 +123,18 @@ void MainWindow::loadAllSettings()
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
-    m_trackButton = s.value("Joystick/button_track", 4).toInt();
-    m_trackCancelButton = s.value("Joystick/button_track_cancel", 5).toInt();
-    m_headingButton = s.value("Joystick/button_heading", 11).toInt();
+    m_btnZoomIn = s.value("Joystick/button_zoom_in", 9).toInt();
+    m_btnZoomOut = s.value("Joystick/button_zoom_out", 7).toInt();
+    m_btnZoomNext = s.value("Joystick/button_zoom_next", 6).toInt();
+    m_btnZoomPrev = s.value("Joystick/button_zoom_prev", 8).toInt();
+    m_btnBrightnessUp = s.value("Joystick/button_brightness_up", 10).toInt();
+    m_btnBrightnessDown = s.value("Joystick/button_brightness_down", 12).toInt();
+    m_btnRangefinderShot = s.value("Joystick/button_rangefinder_shot", 1).toInt();
+    m_btnAutofocus = s.value("Joystick/button_autofocus", 2).toInt();
+    m_btnFocusInfinity = s.value("Joystick/button_focus_infinity", 3).toInt();
+    m_btnTrack = s.value("Joystick/button_track", 4).toInt();
+    m_btnTrackCancel = s.value("Joystick/button_track_cancel", 5).toInt();
+    m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
     m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
     m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
     m_drawStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
@@ -203,57 +212,63 @@ void MainWindow::onJoystickButtonPressed(int button)
     qDebug() << "MainWindow: processing pressed button" << button;
 
 
-    // Отдельная кнопка отмены слежения (не та, что старт).
-    if (button == m_trackCancelButton) {
+    if (button == m_btnTrackCancel) {
         sendTrackCommand(0);
         return;
     }
-
-    if (button == m_trackButton) {
+    if (button == m_btnTrack) {
         const int cmd = qMax(1, ui->comboTrackCmd->currentData().toInt());
         sendTrackCommand(cmd);
         return;
     }
-
-    if (button == m_headingButton) {
+    if (button == m_btnHeading) {
         activateHeadingMode();
         return;
     }
-
-    switch (button) {
-
-
-    case 9:  m_camera->zoomIn();                        break;
-    case 7:  m_camera->zoomOut();                       break;
-    case 6:  m_camera->setZoomPosition_next();          break;
-    case 8:  m_camera->setZoomPosition_prev();          break;
-
-    case 10:  m_camera->brightnessUp();                 break;
-    case 12:  m_camera->brightnessDown();               break;
-
-    case 1:  if (ui->checkSafety->isChecked())
+    if (button == m_btnZoomIn) {
+        m_camera->zoomIn();
+        return;
+    }
+    if (button == m_btnZoomOut) {
+        m_camera->zoomOut();
+        return;
+    }
+    if (button == m_btnZoomNext) {
+        m_camera->setZoomPosition_next();
+        return;
+    }
+    if (button == m_btnZoomPrev) {
+        m_camera->setZoomPosition_prev();
+        return;
+    }
+    if (button == m_btnBrightnessUp) {
+        m_camera->brightnessUp();
+        return;
+    }
+    if (button == m_btnBrightnessDown) {
+        m_camera->brightnessDown();
+        return;
+    }
+    if (button == m_btnRangefinderShot) {
+        if (ui->checkSafety->isChecked())
             m_rangefinder->shoot();
-        break;
-
-    case 2:  m_camera->autofocus();                     break;
-    case 3:  m_camera->focusInfinity();                 break;
-
-    default: break;
+        return;
+    }
+    if (button == m_btnAutofocus) {
+        m_camera->autofocus();
+        return;
+    }
+    if (button == m_btnFocusInfinity) {
+        m_camera->focusInfinity();
+        return;
     }
 }
 
 
 void MainWindow::onJoystickButtonReleased(int button)
 {
-    // Вызов ровно один раз при отпускании (только для непрерывных действий)
-    switch (button) {
-    case 9:  // zoomIn
-    case 7:  // zoomOut
+    if (button == m_btnZoomIn || button == m_btnZoomOut)
         m_camera->zoomStop();
-        break;
-    default:
-        break;   // остальные действия не требуют release
-    }
 }
 
 
