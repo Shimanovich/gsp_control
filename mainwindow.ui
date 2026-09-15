@@ -21,41 +21,22 @@
        <number>6</number>
       </property>
       <item>
-       <widget class="QWidget" name="panelLeft">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <property name="spacing">
+         <number>6</number>
         </property>
-        <property name="minimumSize">
-         <size>
-          <width>280</width>
-          <height>0</height>
-         </size>
+        <property name="leftMargin">
+         <number>0</number>
         </property>
-        <property name="maximumSize">
-         <size>
-          <width>360</width>
-          <height>16777215</height>
-         </size>
+        <property name="topMargin">
+         <number>0</number>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <property name="spacing">
-          <number>6</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
         <item>
          <widget class="QGroupBox" name="groupNetwork">
           <property name="enabled">
@@ -305,6 +286,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="spinAngleAz">
+               <property name="keyboardTracking">
+                <bool>false</bool>
+               </property>
                <property name="suffix">
                 <string> °</string>
                </property>
@@ -312,16 +296,13 @@
                 <number>2</number>
                </property>
                <property name="minimum">
-                <double>-180.00</double>
+                <double>-180.000000000000000</double>
                </property>
                <property name="maximum">
-                <double>180.00</double>
+                <double>180.000000000000000</double>
                </property>
                <property name="singleStep">
-                <double>0.10</double>
-               </property>
-               <property name="keyboardTracking">
-                <bool>false</bool>
+                <double>0.100000000000000</double>
                </property>
               </widget>
              </item>
@@ -334,6 +315,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="spinAngleEl">
+               <property name="keyboardTracking">
+                <bool>false</bool>
+               </property>
                <property name="suffix">
                 <string> °</string>
                </property>
@@ -341,16 +325,13 @@
                 <number>2</number>
                </property>
                <property name="minimum">
-                <double>-90.00</double>
+                <double>-90.000000000000000</double>
                </property>
                <property name="maximum">
-                <double>90.00</double>
+                <double>90.000000000000000</double>
                </property>
                <property name="singleStep">
-                <double>0.10</double>
-               </property>
-               <property name="keyboardTracking">
-                <bool>false</bool>
+                <double>0.100000000000000</double>
                </property>
               </widget>
              </item>
@@ -360,19 +341,6 @@
             <widget class="QLabel" name="labelRoll">
              <property name="text">
               <string>Roll: 0.0°</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QCheckBox" name="cBoxAutoSimpleIntr">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>AutoRead</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
              </property>
             </widget>
            </item>
@@ -692,7 +660,6 @@
          </widget>
         </item>
        </layout>
-       </widget>
       </item>
       <item>
        <widget class="QGroupBox" name="groupVideo">

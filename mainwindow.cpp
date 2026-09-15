@@ -192,10 +192,8 @@ void MainWindow::onConnectClicked()
         this->setFocus();
 
 
-        if (ui->cBoxAutoSimpleIntr->isChecked())
-        {
-            m_gyro->startAnglePolling();
-        }
+        m_gyro->startAnglePolling();
+
         m_camera->startZoomPolling();
         if (m_jetson && !m_jetson->isStarted()) {
             if (!m_jetson->start()) {
