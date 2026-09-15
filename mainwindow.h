@@ -51,10 +51,10 @@ private slots:
     void on_radioSpeedMode_clicked(bool checked);
     void on_radioHeadingMode_clicked(bool checked);
     void on_radioAngleMode_clicked(bool checked);
+    void on_radioMotorsOff_clicked(bool checked);
     void onAngleTargetChanged();
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
-    void on_checkMotors_toggled(bool checked);
 
     void on_btnZoomIn_clicked();
     void on_btnZoomOut_clicked();
@@ -106,6 +106,7 @@ private:
     bool m_isSpeedMode = false;
     bool m_isHeadingMode = false;
     bool m_isAngleMode = false;
+    bool m_isMotorsOffMode = false;
     QTimer* m_speedSendTimer = nullptr;
     double m_speedMultiplier = 1.0;
     float m_zoomMagnification = 1.0f;

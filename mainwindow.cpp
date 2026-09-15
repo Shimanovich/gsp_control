@@ -206,9 +206,6 @@ void MainWindow::onConnectClicked()
         ui->btnConnect->setEnabled(false);
         ui->btnDisconnect->setEnabled(true);
 
-        if (ui->checkMotors && ui->checkMotors->isChecked())
-            m_gyro->setMotorsPower(true);
-
         // Apply current mode after connection
         QTimer::singleShot(100, this, &MainWindow::updateControlMode);
     } else {
@@ -368,6 +365,7 @@ void MainWindow::updateControlMode()
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
     m_isHeadingMode = ui->radioHeadingMode->isChecked();
     m_isAngleMode = ui->radioAngleMode->isChecked();
+    m_isMotorsOffMode = ui->radioMotorsOff && ui->radioMotorsOff->isChecked();
 
     if (m_isAngleMode) {
         float az = 0.0f, el = 0.0f;
@@ -375,6 +373,7 @@ void MainWindow::updateControlMode()
             ui->radioSpeedMode->setChecked(true);
             m_isAngleMode = false;
             m_isSpeedMode = true;
+            m_isMotorsOffMode = false;
         }
     }
 
@@ -385,9 +384,13 @@ void MainWindow::updateControlMode()
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
-        const bool motorsOn = !m_gyro || m_gyro->motorsPowered();
-        if (!motorsOn)
+        if (m_isMotorsOffMode) {
+            if (m_gyro)
+                m_gyro->setMotorsPower(false);
             return;
+        }
+        if (m_gyro)
+            m_gyro->setMotorsPower(true);
         if (m_isSpeedMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         } else if (m_isHeadingMode) {
@@ -455,6 +458,12 @@ void MainWindow::on_radioAngleMode_clicked(bool checked)
     {
         updateControlMode();
     }
+}
+
+void MainWindow::on_radioMotorsOff_clicked(bool checked)
+{
+    if (checked)
+        updateControlMode();
 }
 
 void MainWindow::onAngleTargetChanged()
@@ -587,13 +596,8 @@ void MainWindow::sendZeroPos()
 }
 
 
-void MainWindow::on_checkMotors_toggled(bool checked)
-{
-    if (m_gyro)
-        m_gyro->setMotorsPower(checked);
-    // CMD_CONTROL / Home каждые 100 мс снова включают моторы — таймер только при питании.
-    updateControlMode();
-}
+
+
 
 
 void MainWindow::on_btnZoomIn_clicked()
