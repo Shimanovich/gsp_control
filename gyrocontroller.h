@@ -22,6 +22,7 @@ public:
     void stopAnglePolling();
     void motorOn();
     void setMotorsPower(bool on);
+    bool motorsPowered() const { return m_motorsPowered; }
 
 signals:
     void anglesUpdated(float pitch, float yaw); // degrees
@@ -40,6 +41,7 @@ private:
     int m_pollIntervalMs = 1000; // 10 Hz // интервал опроса углов гироплатформы
 
     QTimer* m_pollTimer = nullptr;
+    bool m_motorsPowered = true;
 
     QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch);
 

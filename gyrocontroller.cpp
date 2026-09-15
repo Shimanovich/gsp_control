@@ -23,6 +23,8 @@ bool GyroController::loadSettings(const QString& iniPath)
 
 void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 {
+     if (!m_motorsPowered)
+         return;
      QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_SPEED, yawSpeed, pitchSpeed);
      QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
      if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
@@ -30,6 +32,8 @@ void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 
 void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
 {
+    if (!m_motorsPowered)
+        return;
     QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, yawDeg, pitchDeg);
     QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
     if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
@@ -37,15 +41,11 @@ void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
 
 void GyroController::goToZeroPosition()
 {
-    //QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, 0, 0);
-
-    // QByteArray payload = buildZeroPosCmd();
-    // QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
-    // if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
-
+    if (!m_motorsPowered)
+        return;
     QByteArray payload;
-    payload.append(18);
-    QByteArray fullPacket = SimpleBGC::buildPacket(69, payload);
+    payload.append(static_cast<char>(18)); // MENU_CMD_HOME_POSITION
+    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_EXECUTE_MENU, payload);
     if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 
@@ -79,19 +79,26 @@ void GyroController::motorOn()
 
 void GyroController::setMotorsPower(bool on)
 {
+    m_motorsPowered = on;
     if (!m_udp)
         return;
+
     if (on) {
-        // CMD_MOTORS_ON (#77) — без параметров
-        const QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_ON);
-        m_udp->sendPacket(m_targetId, fullPacket);
+        m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_ON));
+        QByteArray menu;
+        menu.append(static_cast<char>(11)); // MENU_CMD_MOTOR_ON
+        m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_EXECUTE_MENU, menu));
         return;
     }
-    // CMD_MOTORS_OFF (#109), MODE=0: питание снято, драйвер в high-Z
-    QByteArray payload;
-    payload.append(static_cast<char>(0));
-    const QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF, payload);
-    m_udp->sendPacket(m_targetId, fullPacket);
+
+    // Пустой CMD_MOTORS_OFF — совместим со старой прошивкой (MODE опционален с 2.68).
+    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF));
+    QByteArray offMode;
+    offMode.append(static_cast<char>(0)); // MODE=0 high-Z
+    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF, offMode));
+    QByteArray menu;
+    menu.append(static_cast<char>(12)); // MENU_CMD_MOTOR_OFF
+    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_EXECUTE_MENU, menu));
 }
 
 

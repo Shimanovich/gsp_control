@@ -385,6 +385,9 @@ void MainWindow::updateControlMode()
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
+        const bool motorsOn = !m_gyro || m_gyro->motorsPowered();
+        if (!motorsOn)
+            return;
         if (m_isSpeedMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         } else if (m_isHeadingMode) {
@@ -588,6 +591,8 @@ void MainWindow::on_checkMotors_toggled(bool checked)
 {
     if (m_gyro)
         m_gyro->setMotorsPower(checked);
+    // CMD_CONTROL / Home каждые 100 мс снова включают моторы — таймер только при питании.
+    updateControlMode();
 }
 
 
