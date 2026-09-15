@@ -24,6 +24,7 @@ public:
 
 signals:
     void anglesUpdated(float pitch, float yaw); // degrees
+    void temperaturesUpdated(int imuTempC, int frameImuTempC);
     void error(const QString& msg);
 
 private slots:

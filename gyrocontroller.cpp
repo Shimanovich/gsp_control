@@ -159,5 +159,7 @@ void GyroController::handleIncomingPacket(uint8_t sourceId, const QByteArray& pa
         float yaw = ((float)msg->rtdata.rotor_angle[2]*0.02197265625);
 
         emit anglesUpdated( pitch, yaw);
+        emit temperaturesUpdated(msg->rtdata.imu_temp_celcius,
+                                 msg->rtdata.frame_imu_temp_celcius);
     }
 }

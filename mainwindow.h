@@ -37,6 +37,7 @@ private slots:
     void onGoToZeroClicked();
     void onShootClicked();
     void updateGyroAngles(float roll, float pitch);
+    void updateGyroTemperatures(int imuTempC, int frameImuTempC);
     void updateJoystickStatus(bool connected);
     void updateConnectionStatus(bool connected);
 

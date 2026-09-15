@@ -92,6 +92,7 @@ void MainWindow::setupControllers()
 
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
+    connect(m_gyro, &GyroController::temperaturesUpdated, this, &MainWindow::updateGyroTemperatures);
 
     connect(m_camera, &CameraController::zoomPositionUpdated,this, &MainWindow::onZoomPositionUpdated);
 
@@ -231,6 +232,17 @@ void MainWindow::updateGyroAngles( float pitch,float yaw)
 {
     ui->labelRoll->setText(QString::number(yaw, 'f', 1) + "°");
     ui->labelPitch->setText(QString::number(pitch, 'f', 1) + "°");
+}
+
+void MainWindow::updateGyroTemperatures(int imuTempC, int frameImuTempC)
+{
+    auto formatTemp = [](int t) {
+        return QString("%1 °C").arg(t);
+    };
+    if (ui->labelImuTemp)
+        ui->labelImuTemp->setText("IMU: " + formatTemp(imuTempC));
+    if (ui->labelFrameImuTemp)
+        ui->labelFrameImuTemp->setText("Frame IMU: " + formatTemp(frameImuTempC));
 }
 
 void MainWindow::updateJoystickStatus(bool connected)
