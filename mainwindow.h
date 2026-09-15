@@ -60,7 +60,7 @@ private slots:
     void on_btnZoomOut_clicked();
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();
-    void onZoomPositionUpdated(float position);
+    void onZoomPositionUpdated(float magnification);
     void on_zoom_prev_clicked();
     void on_zoom_next_clicked();
     void on_btnZoomIn_released();
@@ -108,6 +108,7 @@ private:
     bool m_isAngleMode = false;
     QTimer* m_speedSendTimer = nullptr;
     double m_speedMultiplier = 1.0;
+    float m_zoomMagnification = 1.0f;
     float m_headingYawDeg = 0.0f;
     float m_headingPitchDeg = 0.0f;
     float m_angleAzMin = -180.0f;

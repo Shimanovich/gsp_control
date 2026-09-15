@@ -67,6 +67,34 @@ bool CameraController::loadSettings(const QString& iniPath)
 
     m_currentZoomIndex = settings.value("Camera/default_zoom_index", 0).toInt();
 
+    // Оптическая кривая MC-108-M3 (VISCA Zoom Position → Magnification)
+    const QString defPos = "0x0000,0x1816,0x240B,0x28C7,0x31AB,0x363D,0x39B6,0x3C65,0x3E81,0x4000";
+    const QString defMag = "1,2,3,4,5,6,7,8,9,10";
+    const QStringList curvePosList = settings.value("Camera/zoom_curve_positions", defPos)
+                                         .toString().split(',', Qt::SkipEmptyParts);
+    const QStringList curveMagList = settings.value("Camera/zoom_curve_magnifications", defMag)
+                                         .toString().split(',', Qt::SkipEmptyParts);
+    m_zoomCurvePos.clear();
+    m_zoomCurveMag.clear();
+    const int nCurve = qMin(curvePosList.size(), curveMagList.size());
+    for (int i = 0; i < nCurve; ++i) {
+        bool okPos = false, okMag = false;
+        const uint16_t p = static_cast<uint16_t>(curvePosList[i].trimmed().toUInt(&okPos, 0));
+        const float m = curveMagList[i].trimmed().toFloat(&okMag);
+        if (okPos && okMag && m > 0.0f)
+        {
+            if (!m_zoomCurvePos.isEmpty() && p < m_zoomCurvePos.last())
+                continue;
+            m_zoomCurvePos.append(p);
+            m_zoomCurveMag.append(m);
+        }
+    }
+    if (m_zoomCurvePos.size() < 2) {
+        m_zoomCurvePos = {0x0000, 0x1816, 0x240B, 0x28C7, 0x31AB,
+                          0x363D, 0x39B6, 0x3C65, 0x3E81, 0x4000};
+        m_zoomCurveMag = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    }
+
     // Небольшая валидация
     if (m_zoomDirectCommands.isEmpty()) {
         qWarning() << "Не загружено ни одной позиции зума!";
@@ -273,8 +301,8 @@ void CameraController::handleIncomingPacket(uint8_t sourceId, const QByteArray& 
                 (static_cast<uint8_t>(payload[5]) & 0x0F);
 
 
-            float normalized = static_cast<float>(zoomPos) / (0x4000-1);
-            emit zoomPositionUpdated(normalized);
+            m_currentMagnification = magnificationFromPosition(zoomPos);
+            emit zoomPositionUpdated(m_currentMagnification);
             return;
         }
     }
@@ -285,4 +313,27 @@ void CameraController::handleIncomingPacket(uint8_t sourceId, const QByteArray& 
         emit error(QString("VISCA error 0x%1").arg(errCode, 2, 16, QChar('0')));
         return;
     }
+}
+
+float CameraController::magnificationFromPosition(uint16_t zoomPos) const
+{
+    if (m_zoomCurvePos.size() < 2)
+        return 1.0f;
+    if (zoomPos <= m_zoomCurvePos.first())
+        return m_zoomCurveMag.first();
+    if (zoomPos >= m_zoomCurvePos.last())
+        return m_zoomCurveMag.last();
+
+    for (int i = 0; i < m_zoomCurvePos.size() - 1; ++i) {
+        const uint16_t p0 = m_zoomCurvePos[i];
+        const uint16_t p1 = m_zoomCurvePos[i + 1];
+        if (zoomPos >= p0 && zoomPos <= p1) {
+            const float span = static_cast<float>(p1 - p0);
+            if (span <= 0.0f)
+                return m_zoomCurveMag[i];
+            const float t = static_cast<float>(zoomPos - p0) / span;
+            return m_zoomCurveMag[i] + t * (m_zoomCurveMag[i + 1] - m_zoomCurveMag[i]);
+        }
+    }
+    return m_zoomCurveMag.last();
 }

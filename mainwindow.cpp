@@ -406,8 +406,9 @@ void MainWindow::sendJoystickSpeed()
     float keyYaw   = m_keyboard ? m_keyboard->getAxisYaw()   : 0.0f;
     float keyPitch = m_keyboard ? m_keyboard->getAxisPitch() : 0.0f;
 
-    float yaw   = (joyYaw   + keyYaw)   * m_speedMultiplier;
-    float pitch = -(joyPitch + keyPitch) * m_speedMultiplier;
+    const float zoomK = qMax(1.0f, m_zoomMagnification);
+    float yaw   = (joyYaw   + keyYaw)   * m_speedMultiplier / zoomK;
+    float pitch = -(joyPitch + keyPitch) * m_speedMultiplier / zoomK;
 
     ui->statusBar->showMessage(
         QString("Yaw: %1   Pitch: %2")
@@ -551,10 +552,10 @@ void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &a
     }
 }
 
-void MainWindow::onZoomPositionUpdated(float position)
+void MainWindow::onZoomPositionUpdated(float magnification)
 {
-    // position: 0.0 .. 1.0 (normalized from 0x0000..0x4000)
-    ui->zoomVal->setText(QString("Zoom: %1%").arg(position * 100.0f, 0, 'f', 1));
+    m_zoomMagnification = (magnification > 0.0f) ? magnification : 1.0f;
+    ui->zoomVal->setText(QString("Zoom: %1x").arg(m_zoomMagnification, 0, 'f', 2));
 }
 
 

@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QSettings>
 #include <QList>
+#include <QVector>
 
 class UdpCommunicator;
 
@@ -37,8 +38,10 @@ public:
     void startZoomPolling();
     void stopZoomPolling();
 
+    float currentMagnification() const { return m_currentMagnification; }
+
 signals:
-    void zoomPositionUpdated(float position);
+    void zoomPositionUpdated(float magnification);
     void error(const QString& msg);
 
 private slots:
@@ -54,6 +57,11 @@ private:
     QList<QByteArray> m_zoomDirectCommands;
     QList<QString> m_zoomNames;
     int m_currentZoomIndex = 0;
+    QVector<uint16_t> m_zoomCurvePos;
+    QVector<float> m_zoomCurveMag;
+    float m_currentMagnification = 1.0f;
+
+    float magnificationFromPosition(uint16_t zoomPos) const;
 
     QTimer* m_zoomPollTimer = nullptr;
 
