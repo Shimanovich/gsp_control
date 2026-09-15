@@ -125,6 +125,9 @@ void MainWindow::loadAllSettings()
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
     m_trackButton = s.value("Joystick/button_track", 4).toInt();
     m_trackCancelButton = s.value("Joystick/button_track_cancel", 5).toInt();
+    m_headingButton = s.value("Joystick/button_heading", 11).toInt();
+    m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
+    m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
     m_drawStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
     m_drawStrobeH = s.value("Tracking/strobe_y_sz", 64).toInt();
 
@@ -212,6 +215,11 @@ void MainWindow::onJoystickButtonPressed(int button)
         return;
     }
 
+    if (button == m_headingButton) {
+        activateHeadingMode();
+        return;
+    }
+
     switch (button) {
 
 
@@ -282,21 +290,23 @@ void MainWindow::onDisconnectClicked()
 void MainWindow::updateControlMode()
 {
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
+    m_isHeadingMode = ui->radioHeadingMode->isChecked();
 
     if (m_speedSendTimer)
     {
         m_speedSendTimer->stop();
+        disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
+        disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+        disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
         if (m_isSpeedMode) {
-            disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
-        }
-        else {
-            disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+        } else if (m_isHeadingMode) {
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
+        } else {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
         }
         m_speedSendTimer->start();
     }
-
 }
 
 
@@ -336,6 +346,26 @@ void MainWindow::on_radioSpeedMode_clicked(bool checked)
     {
         updateControlMode();
     }
+}
+
+void MainWindow::on_radioHeadingMode_clicked(bool checked)
+{
+    if (checked)
+    {
+        updateControlMode();
+    }
+}
+
+void MainWindow::activateHeadingMode()
+{
+    ui->radioHeadingMode->setChecked(true);
+    updateControlMode();
+}
+
+void MainWindow::sendHeadingPos()
+{
+    if (!m_gyro) return;
+    m_gyro->goToHeadingPosition(m_headingYawDeg, m_headingPitchDeg);
 }
 
 

@@ -28,6 +28,13 @@ void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
      if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
 
+void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
+{
+    QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, yawDeg, pitchDeg);
+    QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
+    if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
+}
+
 void GyroController::goToZeroPosition()
 {
     //QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, 0, 0);

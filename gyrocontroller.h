@@ -17,6 +17,7 @@ public:
 
     void setSpeed(float yawSpeed, float pitchSpeed);   // deg/s
     void goToZeroPosition();
+    void goToHeadingPosition(float yawDeg, float pitchDeg);
     void startAnglePolling();
     void stopAnglePolling();
     void motorOn();

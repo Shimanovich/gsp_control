@@ -48,6 +48,7 @@ private slots:
 
     void on_radioZeroMode_clicked(bool checked);
     void on_radioSpeedMode_clicked(bool checked);
+    void on_radioHeadingMode_clicked(bool checked);
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
     void on_btMotor_on_clicked();
@@ -99,8 +100,12 @@ private:
     QString m_configPath = "config.ini";
 
     bool m_isSpeedMode = false;
+    bool m_isHeadingMode = false;
     QTimer* m_speedSendTimer = nullptr;
-    double m_speedMultiplier = 20.0;
+    double m_speedMultiplier = 1.0;
+    float m_headingYawDeg = 0.0f;
+    float m_headingPitchDeg = 0.0f;
+    int m_headingButton = 11;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
@@ -115,8 +120,8 @@ private:
     int                     m_lastFrameH = 0;
     int                     m_dispResW = 0;
     int                     m_dispResH = 0;
-    int                     m_trackButton = 5;
-    int                     m_trackCancelButton = 4;
+    int                     m_trackButton = 4;
+    int                     m_trackCancelButton = 5;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
 
@@ -125,6 +130,8 @@ private:
     void updateControlMode();
     void sendJoystickSpeed();
     void sendZeroPos();
+    void sendHeadingPos();
+    void activateHeadingMode();
 
     void setupVideo();
     void stopVideo();

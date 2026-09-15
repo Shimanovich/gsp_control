@@ -219,6 +219,16 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QRadioButton" name="radioHeadingMode">
+               <property name="text">
+                <string>Курсовая камера</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item row="0" column="0">
@@ -263,7 +273,7 @@
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>25</number>
+                <number>20</number>
                </property>
                <property name="singleStep">
                 <number>1</number>
@@ -272,7 +282,7 @@
                 <number>1</number>
                </property>
                <property name="value">
-                <number>20</number>
+                <number>10</number>
                </property>
                <property name="orientation">
                 <enum>Qt::Orientation::Horizontal</enum>
