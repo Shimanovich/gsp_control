@@ -54,7 +54,7 @@ private slots:
     void onAngleTargetChanged();
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
-    void on_btMotor_on_clicked();
+    void on_checkMotors_toggled(bool checked);
 
     void on_btnZoomIn_clicked();
     void on_btnZoomOut_clicked();

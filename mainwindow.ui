@@ -364,9 +364,12 @@
             </layout>
            </item>
            <item row="1" column="0">
-            <widget class="QPushButton" name="btMotor_on">
+            <widget class="QCheckBox" name="checkMotors">
              <property name="text">
-              <string>Motor ON</string>
+              <string>Моторы</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
              </property>
             </widget>
            </item>

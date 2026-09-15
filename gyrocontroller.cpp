@@ -74,13 +74,24 @@ void GyroController::pollAngles()
 
 void GyroController::motorOn()
 {
-   // QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_ON);
-   // if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
+    setMotorsPower(true);
+}
 
-   QByteArray payload = buildZeroPosCmd();
-   QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
-   if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
-
+void GyroController::setMotorsPower(bool on)
+{
+    if (!m_udp)
+        return;
+    if (on) {
+        // CMD_MOTORS_ON (#77) — без параметров
+        const QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_ON);
+        m_udp->sendPacket(m_targetId, fullPacket);
+        return;
+    }
+    // CMD_MOTORS_OFF (#109), MODE=0: питание снято, драйвер в high-Z
+    QByteArray payload;
+    payload.append(static_cast<char>(0));
+    const QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF, payload);
+    m_udp->sendPacket(m_targetId, fullPacket);
 }
 
 

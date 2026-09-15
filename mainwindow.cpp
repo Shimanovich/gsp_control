@@ -206,6 +206,9 @@ void MainWindow::onConnectClicked()
         ui->btnConnect->setEnabled(false);
         ui->btnDisconnect->setEnabled(true);
 
+        if (ui->checkMotors && ui->checkMotors->isChecked())
+            m_gyro->setMotorsPower(true);
+
         // Apply current mode after connection
         QTimer::singleShot(100, this, &MainWindow::updateControlMode);
     } else {
@@ -581,9 +584,10 @@ void MainWindow::sendZeroPos()
 }
 
 
-void MainWindow::on_btMotor_on_clicked()
+void MainWindow::on_checkMotors_toggled(bool checked)
 {
-    m_gyro->motorOn();
+    if (m_gyro)
+        m_gyro->setMotorsPower(checked);
 }
 
 

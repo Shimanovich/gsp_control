@@ -21,6 +21,7 @@ public:
     void startAnglePolling();
     void stopAnglePolling();
     void motorOn();
+    void setMotorsPower(bool on);
 
 signals:
     void anglesUpdated(float pitch, float yaw); // degrees
