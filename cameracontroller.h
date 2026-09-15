@@ -56,8 +56,14 @@ private:
     uint8_t m_targetId = 11;
 
     QList<QByteArray> m_zoomDirectCommands;
+    QVector<uint16_t> m_zoomPresetPos;
     QList<QString> m_zoomNames;
     int m_currentZoomIndex = 0;
+    uint16_t m_currentZoomPos = 0;
+    bool m_haveZoomPos = false;
+
+    int nearestPresetIndex(uint16_t pos) const;
+    int stepPresetIndex(int direction) const;
     QVector<uint16_t> m_zoomCurvePos;
     QVector<float> m_zoomCurveMag;
     float m_currentMagnification = 1.0f;

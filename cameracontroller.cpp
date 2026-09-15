@@ -38,6 +38,7 @@ bool CameraController::loadSettings(const QString& iniPath)
                               .split(',', Qt::SkipEmptyParts);
 
     m_zoomDirectCommands.clear();
+    m_zoomPresetPos.clear();
     for (const QString& posRaw : posList) {
         QString pos = posRaw.trimmed();
         bool ok = false;
@@ -59,6 +60,7 @@ bool CameraController::loadSettings(const QString& iniPath)
         cmd.append(char(val & 0x0F));
         cmd.append(char(0xFF));
         m_zoomDirectCommands.append(cmd);
+        m_zoomPresetPos.append(val);
     }
 
     m_zoomNames = settings.value("Camera/zoom_position_names", "1x,2x,4x,8x,10x")
@@ -150,24 +152,76 @@ void CameraController::setZoomPosition(int index)
 {
     if (index < 0 || index >= m_zoomDirectCommands.size()) return;
     m_currentZoomIndex = index;
+    if (index < m_zoomPresetPos.size()) {
+        m_currentZoomPos = m_zoomPresetPos[index];
+        m_haveZoomPos = true;
+    }
     sendVisca(m_zoomDirectCommands[index]);
+}
+
+int CameraController::nearestPresetIndex(uint16_t pos) const
+{
+    if (m_zoomPresetPos.isEmpty())
+        return -1;
+    int best = 0;
+    int bestDist = qAbs(int(m_zoomPresetPos[0]) - int(pos));
+    for (int i = 1; i < m_zoomPresetPos.size(); ++i) {
+        const int d = qAbs(int(m_zoomPresetPos[i]) - int(pos));
+        if (d < bestDist) {
+            bestDist = d;
+            best = i;
+        }
+    }
+    return best;
+}
+
+int CameraController::stepPresetIndex(int direction) const
+{
+    if (m_zoomPresetPos.isEmpty() || m_zoomDirectCommands.isEmpty())
+        return -1;
+
+    const uint16_t pos = m_haveZoomPos
+            ? m_currentZoomPos
+            : (m_currentZoomIndex >= 0 && m_currentZoomIndex < m_zoomPresetPos.size()
+                   ? m_zoomPresetPos[m_currentZoomIndex]
+                   : m_zoomPresetPos.first());
+
+    // Уже на ступени (с допуском) — шаг к соседней. Иначе ближайшая в нужную сторону.
+    constexpr int kOnStepEps = 0x20;
+    const int nearest = nearestPresetIndex(pos);
+    if (nearest >= 0 && qAbs(int(m_zoomPresetPos[nearest]) - int(pos)) <= kOnStepEps) {
+        const int next = nearest + direction;
+        if (next < 0 || next >= m_zoomPresetPos.size())
+            return -1;
+        return next;
+    }
+
+    if (direction > 0) {
+        for (int i = 0; i < m_zoomPresetPos.size(); ++i) {
+            if (m_zoomPresetPos[i] > pos)
+                return i;
+        }
+        return -1;
+    }
+    for (int i = m_zoomPresetPos.size() - 1; i >= 0; --i) {
+        if (m_zoomPresetPos[i] < pos)
+            return i;
+    }
+    return -1;
 }
 
 void CameraController::setZoomPosition_prev()
 {
-    if (m_currentZoomIndex > 0)
-    {
-        m_currentZoomIndex--;
-        sendVisca(m_zoomDirectCommands[m_currentZoomIndex]);
-    }
+    const int idx = stepPresetIndex(-1);
+    if (idx >= 0)
+        setZoomPosition(idx);
 }
+
 void CameraController::setZoomPosition_next()
 {
-    if (m_currentZoomIndex < (m_zoomDirectCommands.size()-1))
-    {
-        m_currentZoomIndex++;
-        sendVisca(m_zoomDirectCommands[m_currentZoomIndex]);
-    }
+    const int idx = stepPresetIndex(+1);
+    if (idx >= 0)
+        setZoomPosition(idx);
 }
 
 void CameraController::autofocus()
@@ -320,6 +374,8 @@ void CameraController::handleIncomingPacket(uint8_t sourceId, const QByteArray& 
                 (static_cast<uint8_t>(payload[5]) & 0x0F);
 
 
+            m_currentZoomPos = zoomPos;
+            m_haveZoomPos = true;
             m_currentMagnification = magnificationFromPosition(zoomPos);
             emit zoomPositionUpdated(m_currentMagnification);
             return;
