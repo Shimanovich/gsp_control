@@ -120,6 +120,8 @@ private:
     int m_btnTrack = 4;
     int m_btnTrackCancel = 5;
     int m_btnHeading = 11;
+    int m_btnSpeedUp = 13;
+    int m_btnSpeedDown = 14;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
@@ -144,6 +146,8 @@ private:
     void sendZeroPos();
     void sendHeadingPos();
     void activateHeadingMode();
+    void toggleHeadingSpeedMode();
+    void adjustSpeedMultiplier(int direction);
 
     void setupVideo();
     void stopVideo();

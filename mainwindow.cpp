@@ -136,6 +136,8 @@ void MainWindow::loadAllSettings()
     m_btnTrack = s.value("Joystick/button_track", 4).toInt();
     m_btnTrackCancel = s.value("Joystick/button_track_cancel", 5).toInt();
     m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
+    m_btnSpeedUp = s.value("Joystick/button_speed_up", 13).toInt();
+    m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
     m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
     m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
 
@@ -231,7 +233,15 @@ void MainWindow::onJoystickButtonPressed(int button)
         return;
     }
     if (button == m_btnHeading) {
-        activateHeadingMode();
+        toggleHeadingSpeedMode();
+        return;
+    }
+    if (button == m_btnSpeedUp) {
+        adjustSpeedMultiplier(+1);
+        return;
+    }
+    if (button == m_btnSpeedDown) {
+        adjustSpeedMultiplier(-1);
         return;
     }
     if (button == m_btnZoomIn) {
@@ -384,6 +394,27 @@ void MainWindow::activateHeadingMode()
 {
     ui->radioHeadingMode->setChecked(true);
     updateControlMode();
+}
+
+void MainWindow::toggleHeadingSpeedMode()
+{
+    if (ui->radioHeadingMode->isChecked())
+        ui->radioSpeedMode->setChecked(true);
+    else
+        ui->radioHeadingMode->setChecked(true);
+    updateControlMode();
+}
+
+void MainWindow::adjustSpeedMultiplier(int direction)
+{
+    if (!ui->spinSpeedMultiplier)
+        return;
+    const int minV = ui->spinSpeedMultiplier->minimum();
+    const int maxV = ui->spinSpeedMultiplier->maximum();
+    const int span = maxV - minV;
+    const int step = qMax(1, qRound(0.1 * span));
+    const int next = qBound(minV, ui->spinSpeedMultiplier->value() + direction * step, maxV);
+    ui->spinSpeedMultiplier->setValue(next);
 }
 
 void MainWindow::sendHeadingPos()

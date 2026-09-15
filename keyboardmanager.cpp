@@ -30,6 +30,8 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     add("track",            Qt::Key_T,        settings.value("Joystick/button_track", 4).toInt());
     add("track_cancel",     Qt::Key_Escape,   settings.value("Joystick/button_track_cancel", 5).toInt());
     add("heading",          Qt::Key_H,        settings.value("Joystick/button_heading", 11).toInt());
+    add("speed_up",         Qt::Key_BracketRight, settings.value("Joystick/button_speed_up", 13).toInt());
+    add("speed_down",       Qt::Key_BracketLeft,  settings.value("Joystick/button_speed_down", 14).toInt());
 
     // Оси (стрелки)
     m_keyYawLeft   = settings.value("Keyboard/yaw_left",   Qt::Key_Left).toInt();
