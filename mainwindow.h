@@ -100,7 +100,7 @@ private:
 
     bool m_isSpeedMode = false;
     QTimer* m_speedSendTimer = nullptr;
-    double m_speedMultiplier = 1.0;
+    double m_speedMultiplier = 20.0;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
@@ -115,8 +115,8 @@ private:
     int                     m_lastFrameH = 0;
     int                     m_dispResW = 0;
     int                     m_dispResH = 0;
-    int                     m_trackButton = 4;
-    int                     m_trackCancelButton = 5;
+    int                     m_trackButton = 5;
+    int                     m_trackCancelButton = 4;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
 
