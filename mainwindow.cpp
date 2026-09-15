@@ -192,7 +192,9 @@ void MainWindow::onConnectClicked()
         this->setFocus();
 
 
+
         m_gyro->startAnglePolling();
+
 
         m_camera->startZoomPolling();
         if (m_jetson && !m_jetson->isStarted()) {
@@ -656,25 +658,43 @@ void MainWindow::on_BrightDW_clicked()
 
 void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
 {
-    // Показать измеренное расстояние
-    ui->ldDistance->setText(QString("Distance: %1 m").arg(distanceMeters, 0, 'f', 1));
+    ui->ldDistance->setText(QString("Дальность: %1 м").arg(distanceMeters, 0, 'f', 1));
 
-    // Результат одиночного измерения (статус-байт D9 по протоколу)
-    // Биты: 7-main wave, 6-echo, 5-laser OK, 4-timeout, 3-reserved=1, 2-APD OK, 1-prev target, 0-next target
-    QString statusText;
-    bool ok = (status & 0x20) && (status & 0x04); // laser OK (bit5) && APD OK (bit2)
-    bool hasEcho = (status & 0x40);
-    bool hasMainWave = (status & 0x80);
+    // Байт D9 протокола дальномера:
+    // bit7 основная волна, bit6 эхо, bit5 лазер, bit4 таймаут (1=норма),
+    // bit3 резерв, bit2 APD, bit1 предыдущая цель, bit0 последующая цель
+    const bool mainWave = status & 0x80;
+    const bool echo     = status & 0x40;
+    const bool laserOk  = status & 0x20;
+    const bool timeoutOk = status & 0x10;
+    const bool apdOk    = status & 0x04;
+    const bool prevTgt  = status & 0x02;
+    const bool nextTgt  = status & 0x01;
 
-    if (!ok) {
-        statusText = QString("Error (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
-    } else if (!hasEcho && !hasMainWave) {
-        statusText = QString("No target (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
-    } else {
-        statusText = QString("OK (0x%1)").arg(status, 2, 16, QChar('0')).toUpper();
-    }
+    QStringList parts;
+    parts << (laserOk ? QStringLiteral("лазер норма") : QStringLiteral("лазер неисправен"));
+    parts << (apdOk ? QStringLiteral("APD норма") : QStringLiteral("APD ошибка"));
+    parts << (timeoutOk ? QStringLiteral("таймаут нет") : QStringLiteral("таймаут превышен"));
+    parts << (mainWave ? QStringLiteral("осн. волна есть") : QStringLiteral("осн. волны нет"));
+    parts << (echo ? QStringLiteral("эхо есть") : QStringLiteral("эха нет"));
+    parts << (prevTgt ? QStringLiteral("цель перед основной") : QStringLiteral("перед основной цели нет"));
+    parts << (nextTgt ? QStringLiteral("цель за основной") : QStringLiteral("за основной цели нет"));
 
-    ui->Ld_status->setText("Status: " + statusText);
+    QString summary;
+    if (!laserOk || !apdOk)
+        summary = QStringLiteral("Отказ");
+    else if (!timeoutOk)
+        summary = QStringLiteral("Таймаут");
+    else if (!echo && !mainWave)
+        summary = QStringLiteral("Нет цели");
+    else
+        summary = QStringLiteral("Норма");
+
+    ui->Ld_status->setText(
+        QStringLiteral("Статус: %1 (D9=0x%2)\n%3")
+            .arg(summary)
+            .arg(status, 2, 16, QChar('0'))
+            .arg(parts.join(QStringLiteral("; "))));
 }
 
 
