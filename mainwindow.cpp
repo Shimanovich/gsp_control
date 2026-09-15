@@ -140,6 +140,33 @@ void MainWindow::loadAllSettings()
     m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
     m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
     m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
+    m_angleAzMin = s.value("Gyro/angle_az_min", -180.0).toFloat();
+    m_angleAzMax = s.value("Gyro/angle_az_max", 180.0).toFloat();
+    m_angleElMin = s.value("Gyro/angle_el_min", -90.0).toFloat();
+    m_angleElMax = s.value("Gyro/angle_el_max", 90.0).toFloat();
+    m_angleAzMin = qBound(-720.0f, m_angleAzMin, 720.0f);
+    m_angleAzMax = qBound(-720.0f, m_angleAzMax, 720.0f);
+    m_angleElMin = qBound(-720.0f, m_angleElMin, 720.0f);
+    m_angleElMax = qBound(-720.0f, m_angleElMax, 720.0f);
+    if (m_angleAzMin > m_angleAzMax)
+        qSwap(m_angleAzMin, m_angleAzMax);
+    if (m_angleElMin > m_angleElMax)
+        qSwap(m_angleElMin, m_angleElMax);
+
+    if (ui->spinAngleAz) {
+        ui->spinAngleAz->setDecimals(2);
+        ui->spinAngleAz->setRange(m_angleAzMin, m_angleAzMax);
+        ui->spinAngleAz->setValue(s.value("Gyro/angle_az", 0.0).toDouble());
+    }
+    if (ui->spinAngleEl) {
+        ui->spinAngleEl->setDecimals(2);
+        ui->spinAngleEl->setRange(m_angleElMin, m_angleElMax);
+        ui->spinAngleEl->setValue(s.value("Gyro/angle_el", 0.0).toDouble());
+    }
+    connect(ui->spinAngleAz, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MainWindow::onAngleTargetChanged);
+    connect(ui->spinAngleEl, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MainWindow::onAngleTargetChanged);
 
     const bool invertPitch = s.value("Joystick/invert_pitch", false).toBool();
     if (m_joystick)
@@ -325,6 +352,16 @@ void MainWindow::updateControlMode()
 {
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
     m_isHeadingMode = ui->radioHeadingMode->isChecked();
+    m_isAngleMode = ui->radioAngleMode->isChecked();
+
+    if (m_isAngleMode) {
+        float az = 0.0f, el = 0.0f;
+        if (!readValidatedAngles(az, el, true)) {
+            ui->radioSpeedMode->setChecked(true);
+            m_isAngleMode = false;
+            m_isSpeedMode = true;
+        }
+    }
 
     if (m_speedSendTimer)
     {
@@ -332,10 +369,13 @@ void MainWindow::updateControlMode()
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
+        disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
         if (m_isSpeedMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         } else if (m_isHeadingMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
+        } else if (m_isAngleMode) {
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
         } else {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
         }
@@ -388,6 +428,67 @@ void MainWindow::on_radioHeadingMode_clicked(bool checked)
     {
         updateControlMode();
     }
+}
+
+void MainWindow::on_radioAngleMode_clicked(bool checked)
+{
+    if (checked)
+    {
+        updateControlMode();
+    }
+}
+
+void MainWindow::onAngleTargetChanged()
+{
+    if (!m_isAngleMode)
+        return;
+    sendAnglePos();
+}
+
+bool MainWindow::readValidatedAngles(float& azDeg, float& elDeg, bool showError)
+{
+    if (!ui->spinAngleAz || !ui->spinAngleEl) {
+        if (showError)
+            QMessageBox::warning(this, "Угол", "Поля AZ/EL недоступны.");
+        return false;
+    }
+
+    if (!ui->spinAngleAz->hasAcceptableInput() || !ui->spinAngleEl->hasAcceptableInput()) {
+        if (showError)
+            QMessageBox::warning(this, "Угол",
+                QString("Некорректный ввод AZ/EL.\nДопустимо AZ: %1…%2 °, EL: %3…%4 °.")
+                    .arg(m_angleAzMin, 0, 'f', 2)
+                    .arg(m_angleAzMax, 0, 'f', 2)
+                    .arg(m_angleElMin, 0, 'f', 2)
+                    .arg(m_angleElMax, 0, 'f', 2));
+        return false;
+    }
+
+    azDeg = static_cast<float>(ui->spinAngleAz->value());
+    elDeg = static_cast<float>(ui->spinAngleEl->value());
+
+    if (azDeg < m_angleAzMin || azDeg > m_angleAzMax ||
+        elDeg < m_angleElMin || elDeg > m_angleElMax) {
+        if (showError)
+            QMessageBox::warning(this, "Угол",
+                QString("Угол вне диапазона.\nAZ: %1…%2 °, EL: %3…%4 °.")
+                    .arg(m_angleAzMin, 0, 'f', 2)
+                    .arg(m_angleAzMax, 0, 'f', 2)
+                    .arg(m_angleElMin, 0, 'f', 2)
+                    .arg(m_angleElMax, 0, 'f', 2));
+        return false;
+    }
+    return true;
+}
+
+void MainWindow::sendAnglePos()
+{
+    if (!m_gyro)
+        return;
+    float az = 0.0f, el = 0.0f;
+    if (!readValidatedAngles(az, el, false))
+        return;
+    m_gyro->goToHeadingPosition(az, el);
 }
 
 void MainWindow::activateHeadingMode()

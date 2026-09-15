@@ -49,6 +49,8 @@ private slots:
     void on_radioZeroMode_clicked(bool checked);
     void on_radioSpeedMode_clicked(bool checked);
     void on_radioHeadingMode_clicked(bool checked);
+    void on_radioAngleMode_clicked(bool checked);
+    void onAngleTargetChanged();
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
     void on_btMotor_on_clicked();
@@ -102,10 +104,15 @@ private:
 
     bool m_isSpeedMode = false;
     bool m_isHeadingMode = false;
+    bool m_isAngleMode = false;
     QTimer* m_speedSendTimer = nullptr;
     double m_speedMultiplier = 1.0;
     float m_headingYawDeg = 0.0f;
     float m_headingPitchDeg = 0.0f;
+    float m_angleAzMin = -180.0f;
+    float m_angleAzMax = 180.0f;
+    float m_angleElMin = -90.0f;
+    float m_angleElMax = 90.0f;
 
     // SDL-индексы кнопок из [Joystick] config.ini
     int m_btnZoomIn = 9;
@@ -145,9 +152,11 @@ private:
     void sendJoystickSpeed();
     void sendZeroPos();
     void sendHeadingPos();
+    void sendAnglePos();
     void activateHeadingMode();
     void toggleHeadingSpeedMode();
     void adjustSpeedMultiplier(int direction);
+    bool readValidatedAngles(float& azDeg, float& elDeg, bool showError);
 
     void setupVideo();
     void stopVideo();

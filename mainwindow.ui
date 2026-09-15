@@ -229,6 +229,78 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QRadioButton" name="radioAngleMode">
+               <property name="text">
+                <string>Управление по углу</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="4" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayoutAngle">
+             <item>
+              <widget class="QLabel" name="labelAngleAz">
+               <property name="text">
+                <string>AZ</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinAngleAz">
+               <property name="suffix">
+                <string> °</string>
+               </property>
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-180.00</double>
+               </property>
+               <property name="maximum">
+                <double>180.00</double>
+               </property>
+               <property name="singleStep">
+                <double>0.10</double>
+               </property>
+               <property name="keyboardTracking">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="labelAngleEl">
+               <property name="text">
+                <string>EL</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinAngleEl">
+               <property name="suffix">
+                <string> °</string>
+               </property>
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-90.00</double>
+               </property>
+               <property name="maximum">
+                <double>90.00</double>
+               </property>
+               <property name="singleStep">
+                <double>0.10</double>
+               </property>
+               <property name="keyboardTracking">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item row="0" column="0">
