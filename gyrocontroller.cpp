@@ -8,6 +8,9 @@ GyroController::GyroController(UdpCommunicator* udp, QObject *parent)
 {
     m_pollTimer = new QTimer(this);
     connect(m_pollTimer, &QTimer::timeout, this, &GyroController::pollAngles);
+    m_settleTimer = new QTimer(this);
+    m_settleTimer->setSingleShot(true);
+    connect(m_settleTimer, &QTimer::timeout, this, &GyroController::onMotorsSettle);
 
     if (m_udp) {
         connect(m_udp, &UdpCommunicator::packetReceived,
@@ -23,7 +26,7 @@ bool GyroController::loadSettings(const QString& iniPath)
 
 void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 {
-     if (!m_motorsPowered)
+     if (!m_motorsPowered || !m_controlReady)
          return;
      QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_SPEED, yawSpeed, pitchSpeed);
      QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
@@ -32,7 +35,7 @@ void GyroController::setSpeed(float yawSpeed, float pitchSpeed)
 
 void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
 {
-    if (!m_motorsPowered)
+    if (!m_motorsPowered || !m_controlReady)
         return;
     QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, yawDeg, pitchDeg);
     QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
@@ -41,7 +44,7 @@ void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
 
 void GyroController::goToZeroPosition()
 {
-    if (!m_motorsPowered)
+    if (!m_motorsPowered || !m_controlReady)
         return;
     QByteArray payload;
     payload.append(static_cast<char>(18)); // MENU_CMD_HOME_POSITION
@@ -79,26 +82,44 @@ void GyroController::motorOn()
 
 void GyroController::setMotorsPower(bool on)
 {
-    m_motorsPowered = on;
     if (!m_udp)
         return;
 
     if (on) {
+        if (m_motorsPowered && m_controlReady)
+            return;
+        m_motorsPowered = true;
+        m_controlReady = false;
+        // CMD_MOTORS_ON по документации BaseCam сбрасывает систему в home.
+        // Второй раз (меню 11) не шлём — двойной reset сбивает нуль yaw.
         m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_ON));
-        QByteArray menu;
-        menu.append(static_cast<char>(11)); // MENU_CMD_MOTOR_ON
-        m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_EXECUTE_MENU, menu));
+        if (m_settleTimer)
+            m_settleTimer->start(1200);
+        emit controlReadyChanged(false);
         return;
     }
 
-    // Пустой CMD_MOTORS_OFF — совместим со старой прошивкой (MODE опционален с 2.68).
-    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF));
+    if (!m_motorsPowered && !m_controlReady)
+        return;
+
+    m_motorsPowered = false;
+    m_controlReady = false;
+    if (m_settleTimer)
+        m_settleTimer->stop();
+
+    // MODE=1 — Motors OFF safely (2.66+): не high-Z, IMU меньше теряет горизонт.
     QByteArray offMode;
-    offMode.append(static_cast<char>(0)); // MODE=0 high-Z
+    offMode.append(static_cast<char>(1));
     m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_MOTORS_OFF, offMode));
-    QByteArray menu;
-    menu.append(static_cast<char>(12)); // MENU_CMD_MOTOR_OFF
-    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_EXECUTE_MENU, menu));
+    emit controlReadyChanged(false);
+}
+
+void GyroController::onMotorsSettle()
+{
+    if (!m_motorsPowered)
+        return;
+    m_controlReady = true;
+    emit controlReadyChanged(true);
 }
 
 

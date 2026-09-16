@@ -23,14 +23,17 @@ public:
     void motorOn();
     void setMotorsPower(bool on);
     bool motorsPowered() const { return m_motorsPowered; }
+    bool controlReady() const { return m_motorsPowered && m_controlReady; }
 
 signals:
     void anglesUpdated(float pitch, float yaw); // degrees
     void temperaturesUpdated(int imuTempC, int frameImuTempC);
     void error(const QString& msg);
+    void controlReadyChanged(bool ready);
 
 private slots:
     void pollAngles();
+    void onMotorsSettle();
 
     void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
 
@@ -41,7 +44,9 @@ private:
     int m_pollIntervalMs = 100; // 10 Hz // интервал опроса углов гироплатформы
 
     QTimer* m_pollTimer = nullptr;
+    QTimer* m_settleTimer = nullptr;
     bool m_motorsPowered = true;
+    bool m_controlReady = true;
 
     QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch);
 
