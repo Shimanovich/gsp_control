@@ -22,6 +22,7 @@ public:
     void stopAnglePolling();
     void motorOn();
     void setMotorsPower(bool on);
+    void resetBoard();
     bool motorsPowered() const { return m_motorsPowered; }
     bool controlReady() const { return m_motorsPowered && m_controlReady; }
 

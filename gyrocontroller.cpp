@@ -122,6 +122,19 @@ void GyroController::onMotorsSettle()
     emit controlReadyChanged(true);
 }
 
+void GyroController::resetBoard()
+{
+    if (!m_udp)
+        return;
+    // CMD_RESET #114 — полный рестарт платы, как цикл питания.
+    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_RESET));
+    m_motorsPowered = true;
+    m_controlReady = false;
+    if (m_settleTimer)
+        m_settleTimer->start(3000);
+    emit controlReadyChanged(false);
+}
+
 
 
 QByteArray GyroController::buildZeroPosCmd()

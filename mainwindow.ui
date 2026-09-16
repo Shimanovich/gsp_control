@@ -255,15 +255,26 @@
              </item>
             </layout>
            </item>
-           <item row="1" column="0" colspan="3">
-            <widget class="QCheckBox" name="checkInvertPitch">
-             <property name="text">
-              <string>Инверсия тангажа</string>
-             </property>
-             <property name="checked">
-              <bool>false</bool>
-             </property>
-            </widget>
+           <item row="1" column="0" colspan="4">
+            <layout class="QHBoxLayout" name="horizontalLayoutGyroTools">
+             <item>
+              <widget class="QCheckBox" name="checkInvertPitch">
+               <property name="text">
+                <string>Инверсия тангажа</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnGyroReset">
+               <property name="text">
+                <string>Сброс ГСП</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item row="5" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutAngle">

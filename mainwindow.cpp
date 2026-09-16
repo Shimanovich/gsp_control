@@ -463,6 +463,24 @@ void MainWindow::on_radioMotorsOff_clicked(bool checked)
         updateControlMode();
 }
 
+void MainWindow::on_btnGyroReset_clicked()
+{
+    if (!m_gyro) {
+        QMessageBox::warning(this, QStringLiteral("ГСП"),
+                             QStringLiteral("Контроллер гироплатформы не создан."));
+        return;
+    }
+    const auto ans = QMessageBox::question(
+        this, QStringLiteral("Сброс ГСП"),
+        QStringLiteral("Перезапустить контроллер гироплатформы?\n"
+                       "Это полный рестарт платы (CMD_RESET), как цикл питания."),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ans != QMessageBox::Yes)
+        return;
+    m_gyro->resetBoard();
+    ui->statusBar->showMessage(QStringLiteral("ГСП: команда сброса отправлена"), 3000);
+}
+
 void MainWindow::onAngleTargetChanged()
 {
     if (!m_isAngleMode)

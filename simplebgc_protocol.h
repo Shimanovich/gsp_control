@@ -21,7 +21,8 @@ namespace SimpleBGC {
         CMD_REALTIME_DATA_4  = 25,
         CMD_MOTORS_ON        = 77,
         CMD_MOTORS_OFF       = 109,
-        CMD_EXECUTE_MENU     = 69
+        CMD_EXECUTE_MENU     = 69,
+        CMD_RESET            = 114
     };
 
     enum ControlMode : uint8_t {
