@@ -20,6 +20,8 @@
 #include "jetsoncontroller.h"
 
 
+class QSettings;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -157,6 +159,7 @@ private:
     void sendZeroPos();
     void sendHeadingPos();
     void sendAnglePos();
+    void loadHeadingAnglesFromConfig(QSettings& s);
     void activateHeadingMode();
     void toggleHeadingSpeedMode();
     void adjustSpeedMultiplier(int direction);

@@ -148,11 +148,15 @@ QByteArray GyroController::buildControlPayload(uint8_t mode, float yaw, float pi
      {
          int16_t p = qToLittleEndian<int16_t>(static_cast<int16_t>(pitch/0.02197265625));
          int16_t y = qToLittleEndian<int16_t>(static_cast<int16_t>(yaw/0.02197265625));
+         // SPEED в MODE_ANGLE — макс. скорость набора угла (0.122 °/с).
+         // 0 на части прошивок даёт «не двигаться» по оси, у yaw это видно чаще.
+         const int16_t maxSpd = qToLittleEndian<int16_t>(
+             static_cast<int16_t>(60.0f / 0.1220740379f));
 
          cmdout.data[1].angle = p;
-         cmdout.data[1].speed = 0;
+         cmdout.data[1].speed = maxSpd;
          cmdout.data[2].angle = y;
-         cmdout.data[2].speed = 0;
+         cmdout.data[2].speed = maxSpd;
      }
 
 

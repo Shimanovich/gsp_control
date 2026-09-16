@@ -140,8 +140,7 @@ void MainWindow::loadAllSettings()
     m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
     m_btnSpeedUp = s.value("Joystick/button_speed_up", 13).toInt();
     m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
-    m_headingYawDeg = s.value("Gyro/heading_yaw", 0.0).toFloat();
-    m_headingPitchDeg = s.value("Gyro/heading_pitch", 0.0).toFloat();
+    loadHeadingAnglesFromConfig(s);
     m_angleAzMin = s.value("Gyro/angle_az_min", -180.0).toFloat();
     m_angleAzMax = s.value("Gyro/angle_az_max", 180.0).toFloat();
     m_angleElMin = s.value("Gyro/angle_el_min", -90.0).toFloat();
@@ -544,9 +543,26 @@ void MainWindow::adjustSpeedMultiplier(int direction)
     ui->spinSpeedMultiplier->setValue(next);
 }
 
+void MainWindow::loadHeadingAnglesFromConfig(QSettings& s)
+{
+    // Те же оси, что «по углу»: AZ → yaw (ось 2), EL → pitch (ось 1).
+    if (s.contains(QStringLiteral("Gyro/heading_az")))
+        m_headingYawDeg = s.value(QStringLiteral("Gyro/heading_az")).toFloat();
+    else
+        m_headingYawDeg = s.value(QStringLiteral("Gyro/heading_yaw"), 0.0).toFloat();
+
+    if (s.contains(QStringLiteral("Gyro/heading_el")))
+        m_headingPitchDeg = s.value(QStringLiteral("Gyro/heading_el")).toFloat();
+    else
+        m_headingPitchDeg = s.value(QStringLiteral("Gyro/heading_pitch"), 0.0).toFloat();
+}
+
 void MainWindow::sendHeadingPos()
 {
-    if (!m_gyro) return;
+    if (!m_gyro)
+        return;
+    QSettings s(m_configPath, QSettings::IniFormat);
+    loadHeadingAnglesFromConfig(s);
     m_gyro->goToHeadingPosition(m_headingYawDeg, m_headingPitchDeg);
 }
 
