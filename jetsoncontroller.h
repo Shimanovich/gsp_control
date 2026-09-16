@@ -53,7 +53,8 @@ public:
     int defaultVideoChannel() const { return m_defaultVideoChannel; }
     int trackButton() const { return m_trackButton; }
     TrackingParams trackingParams() const { return m_pid; }
-    void setTrackingParams(const TrackingParams& params) { m_pid = params; }
+    void setTrackingParams(const TrackingParams& params);
+    bool saveTrackingParams(const QString& iniPath = QString()) const;
     CaptState lastCaptState() const { return m_capt; }
 
     bool sendPlay(const QString& playIp, int playPort);
@@ -78,6 +79,7 @@ private:
     bool sendPacket(const QByteArray& packet);
     void handlePacket(const QByteArray& packet);
     QString detectLocalIp() const;
+    QByteArray pidInvJsonFields() const;
 
     QUdpSocket* m_socket = nullptr;
     QTimer* m_pollTimer = nullptr;
@@ -98,6 +100,7 @@ private:
     int m_pollIntervalMs = 200;
 
     TrackingParams m_pid;
+    QString m_iniPath;
     CaptState m_capt;
     bool m_started = false;
 };

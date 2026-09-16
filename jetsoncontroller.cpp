@@ -40,6 +40,7 @@ JetsonController::~JetsonController()
 
 bool JetsonController::loadSettings(const QString& iniPath)
 {
+    m_iniPath = iniPath;
     QSettings s(iniPath, QSettings::IniFormat);
 
     const QString ip = s.value("Jetson/ip", "192.168.137.2").toString();
@@ -63,14 +64,26 @@ bool JetsonController::loadSettings(const QString& iniPath)
     m_trackButton = s.value("Joystick/button_track", 4).toInt();
     m_pollIntervalMs = s.value("Tracking/poll_interval_ms", 200).toInt();
 
-    m_pid.pidXp = s.value("Tracking/pid_x_p", 0.0).toFloat();
-    m_pid.pidXi = s.value("Tracking/pid_x_i", 0.0).toFloat();
+    m_pid.pidXp = s.value("Tracking/pid_x_p", 0.04).toFloat();
+    m_pid.pidXi = s.value("Tracking/pid_x_i", 0.04).toFloat();
     m_pid.pidXd = s.value("Tracking/pid_x_d", 0.0).toFloat();
-    m_pid.pidYp = s.value("Tracking/pid_y_p", 0.0).toFloat();
-    m_pid.pidYi = s.value("Tracking/pid_y_i", 0.0).toFloat();
+    m_pid.pidYp = s.value("Tracking/pid_y_p", 0.04).toFloat();
+    m_pid.pidYi = s.value("Tracking/pid_y_i", 0.04).toFloat();
     m_pid.pidYd = s.value("Tracking/pid_y_d", 0.0).toFloat();
-    m_pid.invAz = s.value("Tracking/inv_az", 0).toInt();
-    m_pid.invEl = s.value("Tracking/inv_el", 0).toInt();
+    // ini хранит 1.0 / -1.0; QVariant::toInt("1.0") даёт 0
+    auto loadInv = [](const QVariant& v, int def) {
+        bool ok = false;
+        const double d = v.toDouble(&ok);
+        if (!ok)
+            return def;
+        if (d < 0.0)
+            return -1;
+        if (d > 0.0)
+            return 1;
+        return 0;
+    };
+    m_pid.invAz = loadInv(s.value("Tracking/inv_az", 1.0), 1);
+    m_pid.invEl = loadInv(s.value("Tracking/inv_el", 1.0), 1);
 
     if (m_remoteAddress.isNull()) {
         emit errorOccurred(QStringLiteral("Jetson: invalid IP address"));
@@ -181,6 +194,41 @@ bool JetsonController::sendSet(int bitrate, const QString& resolut)
     return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
 }
 
+QByteArray JetsonController::pidInvJsonFields() const
+{
+    return QByteArrayLiteral("\"PID_X_P\":") + jsonPidNumber(m_pid.pidXp) +
+           QByteArrayLiteral(",\"PID_X_I\":") + jsonPidNumber(m_pid.pidXi) +
+           QByteArrayLiteral(",\"PID_X_D\":") + jsonPidNumber(m_pid.pidXd) +
+           QByteArrayLiteral(",\"PID_Y_P\":") + jsonPidNumber(m_pid.pidYp) +
+           QByteArrayLiteral(",\"PID_Y_I\":") + jsonPidNumber(m_pid.pidYi) +
+           QByteArrayLiteral(",\"PID_Y_D\":") + jsonPidNumber(m_pid.pidYd) +
+           QByteArrayLiteral(",\"INV_AZ\":") + QByteArray::number(m_pid.invAz) +
+           QByteArrayLiteral(",\"INV_EL\":") + QByteArray::number(m_pid.invEl);
+}
+
+void JetsonController::setTrackingParams(const TrackingParams& params)
+{
+    m_pid = params;
+}
+
+bool JetsonController::saveTrackingParams(const QString& iniPath) const
+{
+    const QString path = iniPath.isEmpty() ? m_iniPath : iniPath;
+    if (path.isEmpty())
+        return false;
+    QSettings s(path, QSettings::IniFormat);
+    s.setValue("Tracking/pid_x_p", m_pid.pidXp);
+    s.setValue("Tracking/pid_x_i", m_pid.pidXi);
+    s.setValue("Tracking/pid_x_d", m_pid.pidXd);
+    s.setValue("Tracking/pid_y_p", m_pid.pidYp);
+    s.setValue("Tracking/pid_y_i", m_pid.pidYi);
+    s.setValue("Tracking/pid_y_d", m_pid.pidYd);
+    s.setValue("Tracking/inv_az", m_pid.invAz);
+    s.setValue("Tracking/inv_el", m_pid.invEl);
+    s.sync();
+    return s.status() == QSettings::NoError;
+}
+
 bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
                                     int strobX, int strobY, int strobW, int strobH)
 {
@@ -194,14 +242,7 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
             QByteArrayLiteral(",\"STROB_Y_POS\":") + QByteArray::number(strobY) +
             QByteArrayLiteral(",\"STROB_X_SZ\":") + QByteArray::number(strobW) +
             QByteArrayLiteral(",\"STROB_Y_SZ\":") + QByteArray::number(strobH) +
-            QByteArrayLiteral(",\"PID_X_P\":") + jsonPidNumber(m_pid.pidXp) +
-            QByteArrayLiteral(",\"PID_X_I\":") + jsonPidNumber(m_pid.pidXi) +
-            QByteArrayLiteral(",\"PID_X_D\":") + jsonPidNumber(m_pid.pidXd) +
-            QByteArrayLiteral(",\"PID_Y_P\":") + jsonPidNumber(m_pid.pidYp) +
-            QByteArrayLiteral(",\"PID_Y_I\":") + jsonPidNumber(m_pid.pidYi) +
-            QByteArrayLiteral(",\"PID_Y_D\":") + jsonPidNumber(m_pid.pidYd) +
-            QByteArrayLiteral(",\"INV_AZ\":") + QByteArray::number(m_pid.invAz) +
-            QByteArrayLiteral(",\"INV_EL\":") + QByteArray::number(m_pid.invEl) +
+            QByteArrayLiteral(",") + pidInvJsonFields() +
             QByteArrayLiteral("}");
 
     const bool ok = sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));
@@ -212,15 +253,10 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
 
 bool JetsonController::sendPidSet()
 {
-    // Только command + PID_*. Без TRACK/STROB, чтобы не сбрасывать слежение.
+    // Те же PID_* / INV_*, что и в sendTrackSet. Без TRACK/STROB.
     const QByteArray json =
-            QByteArrayLiteral("{\"command\":\"set\"") +
-            QByteArrayLiteral(",\"PID_X_P\":") + jsonPidNumber(m_pid.pidXp) +
-            QByteArrayLiteral(",\"PID_X_I\":") + jsonPidNumber(m_pid.pidXi) +
-            QByteArrayLiteral(",\"PID_X_D\":") + jsonPidNumber(m_pid.pidXd) +
-            QByteArrayLiteral(",\"PID_Y_P\":") + jsonPidNumber(m_pid.pidYp) +
-            QByteArrayLiteral(",\"PID_Y_I\":") + jsonPidNumber(m_pid.pidYi) +
-            QByteArrayLiteral(",\"PID_Y_D\":") + jsonPidNumber(m_pid.pidYd) +
+            QByteArrayLiteral("{\"command\":\"set\",") +
+            pidInvJsonFields() +
             QByteArrayLiteral("}");
     return sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));
 }

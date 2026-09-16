@@ -191,10 +191,7 @@ void MainWindow::onConnectClicked()
         this->setFocusPolicy(Qt::StrongFocus);
         this->setFocus();
 
-
-
         m_gyro->startAnglePolling();
-
 
         m_camera->startZoomPolling();
         if (m_jetson && !m_jetson->isStarted()) {
@@ -230,8 +227,8 @@ void MainWindow::onShootClicked()
 
 void MainWindow::updateGyroAngles( float pitch,float yaw)
 {
-    ui->labelRoll->setText(QString::number(yaw, 'f', 1) + "°");
-    ui->labelPitch->setText(QString::number(pitch, 'f', 1) + "°");
+    ui->labelRoll->setText(" AZ:  " +QString::number(yaw, 'f', 1) + "°");
+    ui->labelPitch->setText(" EL:  " + QString::number(pitch, 'f', 1) + "°");
 }
 
 void MainWindow::updateGyroTemperatures(int imuTempC, int frameImuTempC)
@@ -1041,15 +1038,21 @@ void MainWindow::sendTrackCommand(int trackCmd)
     const int strobX = frameW / 2;
     const int strobY = frameH / 2;
 
-    // 0,0 = центр отображаемого кадра по протоколу CAPT
     if (!m_jetson->sendTrackSet(trackCmd, channel, strobX, strobY, w, h)) {
         ui->statusBar->showMessage("JEP CAPT set send failed", 3000);
         return;
     }
 
+    const TrackingParams pid = m_jetson->trackingParams();
     ui->labelTrackStatus->setText(trackCmd == 0
         ? QStringLiteral("Track: stopping")
         : QString("Track: cmd %1 sent").arg(trackCmd));
+    ui->statusBar->showMessage(
+        QString("CAPT set cmd=%1 PID Xp=%2 Xi=%3 Xd=%4 Yp=%5 Yi=%6 Yd=%7 INV %8/%9")
+            .arg(trackCmd)
+            .arg(pid.pidXp).arg(pid.pidXi).arg(pid.pidXd)
+            .arg(pid.pidYp).arg(pid.pidYi).arg(pid.pidYd)
+            .arg(pid.invAz).arg(pid.invEl), 4000);
 }
 
 void MainWindow::onJetsonPlayClicked()
@@ -1169,6 +1172,7 @@ void MainWindow::onPidSettingsClicked()
     pid.invAz = 1;
     pid.invEl = 1;
     m_jetson->setTrackingParams(pid);
+    m_jetson->saveTrackingParams();
 
     if (!m_jetson->isStarted() && !m_jetson->start()) {
         QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");

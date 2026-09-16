@@ -88,20 +88,6 @@
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_4">
                <item>
-                <widget class="QPushButton" name="btnZoomIn">
-                 <property name="text">
-                  <string>Zoom +</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btnZoomOut">
-                 <property name="text">
-                  <string>Zoom -</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
                 <widget class="QPushButton" name="btnAutofocus">
                  <property name="text">
                   <string>Autofocus</string>
@@ -127,16 +113,16 @@
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="zoom_prev">
+                <widget class="QPushButton" name="zoom_min">
                  <property name="text">
-                  <string>Zoom Prev</string>
+                  <string>Zoom min</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zoom_next">
                  <property name="text">
-                  <string>Zoom Next</string>
+                  <string>Zoom max</string>
                  </property>
                 </widget>
                </item>
@@ -251,76 +237,6 @@
              </item>
             </layout>
            </item>
-           <item row="2" column="0" colspan="4">
-            <layout class="QGridLayout" name="gridLayoutMode">
-             <property name="horizontalSpacing">
-              <number>6</number>
-             </property>
-             <property name="verticalSpacing">
-              <number>2</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QRadioButton" name="radioZeroMode">
-               <property name="text">
-                <string>Parking</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QRadioButton" name="radioSpeedMode">
-               <property name="text">
-                <string>Speed</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="2">
-              <widget class="QRadioButton" name="radioHeadingMode">
-               <property name="text">
-                <string>Курсовая</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QRadioButton" name="radioAngleMode">
-               <property name="text">
-                <string>По углу</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1" colspan="2">
-              <widget class="QRadioButton" name="radioMotorsOff">
-               <property name="text">
-                <string>Моторы выкл</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item row="1" column="0" colspan="3">
-            <widget class="QCheckBox" name="checkInvertPitch">
-             <property name="text">
-              <string>Инверсия тангажа</string>
-             </property>
-             <property name="checked">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
            <item row="6" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutTemp">
              <item>
@@ -338,6 +254,16 @@
               </widget>
              </item>
             </layout>
+           </item>
+           <item row="1" column="0" colspan="3">
+            <widget class="QCheckBox" name="checkInvertPitch">
+             <property name="text">
+              <string>Инверсия тангажа</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
            </item>
            <item row="5" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutAngle">
@@ -440,17 +366,77 @@
              </item>
             </layout>
            </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="labelRoll">
-             <property name="text">
-              <string>Roll: 0.0°</string>
+           <item row="2" column="0" colspan="4">
+            <layout class="QGridLayout" name="gridLayoutMode">
+             <property name="horizontalSpacing">
+              <number>6</number>
              </property>
-            </widget>
+             <property name="verticalSpacing">
+              <number>2</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QRadioButton" name="radioZeroMode">
+               <property name="text">
+                <string>Parking</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QRadioButton" name="radioSpeedMode">
+               <property name="text">
+                <string>Speed</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QRadioButton" name="radioHeadingMode">
+               <property name="text">
+                <string>Курсовая</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QRadioButton" name="radioAngleMode">
+               <property name="text">
+                <string>По углу</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1" colspan="2">
+              <widget class="QRadioButton" name="radioMotorsOff">
+               <property name="text">
+                <string>Моторы выкл</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item row="4" column="2">
             <widget class="QLabel" name="labelPitch">
              <property name="text">
               <string>Pitch: 0.0°</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="labelRoll">
+             <property name="text">
+              <string>Roll: 0.0°</string>
              </property>
             </widget>
            </item>
