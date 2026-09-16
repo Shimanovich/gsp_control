@@ -513,9 +513,12 @@
              </item>
              <item>
               <widget class="QComboBox" name="comboResolut">
+               <property name="currentIndex">
+                <number>0</number>
+               </property>
                <item>
                 <property name="text">
-                 <string>SD</string>
+                 <string>FHD</string>
                 </property>
                </item>
                <item>
@@ -525,7 +528,7 @@
                </item>
                <item>
                 <property name="text">
-                 <string>FHD</string>
+                 <string>SD</string>
                 </property>
                </item>
               </widget>

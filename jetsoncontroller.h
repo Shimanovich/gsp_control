@@ -19,6 +19,14 @@ struct CaptState
     int strobYSz = 0;
 };
 
+struct JetsonHwStatus
+{
+    double tempCpu = 0.0;
+    double tempGpu = 0.0;
+    qint64 freeRam = 0;
+    qint64 freeFlash = 0;
+};
+
 struct TrackingParams
 {
     float pidXp = 0.0f;
@@ -63,9 +71,11 @@ public:
     bool sendTrackSet(int trackCmd, int videoChannel, int strobX, int strobY, int strobW, int strobH);
     bool sendPidSet();
     bool sendGetSet();
+    bool sendHwStatus();
 
 signals:
     void mdplStatus(const QString& stat);
+    void hwStatusUpdated(const JetsonHwStatus& st);
     void captAck(const QString& stat);
     void captStateUpdated(CaptState state);
     void errorOccurred(const QString& error);
@@ -74,6 +84,7 @@ signals:
 private slots:
     void onReadyRead();
     void onPollGetSet();
+    void onPollHwStatus();
 
 private:
     bool sendPacket(const QByteArray& packet);
@@ -83,6 +94,7 @@ private:
 
     QUdpSocket* m_socket = nullptr;
     QTimer* m_pollTimer = nullptr;
+    QTimer* m_statusTimer = nullptr;
 
     QHostAddress m_remoteAddress;
     quint16 m_sendPort = 5700;
@@ -98,6 +110,7 @@ private:
     int m_defaultVideoChannel = 1;
     int m_trackButton = 4;
     int m_pollIntervalMs = 200;
+    int m_statusPollIntervalMs = 5000;
 
     TrackingParams m_pid;
     QString m_iniPath;

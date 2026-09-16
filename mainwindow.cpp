@@ -104,6 +104,7 @@ void MainWindow::setupControllers()
             this, &MainWindow::onKeyBoardButtonReleased);
 
     connect(m_jetson, &JetsonController::mdplStatus, this, &MainWindow::onMdplStatus);
+    connect(m_jetson, &JetsonController::hwStatusUpdated, this, &MainWindow::onJetsonHwStatus);
     connect(m_jetson, &JetsonController::captAck, this, &MainWindow::onCaptAck);
     connect(m_jetson, &JetsonController::captStateUpdated, this, &MainWindow::onCaptStateUpdated);
     connect(m_jetson, &JetsonController::errorOccurred, this, [this](const QString& e) {
@@ -416,10 +417,10 @@ void MainWindow::sendJoystickSpeed()
     float yaw   = (joyYaw   + keyYaw)   * m_speedMultiplier / zoomK;
     float pitch = -(joyPitch + keyPitch) * m_speedMultiplier / zoomK;
 
-    ui->statusBar->showMessage(
-        QString("Yaw: %1   Pitch: %2")
-            .arg(yaw, 0, 'f', 3)
-            .arg(pitch, 0, 'f', 3), 0);
+    // ui->statusBar->showMessage(
+    //     QString("Yaw: %1   Pitch: %2")
+    //         .arg(yaw, 0, 'f', 3)
+    //         .arg(pitch, 0, 'f', 3), 0);
 
     m_gyro->setSpeed(yaw, pitch);
 }
@@ -1205,6 +1206,26 @@ void MainWindow::onMdplStatus(const QString& stat)
 {
     ui->labelJetsonStatus->setText(QString("JEP: %1").arg(stat));
     ui->labelJetsonStatus->setStyleSheet("color: green;");
+}
+
+void MainWindow::onJetsonHwStatus(const JetsonHwStatus& st)
+{
+    auto fmtBytes = [](qint64 n) -> QString {
+        if (n >= 1024ll * 1024 * 1024)
+            return QString("%1 ГБ").arg(n / (1024.0 * 1024.0 * 1024.0), 0, 'f', 1);
+        if (n >= 1024ll * 1024)
+            return QString("%1 МБ").arg(n / (1024.0 * 1024.0), 0, 'f', 0);
+        if (n >= 1024)
+            return QString("%1 КБ").arg(n / 1024.0, 0, 'f', 0);
+        return QString("%1 Б").arg(n);
+    };
+    ui->statusBar->showMessage(
+        QString("Jetson: CPU %1 °C   GPU %2 °C   RAM своб. %3   flash своб. %4")
+            .arg(st.tempCpu, 0, 'f', 1)
+            .arg(st.tempGpu, 0, 'f', 1)
+            .arg(fmtBytes(st.freeRam))
+            .arg(fmtBytes(st.freeFlash)),
+        0);
 }
 
 void MainWindow::onCaptAck(const QString& stat)

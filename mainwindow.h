@@ -83,6 +83,7 @@ private slots:
     void onTrackStopClicked();
     void onPidSettingsClicked();
     void onMdplStatus(const QString& stat);
+    void onJetsonHwStatus(const JetsonHwStatus& st);
     void onCaptAck(const QString& stat);
     void onCaptStateUpdated(CaptState state);
 

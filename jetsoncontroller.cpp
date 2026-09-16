@@ -2,6 +2,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QJsonParseError>
 #include <QNetworkInterface>
 #include <QSettings>
@@ -31,6 +32,8 @@ JetsonController::JetsonController(QObject *parent)
 
     m_pollTimer = new QTimer(this);
     connect(m_pollTimer, &QTimer::timeout, this, &JetsonController::onPollGetSet);
+    m_statusTimer = new QTimer(this);
+    connect(m_statusTimer, &QTimer::timeout, this, &JetsonController::onPollHwStatus);
 }
 
 JetsonController::~JetsonController()
@@ -63,6 +66,9 @@ bool JetsonController::loadSettings(const QString& iniPath)
     m_defaultVideoChannel = s.value("Tracking/video_channel", 1).toInt();
     m_trackButton = s.value("Joystick/button_track", 4).toInt();
     m_pollIntervalMs = s.value("Tracking/poll_interval_ms", 200).toInt();
+    m_statusPollIntervalMs = s.value("Jetson/status_poll_interval_ms", 5000).toInt();
+    if (m_statusPollIntervalMs < 0)
+        m_statusPollIntervalMs = 0;
 
     m_pid.pidXp = s.value("Tracking/pid_x_p", 0.04).toFloat();
     m_pid.pidXi = s.value("Tracking/pid_x_i", 0.04).toFloat();
@@ -133,6 +139,10 @@ bool JetsonController::start()
     m_started = true;
     if (m_pollIntervalMs > 0)
         m_pollTimer->start(m_pollIntervalMs);
+    if (m_statusPollIntervalMs > 0) {
+        m_statusTimer->start(m_statusPollIntervalMs);
+        sendHwStatus();
+    }
 
     qDebug() << "Jetson JEP listening on" << m_listenPort
              << "sending to" << m_remoteAddress.toString() << m_sendPort
@@ -147,6 +157,8 @@ void JetsonController::stop()
 {
     if (m_pollTimer)
         m_pollTimer->stop();
+    if (m_statusTimer)
+        m_statusTimer->stop();
     if (m_socket)
         m_socket->close();
     m_started = false;
@@ -273,6 +285,18 @@ void JetsonController::onPollGetSet()
         sendGetSet();
 }
 
+bool JetsonController::sendHwStatus()
+{
+    const QByteArray json = QByteArrayLiteral("{\"command\":\"status\"}");
+    return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
+}
+
+void JetsonController::onPollHwStatus()
+{
+    if (m_started)
+        sendHwStatus();
+}
+
 void JetsonController::onReadyRead()
 {
     while (m_socket->hasPendingDatagrams()) {
@@ -305,6 +329,21 @@ void JetsonController::handlePacket(const QByteArray& packet)
     const QString stat = obj.value(QStringLiteral("stat")).toString();
 
     if (unpacked.first == JEP_HD::MDPL) {
+        if (stat == QLatin1String("status")
+                || obj.contains(QStringLiteral("temp_cpu"))
+                || obj.contains(QStringLiteral("temp_gpu"))) {
+            JetsonHwStatus st;
+            st.tempCpu = obj.value(QStringLiteral("temp_cpu")).toDouble();
+            st.tempGpu = obj.value(QStringLiteral("temp_gpu")).toDouble();
+            const QJsonValue ram = obj.value(QStringLiteral("free_ram"));
+            QJsonValue flash = obj.value(QStringLiteral("free_frash"));
+            if (flash.isUndefined())
+                flash = obj.value(QStringLiteral("free_flash"));
+            st.freeRam = static_cast<qint64>(ram.toDouble());
+            st.freeFlash = static_cast<qint64>(flash.toDouble());
+            emit hwStatusUpdated(st);
+            return;
+        }
         emit mdplStatus(stat);
         return;
     }
