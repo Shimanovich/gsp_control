@@ -37,7 +37,7 @@ void GyroController::goToHeadingPosition(float yawDeg, float pitchDeg)
 {
     if (!m_motorsPowered || !m_controlReady)
         return;
-    QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE, yawDeg, pitchDeg);
+    QByteArray payload = buildControlPayload(SimpleBGC::CONTROL_MODE_ANGLE_REL_FRAME, yawDeg, pitchDeg);
     QByteArray fullPacket = SimpleBGC::buildPacket(SimpleBGC::CMD_CONTROL, payload);
     if (m_udp) m_udp->sendPacket(m_targetId, fullPacket);
 }
@@ -142,7 +142,7 @@ QByteArray GyroController::buildZeroPosCmd()
 
     SimpleBGC::cmd_control_t cmdout;
 
-    cmdout.mode 		= SimpleBGC::CONTROL_MODE_ANGLE;
+    cmdout.mode 		= SimpleBGC::CONTROL_MODE_ANGLE_REL_FRAME;
     cmdout.speedPITCH 	= 0;
     cmdout.speedYAW 	= 0;
     cmdout.speedROLL  	= 0;
@@ -178,7 +178,7 @@ QByteArray GyroController::buildControlPayload(uint8_t mode, float yaw, float pi
          cmdout.data[2].speed = y;
      }
 
-     if (mode==SimpleBGC::CONTROL_MODE_ANGLE)
+     if (mode==SimpleBGC::CONTROL_MODE_ANGLE_REL_FRAME)
      {
          int16_t p = qToLittleEndian<int16_t>(static_cast<int16_t>(pitch/0.02197265625));
          int16_t y = qToLittleEndian<int16_t>(static_cast<int16_t>(yaw/0.02197265625));
