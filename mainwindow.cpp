@@ -64,6 +64,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->labelGyroStatus->setText("Disconnected");
     ui->labelJoystickStatus->setText("Disconnected");
     ui->labelVideoStatus->setText("Stopped");
+    if (ui->labelVideoFps)
+        ui->labelVideoFps->clear();
 
     setupVideo();
 }
@@ -822,6 +824,10 @@ void MainWindow::onVideoStartClicked()
     if (!m_videoDec->on()) {
         ui->labelVideoStatus->setText("Open failed");
         ui->labelVideoStatus->setStyleSheet("color: red;");
+        if (ui->labelVideoFps) {
+            ui->labelVideoFps->clear();
+            ui->labelVideoFps->setStyleSheet("color: red;");
+        }
         ui->btnVideoStart->setEnabled(true);
         ui->btnVideoStop->setEnabled(false);
         return;
@@ -831,6 +837,10 @@ void MainWindow::onVideoStartClicked()
     m_videoTimer->start(33);
     ui->labelVideoStatus->setText("Running");
     ui->labelVideoStatus->setStyleSheet("color: green;");
+    if (ui->labelVideoFps) {
+        ui->labelVideoFps->clear();
+        ui->labelVideoFps->setStyleSheet("color: green;");
+    }
     ui->btnVideoStart->setEnabled(false);
     ui->btnVideoStop->setEnabled(true);
     ui->videoLabel->setText("");
@@ -863,6 +873,11 @@ void MainWindow::stopVideo()
     ui->labelVideoStatus->setText("Stopped");
     ui->labelVideoStatus->setStyleSheet("color: gray;");
     ui->labelVideoStatus->setToolTip(QString());
+    if (ui->labelVideoFps) {
+        ui->labelVideoFps->clear();
+        ui->labelVideoFps->setStyleSheet("color: gray;");
+        ui->labelVideoFps->setToolTip(QString());
+    }
     m_lastFrameW = 0;
     m_lastFrameH = 0;
     m_dispResW = 0;
@@ -917,25 +932,31 @@ void MainWindow::noteIncomingFrames(int count)
 void MainWindow::updateVideoStatusLabel()
 {
     if (m_dispResW <= 0 || m_dispResH <= 0) {
-        if (m_fpsValid)
-            ui->labelVideoStatus->setText(
-                QStringLiteral("Running  %1 fps").arg(m_currentFps, 0, 'f', 1));
-        else
-            ui->labelVideoStatus->setText(QStringLiteral("Running"));
-        ui->labelVideoStatus->setStyleSheet("color: green;");
-        return;
+        ui->labelVideoStatus->setText(QStringLiteral("Running"));
+    } else {
+        const QString cls = resolutionClassName(m_dispResW, m_dispResH);
+        ui->labelVideoStatus->setText(
+            QStringLiteral("Running %1x%2 (%3)")
+                .arg(m_dispResW)
+                .arg(m_dispResH)
+                .arg(cls));
     }
-    const QString cls = resolutionClassName(m_dispResW, m_dispResH);
-    QString text = QStringLiteral("Running %1x%2 (%3)")
-                       .arg(m_dispResW)
-                       .arg(m_dispResH)
-                       .arg(cls);
-    if (m_fpsValid)
-        text += QStringLiteral("  %1 fps").arg(m_currentFps, 0, 'f', 1);
-    ui->labelVideoStatus->setText(text);
     ui->labelVideoStatus->setStyleSheet("color: green;");
     ui->labelVideoStatus->setToolTip(
-        QStringLiteral("Размер декодированного кадра и текущий FPS входящего потока"));
+        QStringLiteral("Фактический размер входящего декодированного кадра"));
+
+    if (!ui->labelVideoFps)
+        return;
+    if (m_fpsValid) {
+        ui->labelVideoFps->setText(
+            QStringLiteral("%1 fps").arg(m_currentFps, 0, 'f', 1));
+        ui->labelVideoFps->setStyleSheet("color: green;");
+        ui->labelVideoFps->setToolTip(
+            QStringLiteral("Текущий FPS входящего видеопотока"));
+    } else {
+        ui->labelVideoFps->clear();
+        ui->labelVideoFps->setToolTip(QString());
+    }
 }
 
 void MainWindow::onIncomingResolutionChanged(int width, int height)

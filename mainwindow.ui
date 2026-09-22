@@ -484,11 +484,25 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="labelVideoStatus">
-            <property name="text">
-             <string>Stopped</string>
+           <layout class="QVBoxLayout" name="videoStatusLayout">
+            <property name="spacing">
+             <number>0</number>
             </property>
-           </widget>
+            <item>
+             <widget class="QLabel" name="labelVideoStatus">
+              <property name="text">
+               <string>Stopped</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="labelVideoFps">
+              <property name="text">
+               <string></string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </item>
