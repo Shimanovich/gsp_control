@@ -333,6 +333,7 @@ void JetsonController::handlePacket(const QByteArray& packet)
                 || obj.contains(QStringLiteral("temp_cpu"))
                 || obj.contains(QStringLiteral("temp_gpu"))) {
             JetsonHwStatus st;
+            st.cpuUse = obj.value(QStringLiteral("cpu_use")).toDouble();
             st.tempCpu = obj.value(QStringLiteral("temp_cpu")).toDouble();
             st.tempGpu = obj.value(QStringLiteral("temp_gpu")).toDouble();
             const QJsonValue ram = obj.value(QStringLiteral("free_ram"));

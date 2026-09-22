@@ -52,6 +52,7 @@ private slots:
     void on_radioZeroMode_clicked(bool checked);
     void on_radioSpeedMode_clicked(bool checked);
     void on_radioHeadingMode_clicked(bool checked);
+    void on_radioStabNull_clicked(bool checked);
     void on_radioAngleMode_clicked(bool checked);
     void on_radioMotorsOff_clicked(bool checked);
     void on_btnGyroReset_clicked();
@@ -93,7 +94,7 @@ private slots:
     void on_spinSpeedMultiplier_valueChanged(int value);
     void on_checkInvertPitch_toggled(bool checked);
 
-    void on_zoom_min_clicked();
+
 
 private:
     Ui::MainWindow *ui;
@@ -111,6 +112,7 @@ private:
 
     bool m_isSpeedMode = false;
     bool m_isHeadingMode = false;
+    bool m_isStabNullMode = false;
     bool m_isAngleMode = false;
     bool m_isMotorsOffMode = false;
     QTimer* m_speedSendTimer = nullptr;
@@ -161,7 +163,9 @@ private:
     void sendJoystickSpeed();
     void sendZeroPos();
     void sendHeadingPos();
+    void sendStabNullPos();
     void sendAnglePos();
+    bool tryJoystickSpeedOverride();
     void loadHeadingAnglesFromConfig(QSettings& s);
     void activateHeadingMode();
     void toggleHeadingSpeedMode();

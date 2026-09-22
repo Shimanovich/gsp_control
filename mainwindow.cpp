@@ -361,6 +361,7 @@ void MainWindow::updateControlMode()
 {
     m_isSpeedMode = ui->radioSpeedMode->isChecked();
     m_isHeadingMode = ui->radioHeadingMode->isChecked();
+    m_isStabNullMode = ui->radioStabNull && ui->radioStabNull->isChecked();
     m_isAngleMode = ui->radioAngleMode->isChecked();
     m_isMotorsOffMode = ui->radioMotorsOff && ui->radioMotorsOff->isChecked();
 
@@ -380,10 +381,13 @@ void MainWindow::updateControlMode()
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendZeroPos);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
+        disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendStabNullPos);
         disconnect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
         if (m_isMotorsOffMode) {
             if (m_gyro)
                 m_gyro->setMotorsPower(false);
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
+            m_speedSendTimer->start();
             return;
         }
         if (m_gyro)
@@ -392,6 +396,8 @@ void MainWindow::updateControlMode()
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendJoystickSpeed);
         } else if (m_isHeadingMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendHeadingPos);
+        } else if (m_isStabNullMode) {
+            connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendStabNullPos);
         } else if (m_isAngleMode) {
             connect(m_speedSendTimer, &QTimer::timeout, this, &MainWindow::sendAnglePos);
         } else {
@@ -402,8 +408,32 @@ void MainWindow::updateControlMode()
 }
 
 
+bool MainWindow::tryJoystickSpeedOverride()
+{
+    if (m_isSpeedMode)
+        return false;
+    if (!m_joystick || !m_joystick->isConnected())
+        return false;
+
+    const float joyYaw = m_joystick->getAxisYaw();
+    const float joyPitch = m_joystick->getAxisPitch();
+    if (qAbs(joyYaw) <= 0.5f && qAbs(joyPitch) <= 0.5f)
+        return false;
+
+    if (ui->radioSpeedMode)
+        ui->radioSpeedMode->setChecked(true);
+    updateControlMode();
+    if (m_gyro)
+        sendJoystickSpeed();
+    return true;
+}
+
 void MainWindow::sendJoystickSpeed()
 {
+    if (tryJoystickSpeedOverride())
+        return;
+    if (m_isMotorsOffMode)
+        return;
     if (!m_isSpeedMode || !m_gyro) return;
 
     float joyYaw   = m_joystick ? m_joystick->getAxisYaw()   : 0.0f;
@@ -447,6 +477,12 @@ void MainWindow::on_radioHeadingMode_clicked(bool checked)
     {
         updateControlMode();
     }
+}
+
+void MainWindow::on_radioStabNull_clicked(bool checked)
+{
+    if (checked)
+        updateControlMode();
 }
 
 void MainWindow::on_radioAngleMode_clicked(bool checked)
@@ -526,6 +562,8 @@ bool MainWindow::readValidatedAngles(float& azDeg, float& elDeg, bool showError)
 
 void MainWindow::sendAnglePos()
 {
+    if (tryJoystickSpeedOverride())
+        return;
     if (!m_gyro)
         return;
     float az = 0.0f, el = 0.0f;
@@ -577,11 +615,24 @@ void MainWindow::loadHeadingAnglesFromConfig(QSettings& s)
 
 void MainWindow::sendHeadingPos()
 {
+    if (tryJoystickSpeedOverride())
+        return;
     if (!m_gyro)
         return;
     QSettings s(m_configPath, QSettings::IniFormat);
     loadHeadingAnglesFromConfig(s);
     m_gyro->goToHeadingPosition(m_headingYawDeg, m_headingPitchDeg);
+}
+
+void MainWindow::sendStabNullPos()
+{
+    if (tryJoystickSpeedOverride())
+        return;
+    if (!m_gyro)
+        return;
+    QSettings s(m_configPath, QSettings::IniFormat);
+    loadHeadingAnglesFromConfig(s);
+    m_gyro->goToStabNullPosition(m_headingYawDeg, m_headingPitchDeg);
 }
 
 
@@ -624,6 +675,10 @@ void MainWindow::on_spinSpeedMultiplier_valueChanged(int value)
 
 void MainWindow::sendZeroPos()
 {
+    if (tryJoystickSpeedOverride())
+        return;
+    if (!m_gyro)
+        return;
     m_gyro->goToZeroPosition();
 }
 
@@ -1254,7 +1309,8 @@ void MainWindow::onJetsonHwStatus(const JetsonHwStatus& st)
         return QString("%1 Б").arg(n);
     };
     ui->statusBar->showMessage(
-        QString("Jetson: CPU %1 °C   GPU %2 °C   RAM своб. %3   flash своб. %4")
+        QString("Jetson: CPU %1 %   CPU %2 °C   GPU %3 °C   RAM своб. %4   flash своб. %5")
+            .arg(st.cpuUse, 0, 'f', 1)
             .arg(st.tempCpu, 0, 'f', 1)
             .arg(st.tempGpu, 0, 'f', 1)
             .arg(fmtBytes(st.freeRam))

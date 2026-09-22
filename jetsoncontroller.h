@@ -21,6 +21,7 @@ struct CaptState
 
 struct JetsonHwStatus
 {
+    double cpuUse = 0.0;
     double tempCpu = 0.0;
     double tempGpu = 0.0;
     qint64 freeRam = 0;
