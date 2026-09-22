@@ -113,7 +113,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="zoom_min">
+                <widget class="QPushButton" name="zoom_prev">
                  <property name="text">
                   <string>Zoom min</string>
                  </property>

@@ -1286,3 +1286,6 @@ void MainWindow::onCaptStateUpdated(CaptState state)
 
 
 
+
+
+

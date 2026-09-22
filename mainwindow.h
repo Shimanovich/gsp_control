@@ -93,6 +93,8 @@ private slots:
     void on_spinSpeedMultiplier_valueChanged(int value);
     void on_checkInvertPitch_toggled(bool checked);
 
+    void on_zoom_min_clicked();
+
 private:
     Ui::MainWindow *ui;
 
