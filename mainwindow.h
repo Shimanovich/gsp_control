@@ -5,6 +5,7 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QPixmap>
 #include <queue>
@@ -156,6 +157,10 @@ private:
     int                     m_dispResH = 0;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
+    QElapsedTimer           m_fpsTimer;
+    int                     m_fpsFrameCount = 0;
+    double                  m_currentFps = 0.0;
+    bool                    m_fpsValid = false;
 
     void setupControllers();
     void loadAllSettings();
@@ -174,6 +179,9 @@ private:
 
     void setupVideo();
     void stopVideo();
+    void resetFpsMeter();
+    void noteIncomingFrames(int count);
+    void updateVideoStatusLabel();
 
     void drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
                            int frameW, int frameH,

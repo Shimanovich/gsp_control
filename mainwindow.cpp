@@ -827,6 +827,7 @@ void MainWindow::onVideoStartClicked()
         return;
     }
 
+    resetFpsMeter();
     m_videoTimer->start(33);
     ui->labelVideoStatus->setText("Running");
     ui->labelVideoStatus->setStyleSheet("color: green;");
@@ -866,6 +867,7 @@ void MainWindow::stopVideo()
     m_lastFrameH = 0;
     m_dispResW = 0;
     m_dispResH = 0;
+    resetFpsMeter();
     ui->btnVideoStart->setEnabled(true);
     ui->btnVideoStop->setEnabled(false);
 }
@@ -884,37 +886,88 @@ QString resolutionClassName(int w, int h)
 }
 } // namespace
 
+void MainWindow::resetFpsMeter()
+{
+    m_fpsFrameCount = 0;
+    m_currentFps = 0.0;
+    m_fpsValid = false;
+    m_fpsTimer.invalidate();
+}
+
+void MainWindow::noteIncomingFrames(int count)
+{
+    if (count <= 0)
+        return;
+    if (!m_fpsTimer.isValid()) {
+        m_fpsTimer.start();
+        m_fpsFrameCount = count;
+        return;
+    }
+    m_fpsFrameCount += count;
+    const qint64 elapsedMs = m_fpsTimer.elapsed();
+    if (elapsedMs < 500)
+        return;
+    m_currentFps = m_fpsFrameCount * 1000.0 / static_cast<double>(elapsedMs);
+    m_fpsValid = true;
+    m_fpsFrameCount = 0;
+    m_fpsTimer.restart();
+    updateVideoStatusLabel();
+}
+
+void MainWindow::updateVideoStatusLabel()
+{
+    if (m_dispResW <= 0 || m_dispResH <= 0) {
+        if (m_fpsValid)
+            ui->labelVideoStatus->setText(
+                QStringLiteral("Running  %1 fps").arg(m_currentFps, 0, 'f', 1));
+        else
+            ui->labelVideoStatus->setText(QStringLiteral("Running"));
+        ui->labelVideoStatus->setStyleSheet("color: green;");
+        return;
+    }
+    const QString cls = resolutionClassName(m_dispResW, m_dispResH);
+    QString text = QStringLiteral("Running %1x%2 (%3)")
+                       .arg(m_dispResW)
+                       .arg(m_dispResH)
+                       .arg(cls);
+    if (m_fpsValid)
+        text += QStringLiteral("  %1 fps").arg(m_currentFps, 0, 'f', 1);
+    ui->labelVideoStatus->setText(text);
+    ui->labelVideoStatus->setStyleSheet("color: green;");
+    ui->labelVideoStatus->setToolTip(
+        QStringLiteral("Размер декодированного кадра и текущий FPS входящего потока"));
+}
+
 void MainWindow::onIncomingResolutionChanged(int width, int height)
 {
     if (width <= 0 || height <= 0)
         return;
     m_dispResW = width;
     m_dispResH = height;
-    const QString cls = resolutionClassName(width, height);
-    const QString text = QStringLiteral("Running %1x%2 (%3)")
-                             .arg(width)
-                             .arg(height)
-                             .arg(cls);
-    ui->labelVideoStatus->setText(text);
-    ui->labelVideoStatus->setStyleSheet("color: green;");
-    ui->labelVideoStatus->setToolTip(
-        QStringLiteral("Фактический размер входящего декодированного кадра"));
+    updateVideoStatusLabel();
 }
 
 void MainWindow::onVideoTimer()
 {
     AVFrame frame{};
     bool hasFrame = false;
+    int incomingCount = 0;
 
     // ЗАМЕНА: используем std::lock_guard вместо WaitForSingleObject/ReleaseMutex
     {
         std::lock_guard<std::mutex> lock(m_frameMutex);
-        if (!m_frameQueue.empty()) {
-            frame = m_frameQueue.front();
+        while (!m_frameQueue.empty()) {
+            AVFrame next = m_frameQueue.front();
             m_frameQueue.pop();
+            ++incomingCount;
+            if (hasFrame && frame.data[0])
+                av_free(frame.data[0]);
+            frame = next;
             hasFrame = true;
         }
     }
+    if (incomingCount > 0)
+        noteIncomingFrames(incomingCount);
     if (!hasFrame || !frame.data[0])
         return;
 
