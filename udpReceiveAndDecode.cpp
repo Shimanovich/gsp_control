@@ -219,14 +219,19 @@ bool udpDec::openInput()
 
     AVDictionary* opts = nullptr;
     av_dict_set(&opts, "protocol_whitelist", "file,udp,rtp,tcp", 0);
-    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt+igndts", 0);
+    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt+igndts+flush_packets", 0);
     av_dict_set(&opts, "flags", "low_delay", 0);
-    av_dict_set(&opts, "probesize", "32768", 0);
-    av_dict_set(&opts, "analyzeduration", "200000", 0);   // быстрее
-    av_dict_set(&opts, "max_delay", "50000", 0);
-    av_dict_set(&opts, "reorder_queue_size", "0", 0);      // минимум джиттера
-    av_dict_set(&opts, "timeout", "500000", 0);           // 0.5 с в мкс (использовать m_udptimeout*1000)
-    av_dict_set(&opts, "fifo_size", "500000", 0);         // буфер UDP
+    av_dict_set(&opts, "probesize", "32", 0);
+    av_dict_set(&opts, "analyzeduration", "0", 0);
+    av_dict_set(&opts, "max_delay", "0", 0);
+    av_dict_set(&opts, "reorder_queue_size", "0", 0);
+    av_dict_set(&opts, "timeout", "250000", 0);
+    // fifo_size у протокола UDP — число пакетов по 188 байт, не байты.
+    // 500000 давало ~94 МБ кольца и сотни мс задержки. 0 — без fifo-потока.
+    av_dict_set(&opts, "fifo_size", "0", 0);
+    av_dict_set(&opts, "overrun_nonfatal", "1", 0);
+    av_dict_set(&opts, "buffer_size", "1048576", 0);
+    av_dict_set(&opts, "rtbufsize", "65536", 0);
 
     // Открываем SDP из памяти через AVIO
     // (avformat_open_input с "sdp" + custom IO)
@@ -265,6 +270,13 @@ bool udpDec::openInput()
     int ret = avformat_open_input(&fmt_ctx, "memory.sdp", sdp_fmt, &opts);
     av_dict_free(&opts);
 
+    if (fmt_ctx) {
+        fmt_ctx->flags |= AVFMT_FLAG_NOBUFFER;
+        fmt_ctx->max_delay = 0;
+        fmt_ctx->probesize = 32;
+        fmt_ctx->max_analyze_duration = 0;
+    }
+
     if (ret < 0) {
         char errbuf[128];
         av_strerror(ret, errbuf, sizeof(errbuf));
@@ -282,8 +294,11 @@ bool udpDec::openInput()
     }
 
 
-    // Находим потоки
-    ret = avformat_find_stream_info(fmt_ctx, nullptr);
+    AVDictionary* infoOpts = nullptr;
+    av_dict_set(&infoOpts, "analyzeduration", "0", 0);
+    av_dict_set(&infoOpts, "probesize", "32", 0);
+    ret = avformat_find_stream_info(fmt_ctx, &infoOpts);
+    av_dict_free(&infoOpts);
     if (ret < 0) {
         qDebug() << "udpDec: avformat_find_stream_info failed";
         avformat_close_input(&fmt_ctx);
@@ -337,13 +352,15 @@ bool udpDec::openInput()
     }
 
     codec_ctx->flags  |= AV_CODEC_FLAG_LOW_DELAY;
-    codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS | AV_CODEC_FLAG2_SHOW_ALL;
+    codec_ctx->flags2 |= AV_CODEC_FLAG2_CHUNKS | AV_CODEC_FLAG2_SHOW_ALL | AV_CODEC_FLAG2_FAST;
     codec_ctx->thread_count = 1;
     codec_ctx->thread_type  = FF_THREAD_SLICE;
     codec_ctx->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-    //codec_ctx->err_recognition   = AV_EF_CAREFUL;
     codec_ctx->err_recognition   = AV_EF_IGNORE_ERR;
     codec_ctx->delay = 0;
+    codec_ctx->has_b_frames = 0;
+    codec_ctx->skip_frame = AVDISCARD_NONREF;
+    codec_ctx->skip_loop_filter = AVDISCARD_NONKEY;
 
     if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
         qDebug() << "udpDec: avcodec_open2 failed";
@@ -512,7 +529,7 @@ bool udpDec::processOnePacket()
             convert_ctx = sws_getContext(
                 fw, fh, src_pixfmt,
                 m_winWidth, m_winHeight, dst_pixfmt,
-                SWS_BICUBIC, nullptr, nullptr, nullptr);
+                SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
 
             if (!convert_ctx) {
                 qDebug() << "udpDec: cannot create sws context";
@@ -545,15 +562,14 @@ bool udpDec::processOnePacket()
             if (m_phframeMutex) {
                 std::lock_guard<std::mutex> lock(*m_phframeMutex);
 
-                while (m_frameQueue->size() >= 2) {
+                while (!m_frameQueue->empty()) {
                     AVFrame old = m_frameQueue->front();
                     m_frameQueue->pop();
                     freeFrameData(old);
                 }
                 m_frameQueue->push(copy);
             } else {
-                // Если мьютекса нет - всё равно защищаем доступ
-                while (m_frameQueue->size() >= 2) {
+                while (!m_frameQueue->empty()) {
                     AVFrame old = m_frameQueue->front();
                     m_frameQueue->pop();
                     freeFrameData(old);
@@ -585,7 +601,7 @@ void udpDec::decodeLoop()
         }
 
         if (!processOnePacket())
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
     }
 
     closeInput();

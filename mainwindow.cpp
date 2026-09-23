@@ -834,7 +834,7 @@ void MainWindow::onVideoStartClicked()
     }
 
     resetFpsMeter();
-    m_videoTimer->start(33);
+    m_videoTimer->start(8);
     ui->labelVideoStatus->setText("Running");
     ui->labelVideoStatus->setStyleSheet("color: green;");
     if (ui->labelVideoFps) {
@@ -1013,7 +1013,7 @@ void MainWindow::onVideoTimer()
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
-        Qt::SmoothTransformation);
+        Qt::FastTransformation);
 
     {
         QPainter painter(&pix);
