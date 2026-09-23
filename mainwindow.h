@@ -149,6 +149,7 @@ private:
     QTimer*                 m_videoTimer = nullptr;
     int                     m_videoPort = 5004;
     int                     m_videoTimeoutMs = 40;
+    QString                 m_videoBindAddress;
 
     CaptState               m_captState;
     int                     m_lastFrameW = 0;

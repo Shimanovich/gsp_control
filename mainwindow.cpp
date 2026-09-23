@@ -16,6 +16,7 @@
 #include <QDialogButtonBox>
 #include <QCheckBox>
 #include <QVBoxLayout>
+#include <cstring>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -128,6 +129,7 @@ void MainWindow::loadAllSettings()
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
+    m_videoBindAddress = s.value("Video/bind_address", QStringLiteral("192.168.144.1")).toString();
     m_btnZoomIn = s.value("Joystick/button_zoom_in", 9).toInt();
     m_btnZoomOut = s.value("Joystick/button_zoom_out", 7).toInt();
     m_btnZoomNext = s.value("Joystick/button_zoom_next", 6).toInt();
@@ -799,6 +801,11 @@ void MainWindow::setupVideo()
     udpDec::PlayerInitStructure p{};
     p.udpport        = m_videoPort;
     p.udptimeout     = m_videoTimeoutMs;
+    {
+        const QByteArray ba = m_videoBindAddress.toLatin1();
+        strncpy(p.bindAddress, ba.constData(), sizeof(p.bindAddress) - 1);
+        p.bindAddress[sizeof(p.bindAddress) - 1] = '\0';
+    }
     p.imageWidth     = 0;
     p.imageHeight    = 0;
     p.pFrameOutQueue = &m_frameQueue;

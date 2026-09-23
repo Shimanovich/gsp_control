@@ -2,17 +2,39 @@
 
 #include <chrono>
 #include <thread>
+#include <mutex>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#endif
 
 namespace {
 
 constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x20, 0x54, 0x49, 0x4D, 0x45 };
 constexpr int     kSeiTimeSigLen = 7;
-constexpr int     kSeiTimeFields = (24+2); // t_cap(8)+t_proc(8)+frame(4)+x(2)+y(2) + w(2) + h(2)
+constexpr int     kSeiTimeFields = (24+2);
+constexpr int     kMaxUdp = 2048;
+constexpr int     kMaxAu  = 2 * 1024 * 1024;
 
 uint16_t rd_be16(const uint8_t* p)
 {
     return static_cast<uint16_t>((p[0] << 8) | p[1]);
 }
+
+#ifdef _WIN32
+bool sockValid(SOCKET s) { return s != INVALID_SOCKET; }
+void sockClose(SOCKET s) { if (s != INVALID_SOCKET) closesocket(s); }
+int  sockErr() { return WSAGetLastError(); }
+#else
+bool sockValid(int s) { return s >= 0; }
+void sockClose(int s) { if (s >= 0) close(s); }
+int  sockErr() { return errno; }
+#endif
 
 } // namespace
 
@@ -21,26 +43,10 @@ bool udpDec::isUsableCaptureXY(uint16_t x, uint16_t y)
     return x != 0x0000 && x != 0xFFFF && y != 0x0000 && y != 0xFFFF;
 }
 
-void printHex(const uint8_t* data, int size)
-{
-    if (!data || size <= 0) {
-        qDebug() << "empty / null";
-        return;
-    }
-
-    const QByteArray ba = QByteArray::fromRawData(
-        reinterpret_cast<const char*>(data), size);
-
-    qDebug().noquote() << ba.toHex(' ');
-
-}
-
 void udpDec::tryParseSeiTime(const uint8_t* data, int size)
 {
     if (!data || size < kSeiTimeSigLen + kSeiTimeFields)
         return;
-
-
 
     const int last = size - (kSeiTimeSigLen + kSeiTimeFields);
     for (int i = 0; i <= last; ++i) {
@@ -50,11 +56,6 @@ void udpDec::tryParseSeiTime(const uint8_t* data, int size)
         const uint8_t* fields = data + i + kSeiTimeSigLen;
         const uint16_t x = rd_be16(fields + 20);
         const uint16_t y = rd_be16(fields + 22);
-
-
-        //printHex(fields,kSeiTimeFields);
-
-        qDebug()<<"P x"<< x <<" P y"<<y;
         m_seiCapX = x;
         m_seiCapY = y;
         m_seiCapValid = isUsableCaptureXY(x, y);
@@ -62,9 +63,6 @@ void udpDec::tryParseSeiTime(const uint8_t* data, int size)
     }
 }
 
-// ============================================================================
-// Constructor
-// ============================================================================
 udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     : QObject(parent)
 {
@@ -81,19 +79,20 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
 
     strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
     m_adapterName[sizeof(m_adapterName) - 1] = '\0';
+    strncpy(m_bindAddress, param->bindAddress, sizeof(m_bindAddress) - 1);
+    m_bindAddress[sizeof(m_bindAddress) - 1] = '\0';
 
     m_enable = false;
     m_active = true;
     m_opened = false;
+    m_au.reserve(256 * 1024);
 
-    // Приглушаем спам логов FFmpeg
     av_log_set_level(AV_LOG_ERROR);
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
     av_register_all();
     avcodec_register_all();
 #endif
-    avformat_network_init();
 
     frame_yuv = av_frame_alloc();
     packet    = av_packet_alloc();
@@ -103,15 +102,11 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
         return;
     }
 
-    // Поток запускаем сразу — он ждёт m_enable / m_opened
     m_decodeThread = std::thread(&udpDec::decodeLoop, this);
-
-    qDebug() << "udpDec: constructed (FFmpeg demuxer mode, port" << m_recudpport << ")";
+    qDebug() << "udpDec: constructed (RTP depay mode, bind"
+             << m_bindAddress << "port" << m_recudpport << ")";
 }
 
-// ============================================================================
-// on() — открыть вход и начать приём
-// ============================================================================
 bool udpDec::on()
 {
     if (m_enable.load())
@@ -126,45 +121,28 @@ bool udpDec::on()
     return true;
 }
 
-// ============================================================================
-// off() — остановить приём и полностью закрыть input
-// (критично для корректного повторного Start после Stop)
-// ============================================================================
 void udpDec::off()
 {
-    // Не закрываем FFmpeg из UI-потока: decodeLoop ещё может быть
-    // в av_read_frame / avcodec_send_packet. Иначе Stop Video падает.
     m_enable = false;
     for (int i = 0; i < 80 && m_opened.load(); ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     qDebug() << "udpDec: off() — stop requested, opened=" << m_opened.load();
 }
 
-// ============================================================================
-// startListening — оставлен для совместимости API (ничего не делает)
-// ============================================================================
 bool udpDec::startListening()
 {
     return true;
 }
 
-// ============================================================================
-// stopThread — полное завершение
-// ============================================================================
 void udpDec::stopThread()
 {
     m_enable = false;
     m_active = false;
-    // Не closeInput() до join: interrupt_callback разблокирует av_read_frame,
-    // decodeLoop сам закроет контекст.
     if (m_decodeThread.joinable())
         m_decodeThread.join();
     closeInput();
 }
 
-// ============================================================================
-// Destructor
-// ============================================================================
 udpDec::~udpDec()
 {
     stopThread();
@@ -187,168 +165,104 @@ udpDec::~udpDec()
     }
 }
 
-// ============================================================================
-// openInput — avformat_open_input("udp://@:port")
-// ============================================================================
+void udpDec::resetRtpState()
+{
+    m_au.clear();
+    m_haveTs = false;
+    m_rtpTs = 0;
+    m_fuActive = false;
+    m_seiCapValid = false;
+}
+
 bool udpDec::openInput()
 {
     std::lock_guard<std::mutex> lock(m_openMutex);
 
-    if (m_opened.load()) {
-        // Уже открыт — сначала закрываем
+    if (m_opened.load())
         closeInputUnlocked();
-    }
 
-    // Поток — RTP/H.264 без SDP.
-    // Минимальный SDP приведён к виду, который работает в VLC:
-    //   c=IN IP4 127.0.0.1
-    //   m=video 5000 RTP/AVP 96
-    //   a=rtpmap:96 H264/90000
-    // c= ставим 0.0.0.0, чтобы слушать на всех интерфейсах.
+#ifdef _WIN32
+    static std::once_flag wsaOnce;
+    std::call_once(wsaOnce, []() {
+        WSADATA wsa{};
+        WSAStartup(MAKEWORD(2, 2), &wsa);
+    });
+#endif
 
-    char sdp[512];
-    snprintf(sdp, sizeof(sdp),
-             "v=0\r\n"
-             "o=- 0 0 IN IP4 127.0.0.1\r\n"
-             "s=GSP\r\n"
-             "c=IN IP4 0.0.0.0\r\n"
-             "t=0 0\r\n"
-             "m=video %u RTP/AVP 96\r\n"
-             "a=rtpmap:96 H264/90000\r\n",
-             static_cast<unsigned>(m_recudpport));
-
-    AVDictionary* opts = nullptr;
-    av_dict_set(&opts, "protocol_whitelist", "file,udp,rtp,tcp", 0);
-    av_dict_set(&opts, "fflags", "nobuffer+discardcorrupt+igndts+flush_packets", 0);
-    av_dict_set(&opts, "flags", "low_delay", 0);
-    av_dict_set(&opts, "probesize", "32", 0);
-    av_dict_set(&opts, "analyzeduration", "0", 0);
-    av_dict_set(&opts, "max_delay", "0", 0);
-    av_dict_set(&opts, "reorder_queue_size", "0", 0);
-    av_dict_set(&opts, "timeout", "250000", 0);
-    // fifo_size у протокола UDP — число пакетов по 188 байт, не байты.
-    // 500000 давало ~94 МБ кольца и сотни мс задержки. 0 — без fifo-потока.
-    av_dict_set(&opts, "fifo_size", "0", 0);
-    av_dict_set(&opts, "overrun_nonfatal", "1", 0);
-    av_dict_set(&opts, "buffer_size", "1048576", 0);
-    av_dict_set(&opts, "rtbufsize", "65536", 0);
-
-    // Открываем SDP из памяти через AVIO
-    // (avformat_open_input с "sdp" + custom IO)
-    fmt_ctx = avformat_alloc_context();
-    if (!fmt_ctx) {
-        qDebug() << "udpDec: avformat_alloc_context failed";
-        av_dict_free(&opts);
-        return false;
-    }
-    fmt_ctx->interrupt_callback.callback = &udpDec::decodeInterruptCb;
-    fmt_ctx->interrupt_callback.opaque = this;
-
-    // Буфер SDP (FFmpeg скопирует данные)
-    AVIOContext* avio = nullptr;
-    unsigned char* sdp_buf = static_cast<unsigned char*>(av_malloc(strlen(sdp) + 1));
-    if (!sdp_buf) {
-        av_dict_free(&opts);
-        avformat_free_context(fmt_ctx);
-        fmt_ctx = nullptr;
-        return false;
-    }
-    memcpy(sdp_buf, sdp, strlen(sdp) + 1);
-
-    avio = avio_alloc_context(sdp_buf, static_cast<int>(strlen(sdp)), 0,
-                              nullptr, nullptr, nullptr, nullptr);
-    if (!avio) {
-        av_free(sdp_buf);
-        av_dict_free(&opts);
-        avformat_free_context(fmt_ctx);
-        fmt_ctx = nullptr;
-        return false;
-    }
-    fmt_ctx->pb = avio;
-
-    const AVInputFormat* sdp_fmt = av_find_input_format("sdp");
-    int ret = avformat_open_input(&fmt_ctx, "memory.sdp", sdp_fmt, &opts);
-    av_dict_free(&opts);
-
-    if (fmt_ctx) {
-        fmt_ctx->flags |= AVFMT_FLAG_NOBUFFER;
-        fmt_ctx->max_delay = 0;
-        fmt_ctx->probesize = 32;
-        fmt_ctx->max_analyze_duration = 0;
-    }
-
-    if (ret < 0) {
-        char errbuf[128];
-        av_strerror(ret, errbuf, sizeof(errbuf));
-        qDebug() << "udpDec: avformat_open_input (SDP) failed:" << errbuf;
-        // avio_context и sdp_buf освободятся при close
-        if (fmt_ctx) {
-            if (fmt_ctx->pb) {
-                av_freep(&fmt_ctx->pb->buffer);
-                avio_context_free(&fmt_ctx->pb);
-            }
-            avformat_free_context(fmt_ctx);
-            fmt_ctx = nullptr;
-        }
+    m_sock =
+#ifdef _WIN32
+        socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+#else
+        socket(AF_INET, SOCK_DGRAM, 0);
+#endif
+    if (!sockValid(m_sock)) {
+        qDebug() << "udpDec: socket failed" << sockErr();
         return false;
     }
 
+    int yes = 1;
+    setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR,
+               reinterpret_cast<const char*>(&yes), sizeof(yes));
 
-    AVDictionary* infoOpts = nullptr;
-    av_dict_set(&infoOpts, "analyzeduration", "0", 0);
-    av_dict_set(&infoOpts, "probesize", "32", 0);
-    ret = avformat_find_stream_info(fmt_ctx, &infoOpts);
-    av_dict_free(&infoOpts);
-    if (ret < 0) {
-        qDebug() << "udpDec: avformat_find_stream_info failed";
-        avformat_close_input(&fmt_ctx);
-        return false;
-    }
+    int rcvbuf = 1024 * 1024;
+    setsockopt(m_sock, SOL_SOCKET, SO_RCVBUF,
+               reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf));
 
-    // Ищем видео-поток
-    video_stream_index = -1;
-    for (unsigned i = 0; i < fmt_ctx->nb_streams; ++i) {
-        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            video_stream_index = static_cast<int>(i);
-            break;
-        }
-    }
+#ifdef _WIN32
+    DWORD to = 5;
+    setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO,
+               reinterpret_cast<const char*>(&to), sizeof(to));
+#else
+    timeval tv{};
+    tv.tv_sec = 0;
+    tv.tv_usec = 5000;
+    setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
 
-    if (video_stream_index < 0) {
-        // Иногда поток определяется как data — пробуем первый
-        if (fmt_ctx->nb_streams > 0) {
-            video_stream_index = 0;
-            qDebug() << "udpDec: no explicit video stream, using stream 0";
-        } else {
-            qDebug() << "udpDec: no streams found";
-            avformat_close_input(&fmt_ctx);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(m_recudpport);
+    if (m_bindAddress[0] == '\0' || strcmp(m_bindAddress, "0.0.0.0") == 0) {
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    } else {
+#ifdef _WIN32
+        addr.sin_addr.s_addr = inet_addr(m_bindAddress);
+        if (addr.sin_addr.s_addr == INADDR_NONE) {
+            qDebug() << "udpDec: bad bind address" << m_bindAddress;
+            sockClose(m_sock);
+            m_sock = static_cast<UdpSocket>(-1);
             return false;
         }
+#else
+        if (inet_pton(AF_INET, m_bindAddress, &addr.sin_addr) != 1) {
+            qDebug() << "udpDec: bad bind address" << m_bindAddress;
+            sockClose(m_sock);
+            m_sock = static_cast<UdpSocket>(-1);
+            return false;
+        }
+#endif
     }
 
-    AVCodecParameters* par = fmt_ctx->streams[video_stream_index]->codecpar;
+    if (bind(m_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        qDebug() << "udpDec: bind failed" << m_bindAddress << m_recudpport << sockErr();
+        sockClose(m_sock);
+        m_sock = static_cast<UdpSocket>(-1);
+        return false;
+    }
 
-    codec = avcodec_find_decoder(par->codec_id);
+    codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!codec) {
-        // Часто приходит как AV_CODEC_ID_NONE / data — форсируем H.264
-        codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-        if (!codec) {
-            qDebug() << "udpDec: H.264 decoder not found";
-            avformat_close_input(&fmt_ctx);
-            return false;
-        }
-        qDebug() << "udpDec: forced H.264 decoder";
+        qDebug() << "udpDec: H.264 decoder not found";
+        sockClose(m_sock);
+        m_sock = static_cast<UdpSocket>(-1);
+        return false;
     }
 
     codec_ctx = avcodec_alloc_context3(codec);
     if (!codec_ctx) {
-        qDebug() << "udpDec: cannot allocate codec context";
-        avformat_close_input(&fmt_ctx);
+        sockClose(m_sock);
+        m_sock = static_cast<UdpSocket>(-1);
         return false;
-    }
-
-    if (avcodec_parameters_to_context(codec_ctx, par) < 0) {
-        qDebug() << "udpDec: parameters_to_context failed, continuing with defaults";
     }
 
     codec_ctx->flags  |= AV_CODEC_FLAG_LOW_DELAY;
@@ -359,26 +273,22 @@ bool udpDec::openInput()
     codec_ctx->err_recognition   = AV_EF_IGNORE_ERR;
     codec_ctx->delay = 0;
     codec_ctx->has_b_frames = 0;
-    codec_ctx->skip_frame = AVDISCARD_NONREF;
-    codec_ctx->skip_loop_filter = AVDISCARD_NONKEY;
 
     if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
         qDebug() << "udpDec: avcodec_open2 failed";
         avcodec_free_context(&codec_ctx);
-        avformat_close_input(&fmt_ctx);
+        sockClose(m_sock);
+        m_sock = static_cast<UdpSocket>(-1);
         return false;
     }
 
+    resetRtpState();
     m_opened = true;
-    qDebug() << "udpDec: input opened, stream" << video_stream_index
-             << "codec" << codec->name
-             << "size" << codec_ctx->width << "x" << codec_ctx->height;
+    qDebug() << "udpDec: listening" << (m_bindAddress[0] ? m_bindAddress : "0.0.0.0")
+             << ":" << m_recudpport;
     return true;
 }
 
-// ============================================================================
-// closeInput helpers
-// ============================================================================
 void udpDec::closeInput()
 {
     std::lock_guard<std::mutex> lock(m_openMutex);
@@ -387,22 +297,15 @@ void udpDec::closeInput()
 
 void udpDec::closeInputUnlocked()
 {
+    if (sockValid(m_sock)) {
+        sockClose(m_sock);
+        m_sock = static_cast<UdpSocket>(-1);
+    }
     if (codec_ctx) {
         avcodec_free_context(&codec_ctx);
         codec_ctx = nullptr;
     }
-    if (fmt_ctx) {
-        // Мы сами создавали AVIO для SDP — освобождаем аккуратно
-        if (fmt_ctx->pb) {
-            if (fmt_ctx->pb->buffer)
-                av_freep(&fmt_ctx->pb->buffer);
-            avio_context_free(&fmt_ctx->pb);
-            fmt_ctx->pb = nullptr;
-        }
-        avformat_close_input(&fmt_ctx);   // nullptr-safe
-        fmt_ctx = nullptr;
-    }
-    video_stream_index = -1;
+    resetRtpState();
     m_opened = false;
 
     if (convert_ctx) {
@@ -418,10 +321,6 @@ void udpDec::closeInputUnlocked()
     m_winHeight = 0;
 }
 
-
-// ============================================================================
-// processOnePacket — один цикл av_read_frame + decode
-// ============================================================================
 int udpDec::decodeInterruptCb(void* opaque)
 {
     auto* self = static_cast<udpDec*>(opaque);
@@ -430,55 +329,156 @@ int udpDec::decodeInterruptCb(void* opaque)
     return (!self->m_enable.load() || !self->m_active.load()) ? 1 : 0;
 }
 
-bool udpDec::processOnePacket()
+bool udpDec::appendNal(const uint8_t* nal, int size)
 {
-    if (!m_enable.load() || !fmt_ctx || !codec_ctx || !m_opened.load())
+    if (!nal || size <= 0)
+        return false;
+    if (static_cast<int>(m_au.size()) + 4 + size > kMaxAu) {
+        m_au.clear();
+        m_fuActive = false;
+        return false;
+    }
+    static const uint8_t sc[4] = {0, 0, 0, 1};
+    m_au.insert(m_au.end(), sc, sc + 4);
+    m_au.insert(m_au.end(), nal, nal + size);
+    return true;
+}
+
+bool udpDec::handleRtpPacket(const uint8_t* data, int size)
+{
+    if (!data || size < 13)
         return false;
 
-    av_packet_unref(packet);
+    const int version = (data[0] >> 6) & 0x03;
+    if (version != 2)
+        return false;
 
-    int ret = av_read_frame(fmt_ctx, packet);
-    if (ret < 0) {
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+    const bool padding = (data[0] & 0x20) != 0;
+    const bool extension = (data[0] & 0x10) != 0;
+    const int cc = data[0] & 0x0F;
+    const bool marker = (data[1] & 0x80) != 0;
+    const int pt = data[1] & 0x7F;
+    const uint32_t ts = (uint32_t(data[4]) << 24) | (uint32_t(data[5]) << 16)
+                      | (uint32_t(data[6]) << 8) | uint32_t(data[7]);
+
+    int off = 12 + cc * 4;
+    if (off >= size)
+        return false;
+    if (extension) {
+        if (off + 4 > size)
             return false;
-        // Ошибка чтения — можно попробовать продолжить
-        return false;
+        const int extWords = (data[off + 2] << 8) | data[off + 3];
+        off += 4 + extWords * 4;
     }
-
-    if (packet->stream_index != video_stream_index) {
-        av_packet_unref(packet);
-        return false;
+    int payloadSize = size - off;
+    if (padding && payloadSize > 0) {
+        const int pad = data[size - 1];
+        if (pad > 0 && pad <= payloadSize)
+            payloadSize -= pad;
     }
-
-    // SEI только из этого пакета: не тянуть старые x/y на кадр без SEI.
-    m_seiCapValid = false;
-    if (packet->data && packet->size > 0)
-        tryParseSeiTime(packet->data, packet->size);
-
-    if (!m_enable.load() || !codec_ctx || !m_opened.load()) {
-        av_packet_unref(packet);
+    if (payloadSize <= 0 || off < 0)
         return false;
+
+    // Как caps GStreamer: payload=96. Другой PT игнорируем.
+    if (pt != 96)
+        return false;
+
+    const uint8_t* payload = data + off;
+
+    if (m_haveTs && ts != m_rtpTs && !m_au.empty()) {
+        decodeAccessUnit();
+        m_au.clear();
+        m_fuActive = false;
     }
+    m_rtpTs = ts;
+    m_haveTs = true;
 
-    ret = avcodec_send_packet(codec_ctx, packet);
-    av_packet_unref(packet);
+    const uint8_t nalType = payload[0] & 0x1F;
 
-    // if (ret < 0 && ret != AVERROR(EAGAIN)) {
-    //     avcodec_flush_buffers(codec_ctx);
-    //     return false;
-    // }
-
-    if (ret < 0) {
-        if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-            // логировать, но не flush сразу — дать concealment шанс
-            // flush только при серии ошибок (счётчик)
+    if (nalType == 28) { // FU-A — как rtph264depay
+        if (payloadSize < 2)
+            return false;
+        const uint8_t fu = payload[1];
+        const bool start = (fu & 0x80) != 0;
+        const bool end   = (fu & 0x40) != 0;
+        const uint8_t type = fu & 0x1F;
+        if (start) {
+            m_fuActive = true;
+            uint8_t hdr = static_cast<uint8_t>((payload[0] & 0xE0) | type);
+            if (static_cast<int>(m_au.size()) + 4 + 1 + (payloadSize - 2) > kMaxAu) {
+                m_au.clear();
+                m_fuActive = false;
+                return false;
+            }
+            static const uint8_t sc[4] = {0, 0, 0, 1};
+            m_au.insert(m_au.end(), sc, sc + 4);
+            m_au.push_back(hdr);
+            if (payloadSize > 2)
+                m_au.insert(m_au.end(), payload + 2, payload + payloadSize);
+        } else if (m_fuActive && payloadSize > 2) {
+            if (static_cast<int>(m_au.size()) + (payloadSize - 2) > kMaxAu) {
+                m_au.clear();
+                m_fuActive = false;
+                return false;
+            }
+            m_au.insert(m_au.end(), payload + 2, payload + payloadSize);
         }
-        return false;
+        if (end)
+            m_fuActive = false;
+    } else if (nalType == 24) { // STAP-A
+        int p = 1;
+        while (p + 2 <= payloadSize) {
+            const int nsz = (payload[p] << 8) | payload[p + 1];
+            p += 2;
+            if (nsz <= 0 || p + nsz > payloadSize)
+                break;
+            appendNal(payload + p, nsz);
+            p += nsz;
+        }
+    } else if (nalType > 0 && nalType < 24) {
+        appendNal(payload, payloadSize);
     }
 
+    if (marker && !m_au.empty()) {
+        decodeAccessUnit();
+        m_au.clear();
+        m_fuActive = false;
+        return true;
+    }
+    return false;
+}
 
-    while (ret >= 0) {
-        ret = avcodec_receive_frame(codec_ctx, frame_yuv);
+bool udpDec::decodeAccessUnit()
+{
+    if (m_au.empty() || !codec_ctx || !packet)
+        return false;
+
+    m_seiCapValid = false;
+    tryParseSeiTime(m_au.data(), static_cast<int>(m_au.size()));
+
+    av_packet_unref(packet);
+    if (av_new_packet(packet, static_cast<int>(m_au.size())) < 0)
+        return false;
+    memcpy(packet->data, m_au.data(), m_au.size());
+    packet->pts = AV_NOPTS_VALUE;
+    packet->dts = AV_NOPTS_VALUE;
+
+    int ret = avcodec_send_packet(codec_ctx, packet);
+    av_packet_unref(packet);
+    if (ret < 0 && ret != AVERROR(EAGAIN))
+        return false;
+
+    return emitDecodedFrames();
+}
+
+bool udpDec::emitDecodedFrames()
+{
+    if (!codec_ctx || !frame_yuv)
+        return false;
+
+    bool got = false;
+    while (true) {
+        int ret = avcodec_receive_frame(codec_ctx, frame_yuv);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             break;
         if (ret < 0) {
@@ -486,7 +486,6 @@ bool udpDec::processOnePacket()
             break;
         }
 
-        // ---- получили кадр ----
         const int fw = frame_yuv->width;
         const int fh = frame_yuv->height;
         if (fw <= 0 || fh <= 0)
@@ -511,7 +510,6 @@ bool udpDec::processOnePacket()
             }
 
             const int prevW = m_winWidth;
-            const int prevH = m_winHeight;
             m_winWidth  = fw;
             m_winHeight = fh;
             src_pixfmt  = curFmt;
@@ -519,7 +517,6 @@ bool udpDec::processOnePacket()
             int numBytes = av_image_get_buffer_size(dst_pixfmt, m_winWidth, m_winHeight, 1);
             if (numBytes <= 0)
                 continue;
-
             dst.data[0] = static_cast<uint8_t*>(av_malloc(numBytes));
             if (!dst.data[0])
                 continue;
@@ -530,13 +527,9 @@ bool udpDec::processOnePacket()
                 fw, fh, src_pixfmt,
                 m_winWidth, m_winHeight, dst_pixfmt,
                 SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-
-            if (!convert_ctx) {
-                qDebug() << "udpDec: cannot create sws context";
+            if (!convert_ctx)
                 continue;
-            }
             qDebug() << "udpDec: frame size" << fw << "x" << fh
-                     << "fmt" << src_pixfmt
                      << (prevW == 0 ? "(first)" : "(changed)");
             emit incomingResolutionChanged(fw, fh);
         }
@@ -548,44 +541,45 @@ bool udpDec::processOnePacket()
 
         dst.width  = m_winWidth;
         dst.height = m_winHeight;
-
-        // Координаты строба из последнего SEI этого AU.
-        // crop_* у копии — единственное место, куда их можно положить
-        // без смены типа очереди AVFrame.
-        dst.crop_left  = m_seiCapX;
-        dst.crop_top   = m_seiCapY;
-        dst.crop_right = m_seiCapValid ? 1 : 0;
+        dst.crop_left   = m_seiCapX;
+        dst.crop_top    = m_seiCapY;
+        dst.crop_right  = m_seiCapValid ? 1 : 0;
         dst.crop_bottom = 0;
 
         if (m_enable && m_frameQueue) {
             AVFrame copy = deepCopyFrame(dst);
+            auto pushLatest = [&]() {
+                while (!m_frameQueue->empty()) {
+                    AVFrame old = m_frameQueue->front();
+                    m_frameQueue->pop();
+                    freeFrameData(old);
+                }
+                m_frameQueue->push(copy);
+            };
             if (m_phframeMutex) {
                 std::lock_guard<std::mutex> lock(*m_phframeMutex);
-
-                while (!m_frameQueue->empty()) {
-                    AVFrame old = m_frameQueue->front();
-                    m_frameQueue->pop();
-                    freeFrameData(old);
-                }
-                m_frameQueue->push(copy);
+                pushLatest();
             } else {
-                while (!m_frameQueue->empty()) {
-                    AVFrame old = m_frameQueue->front();
-                    m_frameQueue->pop();
-                    freeFrameData(old);
-                }
-                m_frameQueue->push(copy);
+                pushLatest();
             }
-
         }
+        got = true;
     }
-
-    return true;
+    return got;
 }
 
-// ============================================================================
-// decodeLoop
-// ============================================================================
+bool udpDec::processOnePacket()
+{
+    if (!m_enable.load() || !m_opened.load() || !sockValid(m_sock))
+        return false;
+
+    uint8_t buf[kMaxUdp];
+    const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
+    if (n <= 0)
+        return false;
+    return handleRtpPacket(buf, n);
+}
+
 void udpDec::decodeLoop()
 {
     while (m_active.load()) {
@@ -607,9 +601,6 @@ void udpDec::decodeLoop()
     closeInput();
 }
 
-// ============================================================================
-// Deep copy / free (same as before)
-// ============================================================================
 AVFrame udpDec::deepCopyFrame(const AVFrame& src)
 {
     AVFrame dstf;
@@ -632,7 +623,6 @@ AVFrame udpDec::deepCopyFrame(const AVFrame& src)
 
     memcpy(dstf.data[0], src.data[0], static_cast<size_t>(numBytes));
     dstf.linesize[0] = src.linesize[0] ? src.linesize[0] : src.width * 3;
-
     return dstf;
 }
 
