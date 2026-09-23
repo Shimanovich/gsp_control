@@ -297,43 +297,9 @@ void CameraController::brightnessDown()
     });
 }
 
-void CameraController::queryHdDelay()
-{
-    // CAM_RegisterValueInq: 8x 09 04 24 mm FF  (mm=75h HD delay)
-    QByteArray cmd;
-    cmd.append(char(0x81));
-    cmd.append(char(0x09));
-    cmd.append(char(0x04));
-    cmd.append(char(0x24));
-    cmd.append(char(kRegHdDelay));
-    cmd.append(char(0xFF));
-    m_expectHdDelayReply = true;
-    sendVisca(cmd);
-}
-
-void CameraController::setHdDelay(bool enabled)
-{
-    // CAM_RegisterValue: 8x 01 04 24 mm 0p 0q FF
-    // 75h: 0 = Delay disabled, 1 = Delay enabled
-    const uint8_t val = enabled ? 0x01 : 0x00;
-    QByteArray cmd;
-    cmd.append(char(0x81));
-    cmd.append(char(0x01));
-    cmd.append(char(0x04));
-    cmd.append(char(0x24));
-    cmd.append(char(kRegHdDelay));
-    cmd.append(char((val >> 4) & 0x0F));
-    cmd.append(char(val & 0x0F));
-    cmd.append(char(0xFF));
-    m_hdDelayEnabled = enabled;
-    sendVisca(cmd);
-    QTimer::singleShot(80, this, [this]() { queryHdDelay(); });
-}
-
 void CameraController::startZoomPolling()
 {
     m_zoomPollTimer->start(2500);
-    queryHdDelay();
 }
 
 void CameraController::stopZoomPolling()
@@ -385,19 +351,6 @@ void CameraController::handleIncomingPacket(uint8_t sourceId, const QByteArray& 
 
     // Completion (обычная команда)
     if ((second & 0xF0) == 0x50 && payload.size() == 3) {
-        return;
-    }
-
-    // CAM_RegisterValueInq: y0 50 0p 0q FF  (pp = значение регистра)
-    if (m_expectHdDelayReply &&
-        (second & 0xF0) == 0x50 && payload.size() == 5)
-    {
-        const uint8_t hi = static_cast<uint8_t>(payload[2]) & 0x0F;
-        const uint8_t lo = static_cast<uint8_t>(payload[3]) & 0x0F;
-        const uint8_t val = static_cast<uint8_t>((hi << 4) | lo);
-        m_expectHdDelayReply = false;
-        m_hdDelayEnabled = (val != 0);
-        emit hdDelayUpdated(m_hdDelayEnabled);
         return;
     }
 

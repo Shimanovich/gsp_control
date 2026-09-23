@@ -140,19 +140,6 @@
                  </property>
                 </widget>
                </item>
-               <item>
-                <widget class="QCheckBox" name="checkHdDelay">
-                 <property name="text">
-                  <string>HD delay</string>
-                 </property>
-                 <property name="toolTip">
-                  <string>Регистр 75h: 0 — Delay disabled, 1 — Delay enabled</string>
-                 </property>
-                 <property name="checked">
-                  <bool>false</bool>
-                 </property>
-                </widget>
-               </item>
               </layout>
              </item>
             </layout>
