@@ -300,11 +300,48 @@ void CameraController::brightnessDown()
 void CameraController::startZoomPolling()
 {
     m_zoomPollTimer->start(2500);
+    QTimer::singleShot(250, this, [this]() { applyLowLatencyPreset(); });
+}
+
+void CameraController::applyLowLatencyPreset()
+{
+    if (m_lowLatencyApplied)
+        return;
+    m_lowLatencyApplied = true;
+    m_lowLatencyStep = 0;
+    qDebug() << "camera: low-latency preset";
+    sendLowLatencyStep();
+}
+
+void CameraController::sendLowLatencyStep()
+{
+    static const unsigned char kCmds[][6] = {
+        {0x81, 0x01, 0x04, 0x3D, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x33, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x5A, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x53, 0x00, 0xFF},
+        {0x81, 0x01, 0x04, 0x34, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x1A, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x65, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x62, 0x03, 0xFF},
+        {0x81, 0x01, 0x04, 0x32, 0x00, 0xFF},
+    };
+    const int n = int(sizeof(kCmds) / sizeof(kCmds[0]));
+    if (m_lowLatencyStep < 0 || m_lowLatencyStep >= n)
+        return;
+
+    QByteArray cmd(reinterpret_cast<const char*>(kCmds[m_lowLatencyStep]), 6);
+    sendVisca(cmd);
+    ++m_lowLatencyStep;
+    if (m_lowLatencyStep < n)
+        QTimer::singleShot(80, this, [this]() { sendLowLatencyStep(); });
 }
 
 void CameraController::stopZoomPolling()
 {
     m_zoomPollTimer->stop();
+    m_lowLatencyApplied = false;
+    m_lowLatencyStep = 0;
 }
 
 void CameraController::pollZoomPosition()

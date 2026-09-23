@@ -38,6 +38,7 @@ public:
 
     void startZoomPolling();
     void stopZoomPolling();
+    void applyLowLatencyPreset();
 
     float currentMagnification() const { return m_currentMagnification; }
 
@@ -71,7 +72,10 @@ private:
     float magnificationFromPosition(uint16_t zoomPos) const;
 
     QTimer* m_zoomPollTimer = nullptr;
+    bool m_lowLatencyApplied = false;
+    int m_lowLatencyStep = 0;
 
+    void sendLowLatencyStep();
     QByteArray buildViscaCommand(const QByteArray& cmd);
     void sendVisca(const QByteArray& cmd);
 };
