@@ -39,10 +39,15 @@ public:
     void startZoomPolling();
     void stopZoomPolling();
 
+    void queryHdDelay();
+    void setHdDelay(bool enabled);
+    bool hdDelayEnabled() const { return m_hdDelayEnabled; }
+
     float currentMagnification() const { return m_currentMagnification; }
 
 signals:
     void zoomPositionUpdated(float magnification);
+    void hdDelayUpdated(bool enabled);
     void error(const QString& msg);
 
 private slots:
@@ -71,6 +76,9 @@ private:
     float magnificationFromPosition(uint16_t zoomPos) const;
 
     QTimer* m_zoomPollTimer = nullptr;
+    bool m_hdDelayEnabled = false;
+    bool m_expectHdDelayReply = false;
+    static constexpr uint8_t kRegHdDelay = 0x75;
 
     QByteArray buildViscaCommand(const QByteArray& cmd);
     void sendVisca(const QByteArray& cmd);

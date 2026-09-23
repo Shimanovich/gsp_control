@@ -168,10 +168,20 @@ udpDec::~udpDec()
 void udpDec::resetRtpState()
 {
     m_au.clear();
+    m_pendingAu.clear();
+    m_havePendingAu = false;
     m_haveTs = false;
     m_rtpTs = 0;
     m_fuActive = false;
+    m_haveSeq = false;
+    m_lastSeq = 0;
     m_seiCapValid = false;
+}
+
+void udpDec::dropCurrentAu()
+{
+    m_au.clear();
+    m_fuActive = false;
 }
 
 bool udpDec::openInput()
@@ -204,7 +214,7 @@ bool udpDec::openInput()
     setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR,
                reinterpret_cast<const char*>(&yes), sizeof(yes));
 
-    int rcvbuf = 1024 * 1024;
+    int rcvbuf = 4 * 1024 * 1024;
     setsockopt(m_sock, SOL_SOCKET, SO_RCVBUF,
                reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf));
 
@@ -358,6 +368,7 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     const int cc = data[0] & 0x0F;
     const bool marker = (data[1] & 0x80) != 0;
     const int pt = data[1] & 0x7F;
+    const uint16_t seq = static_cast<uint16_t>((data[2] << 8) | data[3]);
     const uint32_t ts = (uint32_t(data[4]) << 24) | (uint32_t(data[5]) << 16)
                       | (uint32_t(data[6]) << 8) | uint32_t(data[7]);
 
@@ -379,23 +390,29 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     if (payloadSize <= 0 || off < 0)
         return false;
 
-    // Как caps GStreamer: payload=96. Другой PT игнорируем.
     if (pt != 96)
         return false;
 
+    if (m_haveSeq) {
+        const uint16_t expected = static_cast<uint16_t>(m_lastSeq + 1);
+        if (seq != expected) {
+            // Дырка в RTP: недособранный FU нельзя доклеивать — декодер потом «встаёт».
+            dropCurrentAu();
+        }
+    }
+    m_lastSeq = seq;
+    m_haveSeq = true;
+
     const uint8_t* payload = data + off;
 
-    if (m_haveTs && ts != m_rtpTs && !m_au.empty()) {
-        decodeAccessUnit();
-        m_au.clear();
-        m_fuActive = false;
-    }
+    if (m_haveTs && ts != m_rtpTs && !m_au.empty())
+        finishAccessUnit();
     m_rtpTs = ts;
     m_haveTs = true;
 
     const uint8_t nalType = payload[0] & 0x1F;
 
-    if (nalType == 28) { // FU-A — как rtph264depay
+    if (nalType == 28) {
         if (payloadSize < 2)
             return false;
         const uint8_t fu = payload[1];
@@ -406,8 +423,7 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
             m_fuActive = true;
             uint8_t hdr = static_cast<uint8_t>((payload[0] & 0xE0) | type);
             if (static_cast<int>(m_au.size()) + 4 + 1 + (payloadSize - 2) > kMaxAu) {
-                m_au.clear();
-                m_fuActive = false;
+                dropCurrentAu();
                 return false;
             }
             static const uint8_t sc[4] = {0, 0, 0, 1};
@@ -417,15 +433,16 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
                 m_au.insert(m_au.end(), payload + 2, payload + payloadSize);
         } else if (m_fuActive && payloadSize > 2) {
             if (static_cast<int>(m_au.size()) + (payloadSize - 2) > kMaxAu) {
-                m_au.clear();
-                m_fuActive = false;
+                dropCurrentAu();
                 return false;
             }
             m_au.insert(m_au.end(), payload + 2, payload + payloadSize);
+        } else if (!start && !m_fuActive) {
+            return false;
         }
         if (end)
             m_fuActive = false;
-    } else if (nalType == 24) { // STAP-A
+    } else if (nalType == 24) {
         int p = 1;
         while (p + 2 <= payloadSize) {
             const int nsz = (payload[p] << 8) | payload[p + 1];
@@ -439,34 +456,44 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
         appendNal(payload, payloadSize);
     }
 
-    if (marker && !m_au.empty()) {
-        decodeAccessUnit();
-        m_au.clear();
-        m_fuActive = false;
-        return true;
-    }
-    return false;
+    if (marker && !m_au.empty() && !m_fuActive)
+        finishAccessUnit();
+    return true;
 }
 
-bool udpDec::decodeAccessUnit()
+void udpDec::finishAccessUnit()
 {
-    if (m_au.empty() || !codec_ctx || !packet)
+    if (m_au.empty())
+        return;
+    m_pendingAu.swap(m_au);
+    m_havePendingAu = true;
+    m_au.clear();
+    m_fuActive = false;
+}
+
+bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
+{
+    if (!data || size <= 0 || !codec_ctx || !packet)
         return false;
 
     m_seiCapValid = false;
-    tryParseSeiTime(m_au.data(), static_cast<int>(m_au.size()));
+    tryParseSeiTime(data, size);
 
     av_packet_unref(packet);
-    if (av_new_packet(packet, static_cast<int>(m_au.size())) < 0)
+    if (av_new_packet(packet, size) < 0)
         return false;
-    memcpy(packet->data, m_au.data(), m_au.size());
+    memcpy(packet->data, data, static_cast<size_t>(size));
     packet->pts = AV_NOPTS_VALUE;
     packet->dts = AV_NOPTS_VALUE;
 
     int ret = avcodec_send_packet(codec_ctx, packet);
+    if (ret == AVERROR(EAGAIN)) {
+        emitDecodedFrames();
+        ret = avcodec_send_packet(codec_ctx, packet);
+    }
     av_packet_unref(packet);
-    if (ret < 0 && ret != AVERROR(EAGAIN))
-        return false;
+    if (ret < 0)
+        return emitDecodedFrames();
 
     return emitDecodedFrames();
 }
@@ -481,10 +508,8 @@ bool udpDec::emitDecodedFrames()
         int ret = avcodec_receive_frame(codec_ctx, frame_yuv);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             break;
-        if (ret < 0) {
-            avcodec_flush_buffers(codec_ctx);
+        if (ret < 0)
             break;
-        }
 
         const int fw = frame_yuv->width;
         const int fh = frame_yuv->height;
@@ -568,16 +593,24 @@ bool udpDec::emitDecodedFrames()
     return got;
 }
 
-bool udpDec::processOnePacket()
+int udpDec::drainSocket()
 {
     if (!m_enable.load() || !m_opened.load() || !sockValid(m_sock))
-        return false;
+        return 0;
 
+    int got = 0;
     uint8_t buf[kMaxUdp];
-    const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
-    if (n <= 0)
-        return false;
-    return handleRtpPacket(buf, n);
+    // Выгребаем пачку RTP до таймаута сокета, не засыпая между пакетами кадра.
+    for (;;) {
+        const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
+        if (n <= 0)
+            break;
+        handleRtpPacket(buf, n);
+        ++got;
+        if (got >= 256)
+            break;
+    }
+    return got;
 }
 
 void udpDec::decodeLoop()
@@ -594,8 +627,15 @@ void udpDec::decodeLoop()
             continue;
         }
 
-        if (!processOnePacket())
+        const int got = drainSocket();
+        if (m_havePendingAu) {
+            // Только последний собранный AU — как очередь в 1 кадр.
+            decodeAccessUnit(m_pendingAu.data(), static_cast<int>(m_pendingAu.size()));
+            m_pendingAu.clear();
+            m_havePendingAu = false;
+        } else if (got == 0) {
             std::this_thread::sleep_for(std::chrono::microseconds(200));
+        }
     }
 
     closeInput();

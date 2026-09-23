@@ -72,6 +72,8 @@ private slots:
     void on_btnZoomOut_released();
     void on_BrIghtUP_clicked();
     void on_BrightDW_clicked();
+    void on_checkHdDelay_toggled(bool checked);
+    void onHdDelayUpdated(bool enabled);
     void onMeasurementReceived(float distanceMeters, uint8_t status);
 
     // Video

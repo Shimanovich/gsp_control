@@ -98,6 +98,7 @@ void MainWindow::setupControllers()
     connect(m_gyro, &GyroController::temperaturesUpdated, this, &MainWindow::updateGyroTemperatures);
 
     connect(m_camera, &CameraController::zoomPositionUpdated,this, &MainWindow::onZoomPositionUpdated);
+    connect(m_camera, &CameraController::hdDelayUpdated, this, &MainWindow::onHdDelayUpdated);
 
     connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
 
@@ -745,6 +746,20 @@ void MainWindow::on_BrIghtUP_clicked()
 void MainWindow::on_BrightDW_clicked()
 {
     m_camera->brightnessDown();
+}
+
+void MainWindow::on_checkHdDelay_toggled(bool checked)
+{
+    if (m_camera)
+        m_camera->setHdDelay(checked);
+}
+
+void MainWindow::onHdDelayUpdated(bool enabled)
+{
+    if (!ui->checkHdDelay)
+        return;
+    QSignalBlocker blocker(ui->checkHdDelay);
+    ui->checkHdDelay->setChecked(enabled);
 }
 
 void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)

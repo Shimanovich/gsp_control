@@ -97,20 +97,26 @@ private:
 
     UdpSocket           m_sock = static_cast<UdpSocket>(-1);
     std::vector<uint8_t> m_au;
+    std::vector<uint8_t> m_pendingAu;
+    bool                m_havePendingAu = false;
     uint32_t            m_rtpTs = 0;
     bool                m_haveTs = false;
     bool                m_fuActive = false;
+    uint16_t            m_lastSeq = 0;
+    bool                m_haveSeq = false;
 
     void decodeLoop();
     bool openInput();
     void closeInput();
     void closeInputUnlocked();
-    bool processOnePacket();
+    int  drainSocket();
     bool handleRtpPacket(const uint8_t* data, int size);
     bool appendNal(const uint8_t* nal, int size);
-    bool decodeAccessUnit();
+    void finishAccessUnit();
+    bool decodeAccessUnit(const uint8_t* data, int size);
     bool emitDecodedFrames();
     void resetRtpState();
+    void dropCurrentAu();
     void tryParseSeiTime(const uint8_t* data, int size);
     static int decodeInterruptCb(void* opaque);
 
