@@ -84,33 +84,22 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupControllers()
 {
-    connect(m_udp, &UdpCommunicator::connectionStatusChanged, this, &MainWindow::updateConnectionStatus);
-    connect(m_joystick, &JoystickManager::connectedChanged, this, &MainWindow::updateJoystickStatus);
-
-
-
-    connect(m_joystick, &JoystickManager::buttonPressed,this, &MainWindow::onJoystickButtonPressed);
-    connect(m_joystick, &JoystickManager::buttonReleased,this, &MainWindow::onJoystickButtonReleased);
-
-
-    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
-    connect(m_gyro, &GyroController::anglesUpdated, this, &MainWindow::updateGyroAngles);
-    connect(m_gyro, &GyroController::temperaturesUpdated, this, &MainWindow::updateGyroTemperatures);
-
-    connect(m_camera, &CameraController::zoomPositionUpdated,this, &MainWindow::onZoomPositionUpdated);
-
+    connect(m_udp, &UdpCommunicator::connectionStatusChanged,   this, &MainWindow::updateConnectionStatus);
+    connect(m_joystick, &JoystickManager::connectedChanged,     this, &MainWindow::updateJoystickStatus);
+    connect(m_joystick, &JoystickManager::buttonPressed,        this, &MainWindow::onJoystickButtonPressed);
+    connect(m_joystick, &JoystickManager::buttonReleased,       this, &MainWindow::onJoystickButtonReleased);
+    connect(ui->btnDisconnect, &QPushButton::clicked,           this, &MainWindow::onDisconnectClicked);
+    connect(m_gyro, &GyroController::anglesUpdated,             this, &MainWindow::updateGyroAngles);
+    connect(m_gyro, &GyroController::temperaturesUpdated,       this, &MainWindow::updateGyroTemperatures);
+    connect(m_camera, &CameraController::zoomPositionUpdated,   this, &MainWindow::onZoomPositionUpdated);
     connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
-
-    connect(m_keyboard, &KeyboardManager::buttonPressed,
-            this, &MainWindow::onKeyBoardButtonPressed);
-    connect(m_keyboard, &KeyboardManager::buttonReleased,
-            this, &MainWindow::onKeyBoardButtonReleased);
-
-    connect(m_jetson, &JetsonController::mdplStatus, this, &MainWindow::onMdplStatus);
-    connect(m_jetson, &JetsonController::hwStatusUpdated, this, &MainWindow::onJetsonHwStatus);
-    connect(m_jetson, &JetsonController::captAck, this, &MainWindow::onCaptAck);
-    connect(m_jetson, &JetsonController::captStateUpdated, this, &MainWindow::onCaptStateUpdated);
-    connect(m_jetson, &JetsonController::errorOccurred, this, [this](const QString& e) {
+    connect(m_keyboard, &KeyboardManager::buttonPressed,        this, &MainWindow::onKeyBoardButtonPressed);
+    connect(m_keyboard, &KeyboardManager::buttonReleased,       this, &MainWindow::onKeyBoardButtonReleased);
+    connect(m_jetson, &JetsonController::mdplStatus,            this, &MainWindow::onMdplStatus);
+    connect(m_jetson, &JetsonController::hwStatusUpdated,       this, &MainWindow::onJetsonHwStatus);
+    connect(m_jetson, &JetsonController::captAck,               this, &MainWindow::onCaptAck);
+    connect(m_jetson, &JetsonController::captStateUpdated,      this, &MainWindow::onCaptStateUpdated);
+    connect(m_jetson, &JetsonController::errorOccurred,         this, [this](const QString& e) {
         ui->statusBar->showMessage(e, 4000);
         qWarning() << e;
     });
