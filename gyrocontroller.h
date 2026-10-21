@@ -3,22 +3,22 @@
 
 #include <QObject>
 #include <QTimer>
-#include "simplebgc_protocol.h"
 
-class UdpCommunicator;
+class JetsonController;
 
 class GyroController : public QObject
 {
     Q_OBJECT
 public:
-    explicit GyroController(UdpCommunicator* udp, QObject *parent = nullptr);
+    explicit GyroController(JetsonController* jetson, QObject *parent = nullptr);
 
     bool loadSettings(const QString& iniPath);
 
-    void setSpeed(float yawSpeed, float pitchSpeed);   // deg/s
+    void setSpeed(float yawSpeed, float pitchSpeed);
     void goToZeroPosition();
     void goToHeadingPosition(float yawDeg, float pitchDeg);
     void goToStabNullPosition(float yawDeg, float pitchDeg);
+    void goToAngle(float yawDeg, float pitchDeg);
     void startAnglePolling();
     void stopAnglePolling();
     void motorOn();
@@ -28,31 +28,22 @@ public:
     bool controlReady() const { return m_motorsPowered && m_controlReady; }
 
 signals:
-    void anglesUpdated(float pitch, float yaw); // degrees
+    void anglesUpdated(float pitch, float yaw);
     void temperaturesUpdated(int imuTempC, int frameImuTempC);
     void error(const QString& msg);
     void controlReadyChanged(bool ready);
 
 private slots:
+    void onGyroAngles(float yaw, float pitch);
+    void onGyroTemps(int imu, int frame);
+    void onGyroStatus(bool motorsOn, bool ready, float yaw, float pitch);
     void pollAngles();
-    void onMotorsSettle();
-
-    void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
 
 private:
-    UdpCommunicator* m_udp = nullptr;
-    uint8_t m_targetId = 41;
-    //uint8_t m_targetId = 0xff;
-    int m_pollIntervalMs = 100; // 10 Hz // интервал опроса углов гироплатформы
-
+    JetsonController* m_jetson = nullptr;
     QTimer* m_pollTimer = nullptr;
-    QTimer* m_settleTimer = nullptr;
     bool m_motorsPowered = true;
     bool m_controlReady = true;
-
-    QByteArray buildControlPayload(uint8_t mode, float yaw, float pitch);
-
-    QByteArray buildZeroPosCmd();
 };
 
 #endif // GYROCONTROLLER_H
