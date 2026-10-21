@@ -11,6 +11,9 @@ QString JEPProtocol::headerToString(JEP_HD header)
     case JEP_HD::OK:   return QStringLiteral("OK  ");
     case JEP_HD::MDPL: return QStringLiteral("MDPL");
     case JEP_HD::CAPT: return QStringLiteral("CAPT");
+    case JEP_HD::CAMR: return QStringLiteral("CAMR");
+    case JEP_HD::GYRO: return QStringLiteral("GYRO");
+    case JEP_HD::RNGF: return QStringLiteral("RNGF");
     default:           return QStringLiteral("    ");
     }
 }
@@ -33,19 +36,6 @@ QByteArray JEPProtocol::buildMd5Data(quint64 unitime, const QByteArray& jsonData
 
 QString JEPProtocol::calculateMd5Hex(const QByteArray& data)
 {
-    // 1:1 with JepProtocol.cpp::calculate_md5
-    //
-    // Qt gives RFC 1321 raw bytes: LE(A) LE(B) LE(C) LE(D).
-    // boost::uuids::detail::md5::get_digest on LE + Boost >= 1.71 writes
-    // each word via BOOST_UUID_DETAIL_MD5_BYTE_OUT as BE, so the uint32_t
-    // view of digest[] is bswap(rfc_word). Then the file does:
-    //   sh = digest[3], digest[2], digest[1], digest[0]
-    //   hex = sh[15] .. sh[0]
-    // Those two transforms cancel → result is the ordinary lowercase MD5 hex.
-    //
-    // The previous panel version applied only the print-swap to RFC bytes
-    // and produced the pre-1.71 Boost hex. Jetson validate() would reject it.
-
     const QByteArray rfc = QCryptographicHash::hash(data, QCryptographicHash::Md5);
     if (rfc.size() != 16)
         return {};

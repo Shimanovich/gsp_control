@@ -20,7 +20,6 @@
 #include "keyboardmanager.h"
 #include "jetsoncontroller.h"
 
-
 class QSettings;
 
 QT_BEGIN_NAMESPACE
@@ -74,13 +73,11 @@ private slots:
     void on_BrightDW_clicked();
     void onMeasurementReceived(float distanceMeters, uint8_t status);
 
-    // Video
     void onVideoStartClicked();
     void onVideoStopClicked();
     void onVideoTimer();
     void onIncomingResolutionChanged(int width, int height);
 
-    // Jetson / JEP
     void onJetsonPlayClicked();
     void onJetsonStopClicked();
     void onJetsonSetClicked();
@@ -94,8 +91,6 @@ private slots:
 
     void on_spinSpeedMultiplier_valueChanged(int value);
     void on_checkInvertPitch_toggled(bool checked);
-
-
 
 private:
     Ui::MainWindow *ui;
@@ -126,7 +121,6 @@ private:
     float m_angleElMin = -90.0f;
     float m_angleElMax = 90.0f;
 
-    // SDL-индексы кнопок из [Joystick] config.ini
     int m_btnZoomIn = 9;
     int m_btnZoomOut = 7;
     int m_btnZoomNext = 6;
@@ -142,26 +136,25 @@ private:
     int m_btnSpeedUp = 13;
     int m_btnSpeedDown = 14;
 
-    // Video
-    udpDec*                 m_videoDec = nullptr;
-    std::queue<AVFrame>     m_frameQueue;
-    std::mutex              m_frameMutex;  // Вместо HANDLE m_frameMutex = nullptr;
-    QTimer*                 m_videoTimer = nullptr;
-    int                     m_videoPort = 5004;
-    int                     m_videoTimeoutMs = 40;
-    QString                 m_videoBindAddress;
+    udpDec* m_videoDec = nullptr;
+    std::queue<AVFrame> m_frameQueue;
+    std::mutex m_frameMutex;
+    QTimer* m_videoTimer = nullptr;
+    int m_videoPort = 5004;
+    int m_videoTimeoutMs = 40;
+    QString m_videoBindAddress;
 
-    CaptState               m_captState;
-    int                     m_lastFrameW = 0;
-    int                     m_lastFrameH = 0;
-    int                     m_dispResW = 0;
-    int                     m_dispResH = 0;
-    int                     m_drawStrobeW = 64;
-    int                     m_drawStrobeH = 64;
-    QElapsedTimer           m_fpsTimer;
-    int                     m_fpsFrameCount = 0;
-    double                  m_currentFps = 0.0;
-    bool                    m_fpsValid = false;
+    CaptState m_captState;
+    int m_lastFrameW = 0;
+    int m_lastFrameH = 0;
+    int m_dispResW = 0;
+    int m_dispResH = 0;
+    int m_drawStrobeW = 64;
+    int m_drawStrobeH = 64;
+    QElapsedTimer m_fpsTimer;
+    int m_fpsFrameCount = 0;
+    double m_currentFps = 0.0;
+    bool m_fpsValid = false;
 
     void setupControllers();
     void loadAllSettings();
@@ -184,16 +177,10 @@ private:
     void noteIncomingFrames(int count);
     void updateVideoStatusLabel();
 
-    void drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
-                           int frameW, int frameH,
-                           int capX, int capY);
-
+    void drawCaptureStrobe(QPainter& painter, const QSize& pixSize, int frameW, int frameH, int capX, int capY);
     void applyJetsonUiDefaults();
     void sendTrackCommand(int trackCmd);
     void drawOverlays(QPixmap& pix, int srcW, int srcH);
-
-
 };
-
 
 #endif // MAINWINDOW_H

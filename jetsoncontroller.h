@@ -11,9 +11,9 @@
 
 struct CaptState
 {
-    int trackStatus = 0;     // 0 = off
-    int videoChannel = 0;    // 1 = TV, 2 = thermal
-    int strobXPos = 0;       // 0 = center of frame
+    int trackStatus = 0;
+    int videoChannel = 0;
+    int strobXPos = 0;
     int strobYPos = 0;
     int strobXSz = 0;
     int strobYSz = 0;
@@ -52,33 +52,73 @@ public:
     void stop();
     bool isStarted() const;
 
-    QString playIp() const { return m_playIp; }
-    quint16 playPort() const { return m_playPort; }
-    QString defaultResolut() const { return m_defaultResolut; }
-    int defaultBitrate() const { return m_defaultBitrate; }
-    int defaultStrobeW() const { return m_defaultStrobeW; }
-    int defaultStrobeH() const { return m_defaultStrobeH; }
-    int defaultTrackCmd() const { return m_defaultTrackCmd; }
-    int defaultVideoChannel() const { return m_defaultVideoChannel; }
-    int trackButton() const { return m_trackButton; }
+    // MDPL
+    bool sendPlay(const QString& playIp, int playPort);
+    bool sendStop();
+    bool sendSet(int bitrate, const QString& resolut);
+    bool sendHwStatus();
+
+    // CAPT
+    bool sendTrackSet(int trackCmd, int videoChannel, int strobX, int strobY, int strobW, int strobH);
+    bool sendPidSet();
+    bool sendGetSet();
+
+    // CAMR
+    bool sendCamZoomIn();
+    bool sendCamZoomOut();
+    bool sendCamZoomStop();
+    bool sendCamZoomPos(int index);
+    bool sendCamAutofocus();
+    bool sendCamFocusInfinity();
+    bool sendCamBrightnessUp();
+    bool sendCamBrightnessDown();
+    bool sendCamAeBright();
+    bool sendCamTvFps25();
+    bool sendCamTvFps30();
+    bool sendCamTvPwrReset();
+    bool sendCamZoomInquiry();
+    bool sendCamStatus();
+
+    // GYRO
+    bool sendGyroSpeed(float yaw, float pitch);
+    bool sendGyroHeading(float yaw, float pitch);
+    bool sendGyroStabNull(float yaw, float pitch);
+    bool sendGyroAngle(float yaw, float pitch);
+    bool sendGyroHome();
+    bool sendGyroMotors(bool on);
+    bool sendGyroReset();
+    bool sendGyroStatus();
+
+    // RNGF
+    bool sendRangeShoot();
+    bool sendRangeStop();
+    bool sendRangeContinuous(int periodMs);
+    bool sendRangeSelftest();
+    bool sendRangeSetMinDist(int meters);
+    bool sendRangeSetTargetMode(int mode);
+    bool sendRangeStatus();
+
     TrackingParams trackingParams() const { return m_pid; }
     void setTrackingParams(const TrackingParams& params);
     bool saveTrackingParams(const QString& iniPath = QString()) const;
     CaptState lastCaptState() const { return m_capt; }
-
-    bool sendPlay(const QString& playIp, int playPort);
-    bool sendStop();
-    bool sendSet(int bitrate, const QString& resolut);
-    bool sendTrackSet(int trackCmd, int videoChannel, int strobX, int strobY, int strobW, int strobH);
-    bool sendPidSet();
-    bool sendGetSet();
-    bool sendHwStatus();
 
 signals:
     void mdplStatus(const QString& stat);
     void hwStatusUpdated(const JetsonHwStatus& st);
     void captAck(const QString& stat);
     void captStateUpdated(CaptState state);
+
+    void cameraZoomUpdated(float magnification);
+    void cameraStatusUpdated(int zoomPos, float magnification, int fps);
+
+    void gyroAnglesUpdated(float yaw, float pitch);
+    void gyroTempsUpdated(int imu, int frameImu);
+    void gyroStatusUpdated(bool motorsOn, bool controlReady, float yaw, float pitch);
+
+    void rangeMeasurementReceived(float dist1, float dist2, float dist3, int statusByte);
+    void rangeStatusUpdated(float lastDist, bool laserOk);
+
     void errorOccurred(const QString& error);
     void connectionStatusChanged(bool connected);
 
@@ -86,6 +126,7 @@ private slots:
     void onReadyRead();
     void onPollGetSet();
     void onPollHwStatus();
+    void onPollDeviceStatus();
 
 private:
     bool sendPacket(const QByteArray& packet);
@@ -96,6 +137,7 @@ private:
     QUdpSocket* m_socket = nullptr;
     QTimer* m_pollTimer = nullptr;
     QTimer* m_statusTimer = nullptr;
+    QTimer* m_devicePollTimer = nullptr;
 
     QHostAddress m_remoteAddress;
     quint16 m_sendPort = 5700;
@@ -105,13 +147,9 @@ private:
     quint16 m_playPort = 5400;
     QString m_defaultResolut = QStringLiteral("HD");
     int m_defaultBitrate = 2500000;
-    int m_defaultStrobeW = 64;
-    int m_defaultStrobeH = 64;
-    int m_defaultTrackCmd = 1;
-    int m_defaultVideoChannel = 1;
-    int m_trackButton = 4;
     int m_pollIntervalMs = 200;
     int m_statusPollIntervalMs = 5000;
+    int m_devicePollIntervalMs = 200;
 
     TrackingParams m_pid;
     QString m_iniPath;

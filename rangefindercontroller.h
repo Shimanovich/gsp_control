@@ -2,29 +2,33 @@
 #define RANGEFINDERCONTROLLER_H
 
 #include <QObject>
-#include "udpcommunicator.h"
+
+class JetsonController;
 
 class RangefinderController : public QObject
 {
     Q_OBJECT
 public:
-    explicit RangefinderController(UdpCommunicator* udp, QObject *parent = nullptr);
+    explicit RangefinderController(JetsonController* jetson, QObject *parent = nullptr);
 
     bool loadSettings(const QString& iniPath);
-    void shoot();   // single measurement 0x01
+    void shoot();
+    void stop();
+    void continuous(int periodMs);
+    void selftest();
+    void setMinDist(int meters);
+    void setTargetMode(int mode);
 
 signals:
     void measurementReceived(float distanceMeters, uint8_t status);
     void statusUpdated(const QString& status);
 
 private slots:
-    void handleIncomingPacket(uint8_t sourceId, const QByteArray& payload);
+    void onRangeMeasurement(float d1, float d2, float d3, int status);
+    void onRangeStatus(float last, bool ok);
 
 private:
-    UdpCommunicator* m_udp = nullptr;
-    uint8_t m_targetId = 13;
-
-    void sendRangefinderCommand(uint8_t cmd, uint16_t data = 0);
+    JetsonController* m_jetson = nullptr;
 };
 
 #endif // RANGEFINDERCONTROLLER_H

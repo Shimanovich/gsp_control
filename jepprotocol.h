@@ -10,15 +10,21 @@
 // Packet: Header(4 ASCII) | Size(4 BE) | MD5 hex(32) | Unitime(8 BE ms) | JSON
 //
 // MD5 = hex(PRIVATE_KEY + Unitime_BE + JSON).
-// На LE + Boost >= 1.71 перестановка из JepProtocol.cpp даёт обычный RFC 1321 hex.
 //
-// Header "MDPL" — MediaPlayer control
-// Header "CAPT" — Capture / tracking
+// Headers:
+//   MDPL — MediaPlayer control
+//   CAPT — Capture / tracking
+//   CAMR — Camera (VISCA)
+//   GYRO — Gimbal (SimpleBGC)
+//   RNGF — Rangefinder
 
 enum class JEP_HD : quint32 {
     OK   = 0,
     MDPL = 0x4C50444D, // "MDPL" little-endian
-    CAPT = 0x54504143  // "CAPT" little-endian
+    CAPT = 0x54504143, // "CAPT" little-endian
+    CAMR = 0x524D4143, // "CAMR" little-endian
+    GYRO = 0x4F525947, // "GYRO" little-endian
+    RNGF = 0x46474E52  // "RNGF" little-endian
 };
 
 class JEPProtocol
