@@ -24,6 +24,7 @@ public:
     void motorOn();
     void setMotorsPower(bool on);
     void resetBoard();
+    void calibrateGyroTemperature();
     bool motorsPowered() const { return m_motorsPowered; }
     bool controlReady() const { return m_motorsPowered && m_controlReady; }
 
