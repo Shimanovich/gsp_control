@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>GSP Control Panel</string>
+   <string>Панель управления ГСП</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -43,34 +43,34 @@
            <bool>true</bool>
           </property>
           <property name="title">
-           <string>Network</string>
+           <string>Сеть</string>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
             <widget class="QPushButton" name="btnConnect">
              <property name="text">
-              <string>Connect</string>
+              <string>Подключить</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QPushButton" name="btnDisconnect">
              <property name="text">
-              <string>Disconnect</string>
+              <string>Отключить</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="labelGyroStatus">
              <property name="text">
-              <string>Gyro: Disconnected</string>
+              <string>Гиро: Отключено</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="labelJoystickStatus">
              <property name="text">
-              <string>Joystick: Disconnected</string>
+              <string>Джойстик: Отключено</string>
              </property>
             </widget>
            </item>
@@ -80,7 +80,7 @@
         <item>
          <widget class="QGroupBox" name="groupCamera">
           <property name="title">
-           <string>Camera (VISCA)</string>
+           <string>Камера (VISCA)</string>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
@@ -90,14 +90,14 @@
                <item>
                 <widget class="QPushButton" name="btnAutofocus">
                  <property name="text">
-                  <string>Autofocus</string>
+                  <string>Автофокус</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="btnFocusInf">
                  <property name="text">
-                  <string>Focus ∞</string>
+                  <string>Фокус ∞</string>
                  </property>
                 </widget>
                </item>
@@ -108,35 +108,35 @@
                <item>
                 <widget class="QLabel" name="zoomVal">
                  <property name="text">
-                  <string>Zoom </string>
+                  <string>Зум </string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zoom_prev">
                  <property name="text">
-                  <string>Zoom min</string>
+                  <string>Зум мин</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zoom_next">
                  <property name="text">
-                  <string>Zoom max</string>
+                  <string>Зум макс</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="BrIghtUP">
                  <property name="text">
-                  <string>bright +</string>
+                  <string>Яркость +</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="BrightDW">
                  <property name="text">
-                  <string>Bright -</string>
+                  <string>Яркость -</string>
                  </property>
                 </widget>
                </item>
@@ -150,7 +150,7 @@
         <item>
          <widget class="QGroupBox" name="groupRangefinder">
           <property name="title">
-           <string>Laser Rangefinder</string>
+           <string>Лазерный дальномер</string>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
@@ -158,7 +158,7 @@
              <item>
               <widget class="QCheckBox" name="checkSafety">
                <property name="text">
-                <string>Safety Lock</string>
+                <string>Блокировка безопасности</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -168,7 +168,7 @@
              <item>
               <widget class="QPushButton" name="btnShoot">
                <property name="text">
-                <string>SHOOT</string>
+                <string>Выстрел</string>
                </property>
               </widget>
              </item>
@@ -177,7 +177,7 @@
                <item>
                 <widget class="QLabel" name="ldDistance">
                  <property name="text">
-                  <string> 0 m</string>
+                  <string> 0 м</string>
                  </property>
                 </widget>
                </item>
@@ -201,7 +201,7 @@
         <item>
          <widget class="QGroupBox" name="groupGyro">
           <property name="title">
-           <string>Gyro Platform</string>
+           <string>Гироплатформа</string>
           </property>
           <layout class="QGridLayout" name="gridLayout">
            <item row="3" column="0" colspan="4">
@@ -209,7 +209,7 @@
              <item>
               <widget class="QLabel" name="labelMultiplier">
                <property name="text">
-                <string>Speed Multiplier:</string>
+                <string>Множитель скорости:</string>
                </property>
               </widget>
              </item>
@@ -242,14 +242,14 @@
              <item>
               <widget class="QLabel" name="labelImuTemp">
                <property name="text">
-                <string>IMU: -- °C</string>
+                <string>ИМУ: -- °C</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="labelFrameImuTemp">
                <property name="text">
-                <string>Frame IMU: -- °C</string>
+                <string>ИМУ рамы: -- °C</string>
                </property>
               </widget>
              </item>
@@ -274,6 +274,16 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="btnGyroTempCalib">
+               <property name="text">
+                <string>Калибровка гиро по температуре</string>
+               </property>
+               <property name="toolTip">
+                <string>CMD_CALIB_GYRO #105, ACTION=3 — температурная калибровка гироскопа</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item row="5" column="0" colspan="4">
@@ -295,7 +305,7 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>AZ</string>
+                  <string>Азимут</string>
                  </property>
                 </widget>
                </item>
@@ -347,7 +357,7 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>EL</string>
+                  <string>Элевация</string>
                  </property>
                 </widget>
                </item>
@@ -388,7 +398,7 @@
              <item row="0" column="0">
               <widget class="QRadioButton" name="radioZeroMode">
                <property name="text">
-                <string>Parking</string>
+                <string>Парковка</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -398,7 +408,7 @@
              <item row="0" column="1">
               <widget class="QRadioButton" name="radioSpeedMode">
                <property name="text">
-                <string>Speed</string>
+                <string>Скорость</string>
                </property>
                <property name="checked">
                 <bool>true</bool>
@@ -428,7 +438,7 @@
              <item row="1" column="1">
               <widget class="QRadioButton" name="radioStabNull">
                <property name="text">
-                <string>Stab_null</string>
+                <string>Стаб_ноль</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -450,14 +460,14 @@
            <item row="4" column="2">
             <widget class="QLabel" name="labelPitch">
              <property name="text">
-              <string>Pitch: 0.0°</string>
+              <string>Тангаж: 0.0°</string>
              </property>
             </widget>
            </item>
            <item row="4" column="0">
             <widget class="QLabel" name="labelRoll">
              <property name="text">
-              <string>Roll: 0.0°</string>
+              <string>Крен: 0.0°</string>
              </property>
             </widget>
            </item>
@@ -469,7 +479,7 @@
           <item>
            <widget class="QPushButton" name="btnVideoStart">
             <property name="text">
-             <string>Start Video</string>
+             <string>Старт видео</string>
             </property>
            </widget>
           </item>
@@ -479,7 +489,7 @@
              <bool>false</bool>
             </property>
             <property name="text">
-             <string>Stop Video</string>
+             <string>Стоп видео</string>
             </property>
            </widget>
           </item>
@@ -491,7 +501,7 @@
             <item>
              <widget class="QLabel" name="labelVideoStatus">
               <property name="text">
-               <string>Stopped</string>
+               <string>Остановлено</string>
               </property>
              </widget>
             </item>
@@ -509,7 +519,7 @@
         <item>
          <widget class="QGroupBox" name="groupJetson">
           <property name="title">
-           <string>Jetson Stream (JEP MDPL)</string>
+           <string>Поток Jetson (JEP MDPL)</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayoutJetson">
            <item>
@@ -517,21 +527,21 @@
              <item>
               <widget class="QPushButton" name="btnJetsonPlay">
                <property name="text">
-                <string>Play Stream</string>
+                <string>Воспроизвести поток</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnJetsonStop">
                <property name="text">
-                <string>Stop Stream</string>
+                <string>Остановить поток</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnJetsonSet">
                <property name="text">
-                <string>Apply Settings</string>
+                <string>Применить настройки</string>
                </property>
               </widget>
              </item>
@@ -542,7 +552,7 @@
              <item>
               <widget class="QLabel" name="labelResolut">
                <property name="text">
-                <string>Resolut</string>
+                <string>Разрешение</string>
                </property>
               </widget>
              </item>
@@ -571,23 +581,14 @@
              <item>
               <widget class="QLabel" name="labelBitrate">
                <property name="text">
-                <string>Bitrate</string>
+                <string>Битрейт</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QSpinBox" name="spinBitrate">
-               <property name="minimum">
-                <number>250000</number>
-               </property>
-               <property name="maximum">
-                <number>20000000</number>
-               </property>
-               <property name="singleStep">
-                <number>250000</number>
-               </property>
-               <property name="value">
-                <number>2500000</number>
+              <widget class="QComboBox" name="comboBitrate">
+               <property name="toolTip">
+                <string>Битрейт видеопотока, Мбит/с</string>
                </property>
               </widget>
              </item>
@@ -596,7 +597,7 @@
            <item>
             <widget class="QLabel" name="labelJetsonStatus">
              <property name="text">
-              <string>JEP: idle</string>
+              <string>JEP: ожидание</string>
              </property>
             </widget>
            </item>
@@ -606,7 +607,7 @@
         <item>
          <widget class="QGroupBox" name="groupTracking">
           <property name="title">
-           <string>Tracking (JEP CAPT)</string>
+           <string>Трекинг (JEP CAPT)</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayoutTrack">
            <item>
@@ -614,7 +615,7 @@
              <item>
               <widget class="QLabel" name="labelStrobeW">
                <property name="text">
-                <string>Strobe W</string>
+                <string>Строб Ш</string>
                </property>
               </widget>
              </item>
@@ -634,7 +635,7 @@
              <item>
               <widget class="QLabel" name="labelStrobeH">
                <property name="text">
-                <string>Strobe H</string>
+                <string>Строб В</string>
                </property>
               </widget>
              </item>
@@ -659,12 +660,12 @@
               <widget class="QComboBox" name="comboVideoChannel">
                <item>
                 <property name="text">
-                 <string>TV camera</string>
+                 <string>ТВ камера</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>Thermal</string>
+                 <string>Тепловизор</string>
                 </property>
                </item>
               </widget>
@@ -673,17 +674,17 @@
               <widget class="QComboBox" name="comboTrackCmd">
                <item>
                 <property name="text">
-                 <string>Off</string>
+                 <string>Выкл</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>Track + GSP</string>
+                 <string>Трек + ГСП</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>Track only</string>
+                 <string>Только трек</string>
                 </property>
                </item>
               </widget>
@@ -695,21 +696,21 @@
              <item>
               <widget class="QPushButton" name="btnTrackStart">
                <property name="text">
-                <string>Start Track</string>
+                <string>Старт трека</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnTrackStop">
                <property name="text">
-                <string>Stop Track</string>
+                <string>Стоп трека</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnPidSettings">
                <property name="text">
-                <string>PID…</string>
+                <string>ПИД…</string>
                </property>
               </widget>
              </item>
@@ -718,7 +719,7 @@
            <item>
             <widget class="QLabel" name="labelTrackStatus">
              <property name="text">
-              <string>Track: off</string>
+              <string>Трек: выкл</string>
              </property>
             </widget>
            </item>
@@ -736,7 +737,7 @@
          </sizepolicy>
         </property>
         <property name="title">
-         <string>Video Stream</string>
+         <string>Видеопоток</string>
         </property>
         <layout class="QVBoxLayout" name="videoVLayout">
          <item>
@@ -757,7 +758,7 @@
             <string notr="true">background-color: #1a1a1a; color: #888; border: 1px solid #444;</string>
            </property>
            <property name="text">
-            <string>No signal</string>
+            <string>Нет сигнала</string>
            </property>
            <property name="scaledContents">
             <bool>false</bool>

@@ -17,6 +17,7 @@
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <cstring>
+#include <climits>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -62,9 +63,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnPidSettings, &QPushButton::clicked, this, &MainWindow::onPidSettingsClicked);
 
     // Status labels
-    ui->labelGyroStatus->setText("Disconnected");
-    ui->labelJoystickStatus->setText("Disconnected");
-    ui->labelVideoStatus->setText("Stopped");
+    ui->labelGyroStatus->setText("Отключено");
+    ui->labelJoystickStatus->setText("Отключено");
+    ui->labelVideoStatus->setText("Остановлено");
     if (ui->labelVideoFps)
         ui->labelVideoFps->clear();
 
@@ -220,8 +221,8 @@ void MainWindow::onShootClicked()
 
 void MainWindow::updateGyroAngles( float pitch,float yaw)
 {
-    ui->labelRoll->setText(" AZ:  " +QString::number(yaw, 'f', 1) + "°");
-    ui->labelPitch->setText(" EL:  " + QString::number(pitch, 'f', 1) + "°");
+    ui->labelRoll->setText(" Азимут:  " +QString::number(yaw, 'f', 1) + "°");
+    ui->labelPitch->setText(" Элевация:  " + QString::number(pitch, 'f', 1) + "°");
 }
 
 void MainWindow::updateGyroTemperatures(int imuTempC, int frameImuTempC)
@@ -230,20 +231,20 @@ void MainWindow::updateGyroTemperatures(int imuTempC, int frameImuTempC)
         return QString("%1 °C").arg(t);
     };
     if (ui->labelImuTemp)
-        ui->labelImuTemp->setText("IMU: " + formatTemp(imuTempC));
+        ui->labelImuTemp->setText("ИМУ: " + formatTemp(imuTempC));
     if (ui->labelFrameImuTemp)
-        ui->labelFrameImuTemp->setText("Frame IMU: " + formatTemp(frameImuTempC));
+        ui->labelFrameImuTemp->setText("ИМУ рамы: " + formatTemp(frameImuTempC));
 }
 
 void MainWindow::updateJoystickStatus(bool connected)
 {
-    ui->labelJoystickStatus->setText(connected ? "Connected" : "Disconnected");
+    ui->labelJoystickStatus->setText(connected ? "Подключено" : "Отключено");
     ui->labelJoystickStatus->setStyleSheet(connected ? "color: green;" : "color: red;");
 }
 
 void MainWindow::updateConnectionStatus(bool connected)
 {
-    ui->labelGyroStatus->setText(connected ? "Connected" : "Disconnected");
+    ui->labelGyroStatus->setText(connected ? "Подключено" : "Отключено");
     ui->labelGyroStatus->setStyleSheet(connected ? "color: green;" : "color: red;");
 }
 void MainWindow::onJoystickButtonPressed(int button)
@@ -344,9 +345,9 @@ void MainWindow::onDisconnectClicked()
     ui->btnConnect->setEnabled(true);
     ui->btnDisconnect->setEnabled(false);
 
-    ui->labelGyroStatus->setText("Disconnected");
+    ui->labelGyroStatus->setText("Отключено");
     ui->labelGyroStatus->setStyleSheet("color: red;");
-    ui->labelJoystickStatus->setText("Disconnected");
+    ui->labelJoystickStatus->setText("Отключено");
     ui->labelJoystickStatus->setStyleSheet("color: red;");
 }
 
@@ -510,6 +511,25 @@ void MainWindow::on_btnGyroReset_clicked()
     ui->statusBar->showMessage(QStringLiteral("ГСП: команда сброса отправлена"), 3000);
 }
 
+void MainWindow::on_btnGyroTempCalib_clicked()
+{
+    if (!m_gyro) {
+        QMessageBox::warning(this, QStringLiteral("ГСП"),
+                             QStringLiteral("Контроллер гироплатформы не создан."));
+        return;
+    }
+    const auto ans = QMessageBox::question(
+        this, QStringLiteral("Калибровка гироскопа"),
+        QStringLiteral("Запустить температурную калибровку гироскопа?\n"
+                       "CMD_CALIB_GYRO #105, ACTION=3.\n"
+                       "Платформа должна быть неподвижна."),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ans != QMessageBox::Yes)
+        return;
+    m_gyro->calibrateGyroTemperature();
+    ui->statusBar->showMessage(QStringLiteral("ГСП: калибровка гиро по температуре отправлена"), 3000);
+}
+
 void MainWindow::onAngleTargetChanged()
 {
     if (!m_isAngleMode)
@@ -646,7 +666,7 @@ void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &a
 void MainWindow::onZoomPositionUpdated(float magnification)
 {
     m_zoomMagnification = (magnification > 0.0f) ? magnification : 1.0f;
-    ui->zoomVal->setText(QString("Zoom: %1x").arg(m_zoomMagnification, 0, 'f', 2));
+    ui->zoomVal->setText(QString("Зум: %1x").arg(m_zoomMagnification, 0, 'f', 2));
 }
 
 
@@ -663,7 +683,7 @@ void MainWindow::on_spinSpeedMultiplier_valueChanged(int value)
     m_speedMultiplier = (double)value;
 
     //ui->labelRoll->setText(QString::number(yaw, 'f', 1) + "°");
-    ui->labelMultiplier->setText("speed " + QString::number((float)m_speedMultiplier, 'f', 1));
+    ui->labelMultiplier->setText("скорость " + QString::number((float)m_speedMultiplier, 'f', 1));
 }
 
 void MainWindow::sendZeroPos()
@@ -818,7 +838,7 @@ void MainWindow::onVideoStartClicked()
     if (!m_videoDec) return;
 
     if (!m_videoDec->on()) {
-        ui->labelVideoStatus->setText("Open failed");
+        ui->labelVideoStatus->setText("Ошибка открытия");
         ui->labelVideoStatus->setStyleSheet("color: red;");
         if (ui->labelVideoFps) {
             ui->labelVideoFps->clear();
@@ -831,7 +851,7 @@ void MainWindow::onVideoStartClicked()
 
     resetFpsMeter();
     m_videoTimer->start(8);
-    ui->labelVideoStatus->setText("Running");
+    ui->labelVideoStatus->setText("Работает");
     ui->labelVideoStatus->setStyleSheet("color: green;");
     if (ui->labelVideoFps) {
         ui->labelVideoFps->clear();
@@ -865,8 +885,8 @@ void MainWindow::stopVideo()
     }
 
     ui->videoLabel->clear();
-    ui->videoLabel->setText("No signal");
-    ui->labelVideoStatus->setText("Stopped");
+    ui->videoLabel->setText("Нет сигнала");
+    ui->labelVideoStatus->setText("Остановлено");
     ui->labelVideoStatus->setStyleSheet("color: gray;");
     ui->labelVideoStatus->setToolTip(QString());
     if (ui->labelVideoFps) {
@@ -928,7 +948,7 @@ void MainWindow::noteIncomingFrames(int count)
 void MainWindow::updateVideoStatusLabel()
 {
     if (m_dispResW <= 0 || m_dispResH <= 0) {
-        ui->labelVideoStatus->setText(QStringLiteral("Running"));
+        ui->labelVideoStatus->setText(QStringLiteral("Работает"));
     } else {
         const QString cls = resolutionClassName(m_dispResW, m_dispResH);
         ui->labelVideoStatus->setText(
@@ -1139,7 +1159,7 @@ void MainWindow::drawOverlays(QPixmap& pix, int srcW, int srcH)
 
     painter.setPen(QColor(255, 200, 0, 230));
     painter.drawText(rx, qMax(12, ry - 4),
-                     QString("TRACK %1").arg(m_captState.trackStatus));
+                     QString("ТРЕК %1").arg(m_captState.trackStatus));
 }
 
 void MainWindow::applyJetsonUiDefaults()
@@ -1158,7 +1178,26 @@ void MainWindow::applyJetsonUiDefaults()
     const QString res = m_jetson->defaultResolut();
     const int resIdx = ui->comboResolut->findText(res);
     ui->comboResolut->setCurrentIndex(resIdx >= 0 ? resIdx : 1);
-    ui->spinBitrate->setValue(m_jetson->defaultBitrate());
+
+    if (ui->comboBitrate->count() == 0) {
+        const int mbpsList[] = {1, 2, 3, 4, 6, 8, 10, 12, 15, 20};
+        for (int mbps : mbpsList) {
+            ui->comboBitrate->addItem(QString("%1 Мбит/с").arg(mbps), mbps * 1000000);
+        }
+    }
+    const int defaultBps = m_jetson->defaultBitrate();
+    int bestIdx = 3; // 4 Мбит/с
+    int bestDiff = INT_MAX;
+    for (int i = 0; i < ui->comboBitrate->count(); ++i) {
+        const int bps = ui->comboBitrate->itemData(i).toInt();
+        const int diff = qAbs(bps - defaultBps);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            bestIdx = i;
+        }
+    }
+    ui->comboBitrate->setCurrentIndex(bestIdx);
+
     ui->spinStrobeW->setValue(m_jetson->defaultStrobeW());
     ui->spinStrobeH->setValue(m_jetson->defaultStrobeH());
 
@@ -1170,14 +1209,14 @@ void MainWindow::applyJetsonUiDefaults()
     const int cmdIdx = ui->comboTrackCmd->findData(cmd);
     ui->comboTrackCmd->setCurrentIndex(cmdIdx >= 0 ? cmdIdx : 1);
 
-    ui->labelJetsonStatus->setText("JEP: idle");
-    ui->labelTrackStatus->setText("Track: off");
+    ui->labelJetsonStatus->setText("JEP: ожидание");
+    ui->labelTrackStatus->setText("Трек: выкл");
 }
 
 void MainWindow::sendTrackCommand(int trackCmd)
 {
     if (!m_jetson) {
-        ui->statusBar->showMessage("Jetson controller is not created", 3000);
+        ui->statusBar->showMessage("Контроллер Jetson не создан", 3000);
         return;
     }
     if (!m_jetson->isStarted() && !m_jetson->start()) {
@@ -1199,14 +1238,14 @@ void MainWindow::sendTrackCommand(int trackCmd)
     const int strobY = frameH / 2;
 
     if (!m_jetson->sendTrackSet(trackCmd, channel, strobX, strobY, w, h)) {
-        ui->statusBar->showMessage("JEP CAPT set send failed", 3000);
+        ui->statusBar->showMessage("Не удалось отправить CAPT set", 3000);
         return;
     }
 
     const TrackingParams pid = m_jetson->trackingParams();
     ui->labelTrackStatus->setText(trackCmd == 0
         ? QStringLiteral("Track: stopping")
-        : QString("Track: cmd %1 sent").arg(trackCmd));
+        : QString("Трек: команда %1 отправлена").arg(trackCmd));
     ui->statusBar->showMessage(
         QString("CAPT set cmd=%1 PID Xp=%2 Xi=%3 Xd=%4 Yp=%5 Yi=%6 Yd=%7 INV %8/%9")
             .arg(trackCmd)
@@ -1226,11 +1265,11 @@ void MainWindow::onJetsonPlayClicked()
     const QString ip = m_jetson->playIp();
     const int port = m_jetson->playPort() != 0 ? m_jetson->playPort() : m_videoPort;
     if (!m_jetson->sendPlay(ip, port)) {
-        ui->labelJetsonStatus->setText("JEP play failed");
+        ui->labelJetsonStatus->setText("JEP: ошибка запуска");
         ui->labelJetsonStatus->setStyleSheet("color: red;");
         return;
     }
-    ui->labelJetsonStatus->setText(QString("JEP play %1:%2").arg(ip).arg(port));
+    ui->labelJetsonStatus->setText(QString("JEP: поток %1:%2").arg(ip).arg(port));
     ui->labelJetsonStatus->setStyleSheet("color: orange;");
 
     if (ui->btnVideoStart->isEnabled())
@@ -1243,11 +1282,11 @@ void MainWindow::onJetsonStopClicked()
     if (!m_jetson->isStarted() && !m_jetson->start())
         return;
     if (!m_jetson->sendStop()) {
-        ui->labelJetsonStatus->setText("JEP stop failed");
+        ui->labelJetsonStatus->setText("JEP: ошибка остановки");
         ui->labelJetsonStatus->setStyleSheet("color: red;");
         return;
     }
-    ui->labelJetsonStatus->setText("JEP stop sent");
+    ui->labelJetsonStatus->setText("JEP: стоп отправлен");
     ui->labelJetsonStatus->setStyleSheet("color: orange;");
 }
 
@@ -1258,14 +1297,14 @@ void MainWindow::onJetsonSetClicked()
         QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
         return;
     }
-    const int bitrate = ui->spinBitrate->value();
+    const int bitrate = ui->comboBitrate->currentData().toInt();
     const QString res = ui->comboResolut->currentText();
     if (!m_jetson->sendSet(bitrate, res)) {
-        ui->labelJetsonStatus->setText("JEP set failed");
+        ui->labelJetsonStatus->setText("JEP: ошибка установки");
         ui->labelJetsonStatus->setStyleSheet("color: red;");
         return;
     }
-    ui->labelJetsonStatus->setText(QString("JEP set %1 %2").arg(res).arg(bitrate));
+    ui->labelJetsonStatus->setText(QString("JEP: установлено %1 %2").arg(res).arg(bitrate));
     ui->labelJetsonStatus->setStyleSheet("color: orange;");
 }
 
@@ -1339,11 +1378,11 @@ void MainWindow::onPidSettingsClicked()
         return;
     }
     if (!m_jetson->sendPidSet()) {
-        ui->statusBar->showMessage(QStringLiteral("CAPT PID set send failed"), 3000);
+        ui->statusBar->showMessage(QStringLiteral("Не удалось отправить PID"), 3000);
         return;
     }
     ui->statusBar->showMessage(
-        QString("PID отправлены (только PID_*): Xp=%1 Xi=%2 Xd=%3 Yp=%4 Yi=%5 Yd=%6")
+        QString("ПИД отправлены (только PID_*): Xp=%1 Xi=%2 Xd=%3 Yp=%4 Yi=%5 Yd=%6")
             .arg(pid.pidXp).arg(pid.pidXi).arg(pid.pidXd)
             .arg(pid.pidYp).arg(pid.pidYi).arg(pid.pidYd), 4000);
 }
@@ -1397,11 +1436,11 @@ void MainWindow::onCaptStateUpdated(CaptState state)
 {
     m_captState = state;
     if (state.trackStatus == 0) {
-        ui->labelTrackStatus->setText("Track: off");
+        ui->labelTrackStatus->setText("Трек: выкл");
         ui->labelTrackStatus->setStyleSheet("color: gray;");
     } else {
         ui->labelTrackStatus->setText(
-            QString("Track: ON (%1) ch=%2  %3x%4")
+            QString("Трек: ВКЛ (%1) канал=%2  %3x%4")
                 .arg(state.trackStatus)
                 .arg(state.videoChannel)
                 .arg(state.strobXSz)
