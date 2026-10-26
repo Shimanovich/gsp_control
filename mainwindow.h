@@ -60,17 +60,12 @@ private slots:
     void on_btnGyroTempCalib_clicked();
     void onAngleTargetChanged();
     void onDisconnectClicked();
-    void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
 
-    void on_btnZoomIn_clicked();
-    void on_btnZoomOut_clicked();
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();
     void onZoomPositionUpdated(float magnification);
     void on_zoom_prev_clicked();
     void on_zoom_next_clicked();
-    void on_btnZoomIn_released();
-    void on_btnZoomOut_released();
     void on_BrIghtUP_clicked();
     void on_BrightDW_clicked();
     void onMeasurementReceived(float distanceMeters, uint8_t status);

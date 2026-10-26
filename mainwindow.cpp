@@ -74,6 +74,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    if (m_videoDec)
+        disconnect(m_videoDec, nullptr, this, nullptr);
+    if (m_videoTimer)
+        disconnect(m_videoTimer, nullptr, this, nullptr);
     stopVideo();
     if (m_videoDec) {
         m_videoDec->stopThread();
@@ -648,21 +652,6 @@ void MainWindow::sendStabNullPos()
     m_gyro->goToStabNullPosition(m_headingYawDeg, m_headingPitchDeg);
 }
 
-
-void MainWindow::on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1)
-{
-    if (arg1 == Qt::Checked)
-    {
-        m_gyro->startAnglePolling();
-        return;
-    }
-    if (arg1 == Qt::Unchecked)
-    {
-        m_gyro->stopAnglePolling();
-        return ;
-    }
-}
-
 void MainWindow::onZoomPositionUpdated(float magnification)
 {
     m_zoomMagnification = (magnification > 0.0f) ? magnification : 1.0f;
@@ -700,18 +689,6 @@ void MainWindow::sendZeroPos()
 
 
 
-void MainWindow::on_btnZoomIn_clicked()
-{
-    m_camera->zoomIn();
-}
-
-
-void MainWindow::on_btnZoomOut_clicked()
-{
-    m_camera->zoomOut();
-}
-
-
 void MainWindow::on_btnAutofocus_clicked()
 {
     m_camera->autofocus();
@@ -735,16 +712,6 @@ void MainWindow::on_zoom_next_clicked()
     m_camera->setZoomPosition_next();
 }
 
-
-void MainWindow::on_btnZoomIn_released()
-{
-    m_camera->zoomStop();
-}
-
-void MainWindow::on_btnZoomOut_released()
-{
-        m_camera->zoomStop();
-}
 
 void MainWindow::on_BrIghtUP_clicked()
 {
