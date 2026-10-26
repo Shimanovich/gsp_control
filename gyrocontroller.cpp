@@ -144,7 +144,20 @@ void GyroController::resetBoard()
     emit controlReadyChanged(false);
 }
 
-
+void GyroController::calibrateGyroTemperature()
+{
+    if (!m_udp)
+        return;
+    // CMD_CALIB_GYRO #105 extended: IMU_IDX=0 (active), ACTION=3 (temperature calibration),
+    // TIME_MS=0 (default), RESERVED 8 bytes zero.
+    QByteArray payload;
+    payload.append(char(0));          // IMU_IDX
+    payload.append(char(3));          // ACTION = temperature calibration
+    payload.append(char(0));          // TIME_MS low
+    payload.append(char(0));          // TIME_MS high
+    payload.append(QByteArray(8, 0)); // RESERVED
+    m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_CALIB_GYRO, payload));
+}
 
 QByteArray GyroController::buildZeroPosCmd()
 {
