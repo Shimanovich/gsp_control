@@ -57,6 +57,7 @@ private slots:
     void on_radioAngleMode_clicked(bool checked);
     void on_radioMotorsOff_clicked(bool checked);
     void on_btnGyroReset_clicked();
+    void on_btnGyroTempCalib_clicked();
     void onAngleTargetChanged();
     void onDisconnectClicked();
     void on_cBoxAutoSimpleIntr_checkStateChanged(const Qt::CheckState &arg1);
