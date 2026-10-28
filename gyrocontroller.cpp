@@ -20,7 +20,7 @@ GyroController::GyroController(UdpCommunicator* udp, QObject *parent)
 
 bool GyroController::loadSettings(const QString& iniPath)
 {
-    // Can load more params later
+    Q_UNUSED(iniPath);
     return true;
 }
 

@@ -1,4 +1,5 @@
 #include "udpReceiveAndDecode.h"
+#include "videorecorder.h"
 
 #include <chrono>
 #include <thread>
@@ -17,7 +18,9 @@ namespace {
 
 constexpr uint8_t kSeiTimeSig[] = { 0x06, 0x04, 0x20, 0x54, 0x49, 0x4D, 0x45 };
 constexpr int     kSeiTimeSigLen = 7;
-constexpr int     kSeiTimeFields = (24+2);
+// payload 0x20 = "TIME"(4) + 28 байт. После сигнатуры:
+// +20/+22 capture_x/y BE, +24/+26 strobe_w/h BE.
+constexpr int     kSeiTimeFields = 28;
 constexpr int     kMaxUdp = 2048;
 constexpr int     kMaxAu  = 2 * 1024 * 1024;
 
@@ -43,6 +46,11 @@ bool udpDec::isUsableCaptureXY(uint16_t x, uint16_t y)
     return x != 0x0000 && x != 0xFFFF && y != 0x0000 && y != 0xFFFF;
 }
 
+bool udpDec::isUsableCaptureWH(uint16_t w, uint16_t h)
+{
+    return w > 0 && h > 0;
+}
+
 void udpDec::tryParseSeiTime(const uint8_t* data, int size)
 {
     if (!data || size < kSeiTimeSigLen + kSeiTimeFields)
@@ -56,9 +64,13 @@ void udpDec::tryParseSeiTime(const uint8_t* data, int size)
         const uint8_t* fields = data + i + kSeiTimeSigLen;
         const uint16_t x = rd_be16(fields + 20);
         const uint16_t y = rd_be16(fields + 22);
+        const uint16_t w = rd_be16(fields + 24);
+        const uint16_t h = rd_be16(fields + 26);
         m_seiCapX = x;
         m_seiCapY = y;
-        m_seiCapValid = isUsableCaptureXY(x, y);
+        m_seiCapW = w;
+        m_seiCapH = h;
+        m_seiCapValid = isUsableCaptureXY(x, y) && isUsableCaptureWH(w, h);
         return;
     }
 }
@@ -176,6 +188,8 @@ void udpDec::resetRtpState()
     m_haveSeq = false;
     m_lastSeq = 0;
     m_seiCapValid = false;
+    m_seiCapW = 0;
+    m_seiCapH = 0;
 }
 
 void udpDec::dropCurrentAu()
@@ -477,7 +491,12 @@ bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
         return false;
 
     m_seiCapValid = false;
+    m_seiCapW = 0;
+    m_seiCapH = 0;
     tryParseSeiTime(data, size);
+
+    if (m_recorder)
+        m_recorder->write(data, size);
 
     av_packet_unref(packet);
     if (av_new_packet(packet, size) < 0)
@@ -568,8 +587,8 @@ bool udpDec::emitDecodedFrames()
         dst.height = m_winHeight;
         dst.crop_left   = m_seiCapX;
         dst.crop_top    = m_seiCapY;
-        dst.crop_right  = m_seiCapValid ? 1 : 0;
-        dst.crop_bottom = 0;
+        dst.crop_right  = m_seiCapValid ? m_seiCapW : 0;
+        dst.crop_bottom = m_seiCapValid ? m_seiCapH : 0;
 
         if (m_enable && m_frameQueue) {
             AVFrame copy = deepCopyFrame(dst);
@@ -605,6 +624,7 @@ int udpDec::drainSocket()
         const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
         if (n <= 0)
             break;
+        m_bytesReceived.fetch_add(static_cast<uint64_t>(n), std::memory_order_relaxed);
         handleRtpPacket(buf, n);
         ++got;
         if (got >= 256)

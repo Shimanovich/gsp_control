@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QSignalBlocker>
+#include <QCoreApplication>
 #include <QPainter>
 #include <QDialog>
 #include <QFormLayout>
@@ -49,11 +50,15 @@ MainWindow::MainWindow(QWidget *parent)
     // Connect UI signals
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
+    connect(ui->btnHelp, &QPushButton::clicked, this, &MainWindow::onHelpClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
 
     // Video buttons
     connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
     connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
+    connect(ui->btnRecord, &QPushButton::toggled, this, &MainWindow::onRecordToggled);
+    if (ui->sliderZoom)
+        connect(ui->sliderZoom, &QSlider::sliderReleased, this, &MainWindow::onZoomSliderReleased);
 
     connect(ui->btnJetsonPlay, &QPushButton::clicked, this, &MainWindow::onJetsonPlayClicked);
     connect(ui->btnJetsonStop, &QPushButton::clicked, this, &MainWindow::onJetsonStopClicked);
@@ -66,10 +71,16 @@ MainWindow::MainWindow(QWidget *parent)
     ui->labelGyroStatus->setText("Отключено");
     ui->labelJoystickStatus->setText("Отключено");
     ui->labelVideoStatus->setText("Остановлено");
+    ui->labelVideoStatus->setStyleSheet("color: gray;");
     if (ui->labelVideoFps)
         ui->labelVideoFps->clear();
+    if (ui->labelVideoRate) {
+        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setStyleSheet("color: red;");
+    }
 
     setupVideo();
+    onVideoStartClicked();
 }
 
 MainWindow::~MainWindow()
@@ -79,6 +90,7 @@ MainWindow::~MainWindow()
     if (m_videoTimer)
         disconnect(m_videoTimer, nullptr, this, nullptr);
     stopVideo();
+    m_recorder.stop();
     if (m_videoDec) {
         m_videoDec->stopThread();
         delete m_videoDec;
@@ -336,6 +348,14 @@ void MainWindow::onKeyBoardButtonReleased(int button)
 }
 
 
+
+void MainWindow::onHelpClicked()
+{
+    const QString text = m_keyboard
+        ? m_keyboard->helpText()
+        : QStringLiteral("Клавиатура не инициализирована.");
+    QMessageBox::information(this, QStringLiteral("Справка"), text);
+}
 
 void MainWindow::onDisconnectClicked()
 {
@@ -656,6 +676,17 @@ void MainWindow::onZoomPositionUpdated(float magnification)
 {
     m_zoomMagnification = (magnification > 0.0f) ? magnification : 1.0f;
     ui->zoomVal->setText(QString("Зум: %1x").arg(m_zoomMagnification, 0, 'f', 2));
+    if (ui->sliderZoom && m_camera && !ui->sliderZoom->isSliderDown()) {
+        QSignalBlocker blocker(ui->sliderZoom);
+        ui->sliderZoom->setValue(int(m_camera->currentZoomPos()));
+    }
+}
+
+void MainWindow::onZoomSliderReleased()
+{
+    if (!m_camera || !ui->sliderZoom)
+        return;
+    m_camera->setZoomDirect(uint16_t(ui->sliderZoom->value()));
 }
 
 
@@ -788,6 +819,7 @@ void MainWindow::setupVideo()
     p.phframeMutex   = &m_frameMutex;
 
     m_videoDec = new udpDec(&p, this);
+    m_videoDec->setRecorder(&m_recorder);
     connect(m_videoDec, &udpDec::incomingResolutionChanged,
             this, &MainWindow::onIncomingResolutionChanged,
             Qt::QueuedConnection);
@@ -799,7 +831,6 @@ void MainWindow::setupVideo()
 void MainWindow::onVideoStartClicked()
 {
     if (!m_videoDec) {
-        // Fallback if setupVideo was not called
         setupVideo();
     }
     if (!m_videoDec) return;
@@ -811,12 +842,18 @@ void MainWindow::onVideoStartClicked()
             ui->labelVideoFps->clear();
             ui->labelVideoFps->setStyleSheet("color: red;");
         }
+        if (ui->labelVideoRate) {
+            ui->labelVideoRate->setText("0 кбит/с");
+            ui->labelVideoRate->setStyleSheet("color: red;");
+        }
         ui->btnVideoStart->setEnabled(true);
         ui->btnVideoStop->setEnabled(false);
         return;
     }
 
     resetFpsMeter();
+    m_rateTimer.start();
+    m_lastBytes = m_videoDec->bytesReceived();
     m_videoTimer->start(8);
     ui->labelVideoStatus->setText("Работает");
     ui->labelVideoStatus->setStyleSheet("color: green;");
@@ -832,6 +869,61 @@ void MainWindow::onVideoStartClicked()
 void MainWindow::onVideoStopClicked()
 {
     stopVideo();
+}
+
+void MainWindow::onRecordToggled(bool checked)
+{
+    if (checked) {
+        const QString base = QCoreApplication::applicationDirPath() + "/recordings";
+        if (!m_recorder.start(base)) {
+            QSignalBlocker blocker(ui->btnRecord);
+            ui->btnRecord->setChecked(false);
+            ui->labelRecord->setText("Ошибка записи");
+            ui->labelRecord->setStyleSheet("color: red;");
+            QMessageBox::warning(this, "Запись",
+                                 "Не удалось создать каталог или файл записи.");
+            return;
+        }
+        ui->btnRecord->setText("Стоп запись");
+        ui->labelRecord->setText(m_recorder.currentFileName());
+        ui->labelRecord->setStyleSheet("color: red;");
+        ui->labelRecord->setToolTip(m_recorder.currentFilePath());
+    } else {
+        m_recorder.stop();
+        ui->btnRecord->setText("Запись");
+        ui->labelRecord->setText("не записывается");
+        ui->labelRecord->setStyleSheet("color: gray;");
+        ui->labelRecord->setToolTip(QString());
+    }
+}
+
+void MainWindow::updateVideoRate()
+{
+    if (ui->labelRecord && m_recorder.isRecording()) {
+        const QString name = m_recorder.currentFileName();
+        if (ui->labelRecord->text() != name)
+            ui->labelRecord->setText(name);
+        ui->labelRecord->setToolTip(m_recorder.currentFilePath());
+    }
+
+    if (!ui->labelVideoRate || !m_videoDec)
+        return;
+    const uint64_t nowBytes = m_videoDec->bytesReceived();
+    const qint64 elapsed = m_rateTimer.elapsed();
+    if (elapsed < 400)
+        return;
+    const uint64_t delta = (nowBytes >= m_lastBytes) ? (nowBytes - m_lastBytes) : nowBytes;
+    m_currentKbps = (delta * 8.0 / 1000.0) * 1000.0 / static_cast<double>(elapsed);
+    m_lastBytes = nowBytes;
+    m_rateTimer.restart();
+
+    if (m_currentKbps < 4.0) {
+        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setStyleSheet("color: red; font-weight: bold;");
+    } else {
+        ui->labelVideoRate->setText(QString("%1 кбит/с").arg(m_currentKbps, 0, 'f', 1));
+        ui->labelVideoRate->setStyleSheet("color: green;");
+    }
 }
 
 void MainWindow::stopVideo()
@@ -860,6 +952,10 @@ void MainWindow::stopVideo()
         ui->labelVideoFps->clear();
         ui->labelVideoFps->setStyleSheet("color: gray;");
         ui->labelVideoFps->setToolTip(QString());
+    }
+    if (ui->labelVideoRate) {
+        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setStyleSheet("color: red; font-weight: bold;");
     }
     m_lastFrameW = 0;
     m_lastFrameH = 0;
@@ -919,7 +1015,7 @@ void MainWindow::updateVideoStatusLabel()
     } else {
         const QString cls = resolutionClassName(m_dispResW, m_dispResH);
         ui->labelVideoStatus->setText(
-            QStringLiteral("Running %1x%2 (%3)")
+            QStringLiteral("%1x%2 (%3)")
                 .arg(m_dispResW)
                 .arg(m_dispResH)
                 .arg(cls));
@@ -953,6 +1049,8 @@ void MainWindow::onIncomingResolutionChanged(int width, int height)
 
 void MainWindow::onVideoTimer()
 {
+    updateVideoRate();
+
     AVFrame frame{};
     bool hasFrame = false;
     int incomingCount = 0;
@@ -987,9 +1085,11 @@ void MainWindow::onVideoTimer()
         m_lastFrameH = srcH;
     }
 
-    const bool hasStrobe = (frame.crop_right == 1);
+    const bool hasStrobe = (frame.crop_right > 0 && frame.crop_bottom > 0);
     const int capX = static_cast<int>(frame.crop_left);
     const int capY = static_cast<int>(frame.crop_top);
+    const int capW = static_cast<int>(frame.crop_right);
+    const int capH = static_cast<int>(frame.crop_bottom);
 
     img = img.mirrored(true, true);
 
@@ -1020,7 +1120,7 @@ void MainWindow::onVideoTimer()
         painter.drawEllipse(QPoint(cx, cy), 2, 2);
 
         if (hasStrobe && srcW > 0 && srcH > 0)
-            drawCaptureStrobe(painter, pix.size(), srcW, srcH, capX, capY);
+            drawCaptureStrobe(painter, pix.size(), srcW, srcH, capX, capY, capW, capH);
     }
 
     ui->videoLabel->setPixmap(pix);
@@ -1038,30 +1138,32 @@ void MainWindow::onVideoTimer()
 
 void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
                                    int frameW, int frameH,
-                                   int capX, int capY)
+                                   int capX, int capY, int strobeW, int strobeH)
 {
     if (frameW <= 0 || frameH <= 0 || pixSize.isEmpty())
         return;
     if (capX < 0 || capY < 0 || capX >= frameW || capY >= frameH)
         return;
+    if (strobeW <= 0 || strobeH <= 0)
+        return;
+
+    // Размер ограничен только кадром.
+    strobeW = qBound(1, strobeW, frameW);
+    strobeH = qBound(1, strobeH, frameH);
 
     // То же mirrored(true, true), что и у кадра: поворот 180°.
-    const int srcX = frameW - 1 - (capX);
-    const int srcY = frameH - 1 - (capY);
-
-
+    const int srcX = frameW - 1 - capX;
+    const int srcY = frameH - 1 - capY;
 
     const double sx = double(pixSize.width())  / double(frameW);
     const double sy = double(pixSize.height()) / double(frameH);
     const int x = int(srcX * sx + 0.5);
     const int y = int(srcY * sy + 0.5);
 
-    // Размер строба — тот, что ушёл в последней команде старта слежения.
-    const int strobeW = (m_drawStrobeW > 0) ? m_drawStrobeW : 64;
-    const int strobeH = (m_drawStrobeH > 0) ? m_drawStrobeH : 64;
-    const int halfW = qMax(4, int(strobeW * sx * 0.5 + 0.5));
-    const int halfH = qMax(4, int(strobeH * sy * 0.5 + 0.5));
-    const int corner = qMax(6, qMin(halfW, halfH) / 2);
+    // Размер строба — из SEI того же кадра (crop_right/bottom).
+    const int halfW = qMax(1, int(strobeW * sx * 0.5 + 0.5));
+    const int halfH = qMax(1, int(strobeH * sy * 0.5 + 0.5));
+    const int corner = qMax(2, qMin(halfW, halfH) / 2);
 
     QPen pen(QColor(255, 0, 0, 230));
     pen.setWidth(2);
@@ -1083,50 +1185,6 @@ void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
 
     painter.setBrush(QColor(255, 220, 0, 230));
     painter.drawEllipse(QPoint(x, y), 2, 2);
-}
-
-void MainWindow::drawOverlays(QPixmap& pix, int srcW, int srcH)
-{
-    QPainter painter(&pix);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-
-    const int cx = pix.width()  / 2;
-    const int cy = pix.height() / 2;
-
-    QPen pen(QColor(0, 255, 0, 220));
-    pen.setWidth(2);
-    painter.setPen(pen);
-
-    const int arm = 28;
-    const int gap = 6;
-    painter.drawLine(cx - arm, cy, cx - gap, cy);
-    painter.drawLine(cx + gap, cy, cx + arm, cy);
-    painter.drawLine(cx, cy - arm, cx, cy - gap);
-    painter.drawLine(cx, cy + gap, cx, cy + arm);
-    painter.setBrush(QColor(0, 255, 0, 220));
-    painter.drawEllipse(QPoint(cx, cy), 2, 2);
-
-    // Strobe from CAPT get_set: STROB_*_POS = 0 is the frame center.
-    if (m_captState.trackStatus == 0)
-        return;
-
-    const float sx = (srcW > 0) ? float(pix.width())  / float(srcW) : 1.0f;
-    const float sy = (srcH > 0) ? float(pix.height()) / float(srcH) : 1.0f;
-
-    const int rw = qMax(4, int(m_captState.strobXSz * sx));
-    const int rh = qMax(4, int(m_captState.strobYSz * sy));
-    const int rx = cx + int(m_captState.strobXPos * sx) - rw / 2;
-    const int ry = cy + int(m_captState.strobYPos * sy) - rh / 2;
-
-    QPen strobePen(QColor(255, 200, 0, 230));
-    strobePen.setWidth(2);
-    painter.setPen(strobePen);
-    painter.setBrush(Qt::NoBrush);
-    painter.drawRect(rx, ry, rw, rh);
-
-    painter.setPen(QColor(255, 200, 0, 230));
-    painter.drawText(rx, qMax(12, ry - 4),
-                     QString("ТРЕК %1").arg(m_captState.trackStatus));
 }
 
 void MainWindow::applyJetsonUiDefaults()

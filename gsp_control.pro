@@ -80,6 +80,7 @@ SOURCES += \
     gyrocontroller.cpp \
     rangefindercontroller.cpp \
     udpReceiveAndDecode.cpp \
+    videorecorder.cpp \
     jepprotocol.cpp \
     jetsoncontroller.cpp
 
@@ -94,6 +95,7 @@ HEADERS += \
     rangefindercontroller.h \
     simplebgc_protocol.h \
     udpReceiveAndDecode.h \
+    videorecorder.h \
     jepprotocol.h \
     jetsoncontroller.h
 

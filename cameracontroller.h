@@ -24,6 +24,8 @@ public:
     void zoomStop();
 
     void setZoomPosition(int index);           // fixed positions from config
+    void setZoomDirect(uint16_t pos);          // absolute VISCA position 0..0x4000
+    uint16_t currentZoomPos() const { return m_currentZoomPos; }
 
 
     void setZoomPosition_prev();

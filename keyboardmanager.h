@@ -17,6 +17,7 @@ public:
     bool loadSettings(const QString& iniPath);
     void installOn(QObject* target);
     void uninstall();
+    QString helpText() const;
 
     float getAxisYaw() const { return keyYaw; }
     float getAxisPitch() const { return keyPitch; }
@@ -34,6 +35,7 @@ private:
 
     // Кнопки (как у джойстика)
     QHash<int, int> m_keyToButton;
+    QList<QPair<QString, int>> m_helpRows;
     QSet<int> m_pressedButtons;
 
     // Оси (стрелки)

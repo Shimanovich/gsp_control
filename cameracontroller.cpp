@@ -148,6 +148,23 @@ void CameraController::zoomStop()
 
 
 
+void CameraController::setZoomDirect(uint16_t pos)
+{
+    m_currentZoomPos = pos;
+    m_haveZoomPos = true;
+    QByteArray cmd;
+    cmd.append(char(0x81));
+    cmd.append(char(0x01));
+    cmd.append(char(0x04));
+    cmd.append(char(0x47));
+    cmd.append(char((pos >> 12) & 0x0F));
+    cmd.append(char((pos >> 8)  & 0x0F));
+    cmd.append(char((pos >> 4)  & 0x0F));
+    cmd.append(char(pos & 0x0F));
+    cmd.append(char(0xFF));
+    sendVisca(cmd);
+}
+
 void CameraController::setZoomPosition(int index)
 {
     if (index < 0 || index >= m_zoomDirectCommands.size()) return;

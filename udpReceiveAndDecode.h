@@ -34,6 +34,8 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+class VideoRecorder;
+
 class udpDec : public QObject
 {
     Q_OBJECT
@@ -59,9 +61,11 @@ public:
     bool state() const { return m_enable.load(); }
 
     bool startListening();
+    void setRecorder(VideoRecorder* recorder) { m_recorder = recorder; }
 
     int incomingWidth()  const { return m_winWidth; }
     int incomingHeight() const { return m_winHeight; }
+    uint64_t bytesReceived() const { return m_bytesReceived.load(); }
 
 signals:
     void incomingResolutionChanged(int width, int height);
@@ -74,9 +78,12 @@ private:
     int                  m_winHeight = 0;
     std::queue<AVFrame>* m_frameQueue = nullptr;
     std::mutex*          m_phframeMutex = nullptr;
+    VideoRecorder*       m_recorder = nullptr;
 
     uint16_t m_seiCapX = 0;
     uint16_t m_seiCapY = 0;
+    uint16_t m_seiCapW = 0;
+    uint16_t m_seiCapH = 0;
     bool     m_seiCapValid = false;
 
     std::atomic<bool> m_active{true};
@@ -96,6 +103,7 @@ private:
     AVPixelFormat       dst_pixfmt  = AV_PIX_FMT_BGR24;
 
     UdpSocket           m_sock = static_cast<UdpSocket>(-1);
+    std::atomic<uint64_t> m_bytesReceived{0};
     std::vector<uint8_t> m_au;
     std::vector<uint8_t> m_pendingAu;
     bool                m_havePendingAu = false;
@@ -123,4 +131,5 @@ private:
     static AVFrame deepCopyFrame(const AVFrame& src);
     static void    freeFrameData(AVFrame& f);
     static bool    isUsableCaptureXY(uint16_t x, uint16_t y);
+    static bool    isUsableCaptureWH(uint16_t w, uint16_t h);
 };

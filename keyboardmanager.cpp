@@ -1,5 +1,6 @@
 #include "keyboardmanager.h"
 #include <QDebug>
+#include <QKeySequence>
 
 KeyboardManager::KeyboardManager(QObject *parent)
     : QObject(parent)
@@ -11,27 +12,28 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     QSettings settings(iniPath, QSettings::IniFormat);
 
     m_keyToButton.clear();
+    m_helpRows.clear();
 
-    auto add = [this, &settings](const QString& keyName, int defaultKey, int button) {
+    auto add = [this, &settings](const QString& keyName, int defaultKey, int button, const QString& action) {
         int key = settings.value(QString("Keyboard/%1").arg(keyName), defaultKey).toInt();
         m_keyToButton.insert(key, button);
+        m_helpRows.append(qMakePair(action, key));
     };
 
-    // Клавиша -> тот же SDL-индекс, что в [Joystick]
-    add("zoom_in",          Qt::Key_Plus,     settings.value("Joystick/button_zoom_in", 9).toInt());
-    add("zoom_out",         Qt::Key_Minus,    settings.value("Joystick/button_zoom_out", 7).toInt());
-    add("zoom_next",        Qt::Key_PageUp,   settings.value("Joystick/button_zoom_next", 6).toInt());
-    add("zoom_prev",        Qt::Key_PageDown, settings.value("Joystick/button_zoom_prev", 8).toInt());
-    add("brightness_up",    Qt::Key_0,        settings.value("Joystick/button_brightness_up", 10).toInt());
-    add("brightness_down",  Qt::Key_9,        settings.value("Joystick/button_brightness_down", 12).toInt());
-    add("autofocus",        Qt::Key_F,        settings.value("Joystick/button_autofocus", 2).toInt());
-    add("focus_infinity",   Qt::Key_I,        settings.value("Joystick/button_focus_infinity", 3).toInt());
-    add("rangefinder_shot", Qt::Key_Space,    settings.value("Joystick/button_rangefinder_shot", 1).toInt());
-    add("track",            Qt::Key_T,        settings.value("Joystick/button_track", 4).toInt());
-    add("track_cancel",     Qt::Key_Escape,   settings.value("Joystick/button_track_cancel", 5).toInt());
-    add("heading",          Qt::Key_H,        settings.value("Joystick/button_heading", 11).toInt());
-    add("speed_up",         Qt::Key_BracketRight, settings.value("Joystick/button_speed_up", 13).toInt());
-    add("speed_down",       Qt::Key_BracketLeft,  settings.value("Joystick/button_speed_down", 14).toInt());
+    add("zoom_in",          Qt::Key_Plus,         settings.value("Joystick/button_zoom_in", 9).toInt(),          "Зум +");
+    add("zoom_out",         Qt::Key_Minus,        settings.value("Joystick/button_zoom_out", 7).toInt(),         "Зум −");
+    add("zoom_next",        Qt::Key_PageUp,       settings.value("Joystick/button_zoom_next", 6).toInt(),        "Зум след. позиция");
+    add("zoom_prev",        Qt::Key_PageDown,     settings.value("Joystick/button_zoom_prev", 8).toInt(),        "Зум пред. позиция");
+    add("brightness_up",    Qt::Key_0,            settings.value("Joystick/button_brightness_up", 10).toInt(),   "Яркость +");
+    add("brightness_down",  Qt::Key_9,            settings.value("Joystick/button_brightness_down", 12).toInt(), "Яркость −");
+    add("autofocus",        Qt::Key_F,            settings.value("Joystick/button_autofocus", 2).toInt(),        "Автофокус");
+    add("focus_infinity",   Qt::Key_I,            settings.value("Joystick/button_focus_infinity", 3).toInt(),   "Фокус ∞");
+    add("rangefinder_shot", Qt::Key_Space,        settings.value("Joystick/button_rangefinder_shot", 1).toInt(), "Выстрел дальномера");
+    add("track",            Qt::Key_T,            settings.value("Joystick/button_track", 4).toInt(),            "Старт трека");
+    add("track_cancel",     Qt::Key_Escape,       settings.value("Joystick/button_track_cancel", 5).toInt(),     "Стоп трека");
+    add("heading",          Qt::Key_H,            settings.value("Joystick/button_heading", 11).toInt(),         "Режим курс / скорость");
+    add("speed_up",         Qt::Key_BracketRight, settings.value("Joystick/button_speed_up", 13).toInt(),        "Скорость +");
+    add("speed_down",       Qt::Key_BracketLeft,  settings.value("Joystick/button_speed_down", 14).toInt(),      "Скорость −");
 
     // Оси (стрелки)
     m_keyYawLeft   = settings.value("Keyboard/yaw_left",   Qt::Key_Left).toInt();
@@ -41,6 +43,28 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
 
     qDebug() << "KeyboardManager: loaded" << m_keyToButton.size() << "button mappings + axes";
     return true;
+}
+
+QString KeyboardManager::helpText() const
+{
+    QStringList lines;
+    lines << QStringLiteral("Клавиатура (дублирует джойстик):");
+    lines << QString();
+    for (const auto& row : m_helpRows) {
+        const QString keyName = QKeySequence(row.second).toString(QKeySequence::NativeText);
+        lines << QStringLiteral("%1  —  %2").arg(keyName, -12).arg(row.first);
+    }
+    lines << QString();
+    lines << QStringLiteral("Оси:");
+    lines << QStringLiteral("%1 / %2  —  азимут")
+                 .arg(QKeySequence(m_keyYawLeft).toString(QKeySequence::NativeText))
+                 .arg(QKeySequence(m_keyYawRight).toString(QKeySequence::NativeText));
+    lines << QStringLiteral("%1 / %2  —  элевация")
+                 .arg(QKeySequence(m_keyPitchUp).toString(QKeySequence::NativeText))
+                 .arg(QKeySequence(m_keyPitchDown).toString(QKeySequence::NativeText));
+    lines << QString();
+    lines << QStringLiteral("Клавиатура активна после «Подключить».");
+    return lines.join('\n');
 }
 
 void KeyboardManager::installOn(QObject* target)

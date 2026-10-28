@@ -12,7 +12,7 @@ RangefinderController::RangefinderController(UdpCommunicator* udp, QObject *pare
 
 bool RangefinderController::loadSettings(const QString& iniPath)
 {
-    // Load if needed
+    Q_UNUSED(iniPath);
     return true;
 }
 

@@ -17,6 +17,7 @@
 #include "gyrocontroller.h"
 #include "rangefindercontroller.h"
 #include "udpReceiveAndDecode.h"
+#include "videorecorder.h"
 #include "keyboardmanager.h"
 #include "jetsoncontroller.h"
 
@@ -60,10 +61,12 @@ private slots:
     void on_btnGyroTempCalib_clicked();
     void onAngleTargetChanged();
     void onDisconnectClicked();
+    void onHelpClicked();
 
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();
     void onZoomPositionUpdated(float magnification);
+    void onZoomSliderReleased();
     void on_zoom_prev_clicked();
     void on_zoom_next_clicked();
     void on_BrIghtUP_clicked();
@@ -73,6 +76,7 @@ private slots:
     // Video
     void onVideoStartClicked();
     void onVideoStopClicked();
+    void onRecordToggled(bool checked);
     void onVideoTimer();
     void onIncomingResolutionChanged(int width, int height);
 
@@ -140,6 +144,7 @@ private:
 
     // Video
     udpDec*                 m_videoDec = nullptr;
+    VideoRecorder           m_recorder;
     std::queue<AVFrame>     m_frameQueue;
     std::mutex              m_frameMutex;  // Вместо HANDLE m_frameMutex = nullptr;
     QTimer*                 m_videoTimer = nullptr;
@@ -158,6 +163,10 @@ private:
     int                     m_fpsFrameCount = 0;
     double                  m_currentFps = 0.0;
     bool                    m_fpsValid = false;
+
+    QElapsedTimer           m_rateTimer;
+    uint64_t                m_lastBytes = 0;
+    double                  m_currentKbps = 0.0;
 
     void setupControllers();
     void loadAllSettings();
@@ -179,14 +188,14 @@ private:
     void resetFpsMeter();
     void noteIncomingFrames(int count);
     void updateVideoStatusLabel();
+    void updateVideoRate();
 
     void drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
                            int frameW, int frameH,
-                           int capX, int capY);
+                           int capX, int capY, int strobeW, int strobeH);
 
     void applyJetsonUiDefaults();
     void sendTrackCommand(int trackCmd);
-    void drawOverlays(QPixmap& pix, int srcW, int srcH);
 
 
 };

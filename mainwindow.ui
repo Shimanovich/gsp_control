@@ -61,6 +61,16 @@
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="btnHelp">
+             <property name="text">
+              <string>Справка</string>
+             </property>
+             <property name="toolTip">
+              <string>Клавиши клавиатуры и действия</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QLabel" name="labelGyroStatus">
              <property name="text">
               <string>Гиро: Отключено</string>
@@ -109,6 +119,25 @@
                 <widget class="QLabel" name="zoomVal">
                  <property name="text">
                   <string>Зум </string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSlider" name="sliderZoom">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>16384</number>
+                 </property>
+                 <property name="value">
+                  <number>0</number>
+                 </property>
+                 <property name="toolTip">
+                  <string>Положение зума (0 = широкий, 16384 = максимальный)</string>
                  </property>
                 </widget>
                </item>
@@ -490,6 +519,52 @@
             </property>
             <property name="text">
              <string>Стоп видео</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="recordLayout">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QPushButton" name="btnRecord">
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="text">
+               <string>Запись</string>
+              </property>
+              <property name="toolTip">
+               <string>Запись входящего H.264 в файлы по 1 ГБ</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="labelRecord">
+              <property name="text">
+               <string></string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignHCenter|Qt::AlignTop</set>
+              </property>
+              <property name="maximumWidth">
+               <number>110</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelVideoRate">
+            <property name="text">
+             <string>0 кбит/с</string>
+            </property>
+            <property name="toolTip">
+             <string>Скорость входящего UDP-потока видео, кбит/с</string>
             </property>
            </widget>
           </item>
