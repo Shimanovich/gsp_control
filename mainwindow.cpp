@@ -11,6 +11,8 @@
 #include <QSignalBlocker>
 #include <QCoreApplication>
 #include <QPainter>
+#include <QMouseEvent>
+#include <QEvent>
 #include <QDialog>
 #include <QFormLayout>
 #include <QDoubleSpinBox>
@@ -81,6 +83,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupVideo();
     onVideoStartClicked();
+
+    ui->videoLabel->installEventFilter(this);
+    ui->videoLabel->setMouseTracking(true);
+    ui->videoLabel->setCursor(Qt::CrossCursor);
 }
 
 MainWindow::~MainWindow()
@@ -754,6 +760,11 @@ void MainWindow::on_BrightDW_clicked()
     m_camera->brightnessDown();
 }
 
+void MainWindow::on_BrightReset_clicked()
+{
+    m_camera->brightnessReset();
+}
+
 void MainWindow::onMeasurementReceived(float distanceMeters, uint8_t status)
 {
     ui->ldDistance->setText(QString("Дальность: %1 м").arg(distanceMeters, 0, 'f', 1));
@@ -1121,9 +1132,28 @@ void MainWindow::onVideoTimer()
 
         if (hasStrobe && srcW > 0 && srcH > 0)
             drawCaptureStrobe(painter, pix.size(), srcW, srcH, capX, capY, capW, capH);
+
+        if (m_selActive && m_dispPixW > 0 && m_dispPixH > 0) {
+            const int ox = (ui->videoLabel->width()  - m_dispPixW) / 2;
+            const int oy = (ui->videoLabel->height() - m_dispPixH) / 2;
+            QRect sel(m_selStart, m_selCurrent);
+            sel = sel.normalized();
+            QRect pixSel(sel.left() - ox, sel.top() - oy, sel.width(), sel.height());
+            pixSel = pixSel.intersected(QRect(0, 0, m_dispPixW, m_dispPixH));
+            if (!pixSel.isEmpty()) {
+                QPen selPen(QColor(0, 200, 255, 230));
+                selPen.setWidth(2);
+                selPen.setStyle(Qt::DashLine);
+                painter.setPen(selPen);
+                painter.setBrush(QColor(0, 200, 255, 40));
+                painter.drawRect(pixSel);
+            }
+        }
     }
 
     ui->videoLabel->setPixmap(pix);
+    m_dispPixW = pix.width();
+    m_dispPixH = pix.height();
 
     if (srcW > 0 && srcH > 0 &&
         (srcW != m_dispResW || srcH != m_dispResH)) {
@@ -1240,6 +1270,14 @@ void MainWindow::applyJetsonUiDefaults()
 
 void MainWindow::sendTrackCommand(int trackCmd)
 {
+    const int w = ui->spinStrobeW->value();
+    const int h = ui->spinStrobeH->value();
+    // По протоколу 0 = центр кадра.
+    sendTrackAt(trackCmd, 0, 0, w, h);
+}
+
+void MainWindow::sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, int strobH)
+{
     if (!m_jetson) {
         ui->statusBar->showMessage("Контроллер Jetson не создан", 3000);
         return;
@@ -1250,33 +1288,112 @@ void MainWindow::sendTrackCommand(int trackCmd)
     }
 
     const int channel = ui->comboVideoChannel->currentData().toInt();
-    const int w = ui->spinStrobeW->value();
-    const int h = ui->spinStrobeH->value();
+    strobW = qMax(8, strobW);
+    strobH = qMax(8, strobH);
     if (trackCmd != 0) {
-        m_drawStrobeW = w;
-        m_drawStrobeH = h;
+        m_drawStrobeW = strobW;
+        m_drawStrobeH = strobH;
     }
 
-    const int frameW = (m_lastFrameW > 0) ? m_lastFrameW : 1920;
-    const int frameH = (m_lastFrameH > 0) ? m_lastFrameH : 1080;
-    const int strobX = frameW / 2;
-    const int strobY = frameH / 2;
-
-    if (!m_jetson->sendTrackSet(trackCmd, channel, strobX, strobY, w, h)) {
+    if (!m_jetson->sendTrackSet(trackCmd, channel, strobX, strobY, strobW, strobH)) {
         ui->statusBar->showMessage("Не удалось отправить CAPT set", 3000);
         return;
     }
 
-    const TrackingParams pid = m_jetson->trackingParams();
     ui->labelTrackStatus->setText(trackCmd == 0
-        ? QStringLiteral("Track: stopping")
-        : QString("Трек: команда %1 отправлена").arg(trackCmd));
+        ? QStringLiteral("Трек: выкл")
+        : QString("Трек: %1  строб %2,%3 %4x%5")
+              .arg(trackCmd).arg(strobX).arg(strobY).arg(strobW).arg(strobH));
     ui->statusBar->showMessage(
-        QString("CAPT set cmd=%1 PID Xp=%2 Xi=%3 Xd=%4 Yp=%5 Yi=%6 Yd=%7 INV %8/%9")
-            .arg(trackCmd)
-            .arg(pid.pidXp).arg(pid.pidXi).arg(pid.pidXd)
-            .arg(pid.pidYp).arg(pid.pidYi).arg(pid.pidYd)
-            .arg(pid.invAz).arg(pid.invEl), 4000);
+        QString("CAPT set cmd=%1 X=%2 Y=%3 %4x%5  кадр %6x%7")
+            .arg(trackCmd).arg(strobX).arg(strobY).arg(strobW).arg(strobH)
+            .arg(m_lastFrameW).arg(m_lastFrameH), 4000);
+}
+
+bool MainWindow::labelToFrame(const QPoint& labelPos, int& frameX, int& frameY) const
+{
+    if (m_lastFrameW <= 0 || m_lastFrameH <= 0 || m_dispPixW <= 0 || m_dispPixH <= 0)
+        return false;
+
+    const int ox = (ui->videoLabel->width()  - m_dispPixW) / 2;
+    const int oy = (ui->videoLabel->height() - m_dispPixH) / 2;
+    const int px = labelPos.x() - ox;
+    const int py = labelPos.y() - oy;
+    if (px < 0 || py < 0 || px >= m_dispPixW || py >= m_dispPixH)
+        return false;
+
+    // Пиксель отображаемого (уже mirrored) кадра -> исходный кадр.
+    const int dispX = int((px + 0.5) * m_lastFrameW / m_dispPixW);
+    const int dispY = int((py + 0.5) * m_lastFrameH / m_dispPixH);
+    frameX = qBound(0, m_lastFrameW - 1 - dispX, m_lastFrameW - 1);
+    frameY = qBound(0, m_lastFrameH - 1 - dispY, m_lastFrameH - 1);
+    return true;
+}
+
+void MainWindow::startTrackFromSelection()
+{
+    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+    if (!labelToFrame(m_selStart, x1, y1) || !labelToFrame(m_selCurrent, x2, y2)) {
+        ui->statusBar->showMessage("Выделение вне кадра", 2000);
+        return;
+    }
+
+    int left = qMin(x1, x2);
+    int top  = qMin(y1, y2);
+    int right = qMax(x1, x2);
+    int bottom = qMax(y1, y2);
+
+    int w = right - left + 1;
+    int h = bottom - top + 1;
+    int cx = (left + right) / 2;
+    int cy = (top + bottom) / 2;
+
+    w = qMax(8, w);
+    h = qMax(8, h);
+
+    // Держим строб в кадре после ограничения размера.
+    left = qBound(0, cx - w / 2, qMax(0, m_lastFrameW - w));
+    top  = qBound(0, cy - h / 2, qMax(0, m_lastFrameH - h));
+    cx = left + w / 2;
+    cy = top + h / 2;
+
+    // 0 = центр кадра.
+    const int posX = cx - m_lastFrameW / 2;
+    const int posY = cy - m_lastFrameH / 2;
+
+    if (ui->spinStrobeW) ui->spinStrobeW->setValue(w);
+    if (ui->spinStrobeH) ui->spinStrobeH->setValue(h);
+
+    const int cmd = qMax(1, ui->comboTrackCmd->currentData().toInt());
+    sendTrackAt(cmd, posX, posY, w, h);
+}
+
+bool MainWindow::eventFilter(QObject* obj, QEvent* event)
+{
+    if (obj == ui->videoLabel) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton && m_lastFrameW > 0) {
+                m_selActive = true;
+                m_selStart = me->position().toPoint();
+                m_selCurrent = m_selStart;
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseMove && m_selActive) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            m_selCurrent = me->position().toPoint();
+            return true;
+        } else if (event->type() == QEvent::MouseButtonRelease && m_selActive) {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                m_selCurrent = me->position().toPoint();
+                m_selActive = false;
+                startTrackFromSelection();
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::onJetsonPlayClicked()

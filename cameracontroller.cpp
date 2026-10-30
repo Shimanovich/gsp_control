@@ -314,6 +314,22 @@ void CameraController::brightnessDown()
     });
 }
 
+void CameraController::brightnessReset()
+{
+    setAeBrightMode();
+    // CAM_Bright Reset: 8x 01 04 0D 00 FF — значение по умолчанию.
+    QTimer::singleShot(80, this, [this]() {
+        QByteArray cmd;
+        cmd.append(char(0x81));
+        cmd.append(char(0x01));
+        cmd.append(char(0x04));
+        cmd.append(char(0x0D));
+        cmd.append(char(0x00));
+        cmd.append(char(0xFF));
+        sendVisca(cmd);
+    });
+}
+
 void CameraController::startZoomPolling()
 {
     m_zoomPollTimer->start(2500);

@@ -71,6 +71,7 @@ private slots:
     void on_zoom_next_clicked();
     void on_BrIghtUP_clicked();
     void on_BrightDW_clicked();
+    void on_BrightReset_clicked();
     void onMeasurementReceived(float distanceMeters, uint8_t status);
 
     // Video
@@ -155,10 +156,16 @@ private:
     CaptState               m_captState;
     int                     m_lastFrameW = 0;
     int                     m_lastFrameH = 0;
+    int                     m_dispPixW = 0;
+    int                     m_dispPixH = 0;
     int                     m_dispResW = 0;
     int                     m_dispResH = 0;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
+
+    bool                    m_selActive = false;
+    QPoint                  m_selStart;
+    QPoint                  m_selCurrent;
     QElapsedTimer           m_fpsTimer;
     int                     m_fpsFrameCount = 0;
     double                  m_currentFps = 0.0;
@@ -196,6 +203,12 @@ private:
 
     void applyJetsonUiDefaults();
     void sendTrackCommand(int trackCmd);
+    void sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, int strobH);
+    bool labelToFrame(const QPoint& labelPos, int& frameX, int& frameY) const;
+    void startTrackFromSelection();
+
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
 
 };
