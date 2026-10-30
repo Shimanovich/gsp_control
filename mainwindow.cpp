@@ -1272,8 +1272,9 @@ void MainWindow::sendTrackCommand(int trackCmd)
 {
     const int w = ui->spinStrobeW->value();
     const int h = ui->spinStrobeH->value();
-    // По протоколу 0 = центр кадра.
-    sendTrackAt(trackCmd, 0, 0, w, h);
+    const int frameW = (m_lastFrameW > 0) ? m_lastFrameW : 1920;
+    const int frameH = (m_lastFrameH > 0) ? m_lastFrameH : 1080;
+    sendTrackAt(trackCmd, frameW / 2, frameH / 2, w, h);
 }
 
 void MainWindow::sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, int strobH)
@@ -1357,9 +1358,9 @@ void MainWindow::startTrackFromSelection()
     cx = left + w / 2;
     cy = top + h / 2;
 
-    // 0 = центр кадра.
-    const int posX = cx - m_lastFrameW / 2;
-    const int posY = cy - m_lastFrameH / 2;
+    // Абсолютные координаты от угла исходного кадра.
+    const int posX = cx;
+    const int posY = cy;
 
     if (ui->spinStrobeW) ui->spinStrobeW->setValue(w);
     if (ui->spinStrobeH) ui->spinStrobeH->setValue(h);
