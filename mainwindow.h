@@ -8,6 +8,7 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QPixmap>
+#include <QEvent>
 #include <queue>
 #include <mutex>
 

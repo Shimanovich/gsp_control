@@ -1376,18 +1376,30 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
             auto* me = static_cast<QMouseEvent*>(event);
             if (me->button() == Qt::LeftButton && m_lastFrameW > 0) {
                 m_selActive = true;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
                 m_selStart = me->position().toPoint();
+#else
+                m_selStart = me->pos();
+#endif
                 m_selCurrent = m_selStart;
                 return true;
             }
         } else if (event->type() == QEvent::MouseMove && m_selActive) {
             auto* me = static_cast<QMouseEvent*>(event);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
             m_selCurrent = me->position().toPoint();
+#else
+            m_selCurrent = me->pos();
+#endif
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease && m_selActive) {
             auto* me = static_cast<QMouseEvent*>(event);
             if (me->button() == Qt::LeftButton) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
                 m_selCurrent = me->position().toPoint();
+#else
+                m_selCurrent = me->pos();
+#endif
                 m_selActive = false;
                 startTrackFromSelection();
                 return true;
