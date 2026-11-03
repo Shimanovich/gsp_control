@@ -1570,11 +1570,11 @@ void MainWindow::onConvergeReleased()
 
 void MainWindow::sendConvergeStep()
 {
-    if (!m_seiStrobeValid || !m_jetson)
+    if (!m_seiStrobeValid || !m_jetson || m_lastFrameW <= 0 || m_lastFrameH <= 0)
         return;
 
-    constexpr int kCenterX = 960;
-    constexpr int kCenterY = 540;
+    const int centerX = m_lastFrameW / 2;
+    const int centerY = m_lastFrameH / 2;
     constexpr int kStep = 5;
 
     auto toward = [](int value, int center) {
@@ -1585,8 +1585,8 @@ void MainWindow::sendConvergeStep()
         return value;
     };
 
-    const int x = toward(m_seiStrobeX, kCenterX);
-    const int y = toward(m_seiStrobeY, kCenterY);
+    const int x = toward(m_seiStrobeX, centerX);
+    const int y = toward(m_seiStrobeY, centerY);
     m_jetson->sendStrobePos(x, y);
 }
 
