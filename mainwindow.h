@@ -90,7 +90,6 @@ private slots:
     void onTrackStopClicked();
     void onConvergePressed();
     void onConvergeReleased();
-    void onTrackStopClicked();
     void onPidSettingsClicked();
     void onMdplStatus(const QString& stat);
     void onJetsonHwStatus(const JetsonHwStatus& st);
