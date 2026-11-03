@@ -263,6 +263,16 @@ bool JetsonController::sendTrackSet(int trackCmd, int videoChannel,
     return ok;
 }
 
+bool JetsonController::sendStrobePos(int strobX, int strobY)
+{
+    // Только позиция строба, без TRACK_CMD и без старта слежения.
+    const QByteArray json =
+            QByteArrayLiteral("{\"STROB_X_POS\":") + QByteArray::number(strobX) +
+            QByteArrayLiteral(",\"STROB_Y_POS\":") + QByteArray::number(strobY) +
+            QByteArrayLiteral("}");
+    return sendPacket(JEPProtocol::pack(json, JEP_HD::CAPT));
+}
+
 bool JetsonController::sendPidSet()
 {
     // Те же PID_* / INV_*, что и в sendTrackSet. Без TRACK/STROB.

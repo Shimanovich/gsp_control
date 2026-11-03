@@ -31,6 +31,7 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     add("rangefinder_shot", Qt::Key_Space,        settings.value("Joystick/button_rangefinder_shot", 1).toInt(), "Выстрел дальномера");
     add("track",            Qt::Key_T,            settings.value("Joystick/button_track", 4).toInt(),            "Старт трека");
     add("track_cancel",     Qt::Key_Escape,       settings.value("Joystick/button_track_cancel", 5).toInt(),     "Стоп трека");
+    add("converge",         Qt::Key_C,            settings.value("Joystick/button_converge", 15).toInt(),        "Сведение");
     add("heading",          Qt::Key_H,            settings.value("Joystick/button_heading", 11).toInt(),         "Режим курс / скорость");
     add("speed_up",         Qt::Key_BracketRight, settings.value("Joystick/button_speed_up", 13).toInt(),        "Скорость +");
     add("speed_down",       Qt::Key_BracketLeft,  settings.value("Joystick/button_speed_down", 14).toInt(),      "Скорость −");

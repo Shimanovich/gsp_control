@@ -793,6 +793,16 @@
               </widget>
              </item>
              <item>
+              <widget class="QPushButton" name="btnConverge">
+               <property name="text">
+                <string>Сведение</string>
+               </property>
+               <property name="toolTip">
+                <string>Удерживайте: строб сдвигается к центру кадра (960, 540) на 5 пикселей</string>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="QPushButton" name="btnPidSettings">
                <property name="text">
                 <string>ПИД…</string>

@@ -88,6 +88,9 @@ private slots:
     void onJetsonSetClicked();
     void onTrackStartClicked();
     void onTrackStopClicked();
+    void onConvergePressed();
+    void onConvergeReleased();
+    void onTrackStopClicked();
     void onPidSettingsClicked();
     void onMdplStatus(const QString& stat);
     void onJetsonHwStatus(const JetsonHwStatus& st);
@@ -140,6 +143,7 @@ private:
     int m_btnFocusInfinity = 3;
     int m_btnTrack = 4;
     int m_btnTrackCancel = 5;
+    int m_btnConverge = 15;
     int m_btnHeading = 11;
     int m_btnSpeedUp = 13;
     int m_btnSpeedDown = 14;
@@ -163,6 +167,11 @@ private:
     int                     m_dispResH = 0;
     int                     m_drawStrobeW = 64;
     int                     m_drawStrobeH = 64;
+    int                     m_seiStrobeX = 0;
+    int                     m_seiStrobeY = 0;
+    bool                    m_seiStrobeValid = false;
+    bool                    m_convergeUi = false;
+    bool                    m_convergeJoy = false;
 
     bool                    m_selActive = false;
     QPoint                  m_selStart;
@@ -205,6 +214,7 @@ private:
     void applyJetsonUiDefaults();
     void sendTrackCommand(int trackCmd);
     void sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, int strobH);
+    void sendConvergeStep();
     bool labelToFrame(const QPoint& labelPos, int& frameX, int& frameY) const;
     void startTrackFromSelection();
 

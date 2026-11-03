@@ -67,6 +67,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnJetsonSet,  &QPushButton::clicked, this, &MainWindow::onJetsonSetClicked);
     connect(ui->btnTrackStart, &QPushButton::clicked, this, &MainWindow::onTrackStartClicked);
     connect(ui->btnTrackStop,  &QPushButton::clicked, this, &MainWindow::onTrackStopClicked);
+    connect(ui->btnConverge, &QPushButton::pressed, this, &MainWindow::onConvergePressed);
+    connect(ui->btnConverge, &QPushButton::released, this, &MainWindow::onConvergeReleased);
     connect(ui->btnPidSettings, &QPushButton::clicked, this, &MainWindow::onPidSettingsClicked);
 
     // Status labels
@@ -153,6 +155,7 @@ void MainWindow::loadAllSettings()
     m_btnFocusInfinity = s.value("Joystick/button_focus_infinity", 3).toInt();
     m_btnTrack = s.value("Joystick/button_track", 4).toInt();
     m_btnTrackCancel = s.value("Joystick/button_track_cancel", 5).toInt();
+    m_btnConverge = s.value("Joystick/button_converge", 15).toInt();
     m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
     m_btnSpeedUp = s.value("Joystick/button_speed_up", 13).toInt();
     m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
@@ -284,6 +287,10 @@ void MainWindow::onJoystickButtonPressed(int button)
         sendTrackCommand(cmd);
         return;
     }
+    if (button == m_btnConverge) {
+        m_convergeJoy = true;
+        return;
+    }
     if (button == m_btnHeading) {
         toggleHeadingSpeedMode();
         return;
@@ -338,6 +345,8 @@ void MainWindow::onJoystickButtonPressed(int button)
 
 void MainWindow::onJoystickButtonReleased(int button)
 {
+    if (button == m_btnConverge)
+        m_convergeJoy = false;
     if (button == m_btnZoomIn || button == m_btnZoomOut)
         m_camera->zoomStop();
 }
@@ -1101,6 +1110,13 @@ void MainWindow::onVideoTimer()
     const int capY = static_cast<int>(frame.crop_top);
     const int capW = static_cast<int>(frame.crop_right);
     const int capH = static_cast<int>(frame.crop_bottom);
+    if (hasStrobe) {
+        m_seiStrobeX = capX;
+        m_seiStrobeY = capY;
+        m_seiStrobeValid = true;
+        if (m_convergeUi || m_convergeJoy)
+            sendConvergeStep();
+    }
 
     img = img.mirrored(true, true);
 
@@ -1540,6 +1556,38 @@ void MainWindow::onPidSettingsClicked()
         QString("ПИД отправлены (только PID_*): Xp=%1 Xi=%2 Xd=%3 Yp=%4 Yi=%5 Yd=%6")
             .arg(pid.pidXp).arg(pid.pidXi).arg(pid.pidXd)
             .arg(pid.pidYp).arg(pid.pidYi).arg(pid.pidYd), 4000);
+}
+
+void MainWindow::onConvergePressed()
+{
+    m_convergeUi = true;
+}
+
+void MainWindow::onConvergeReleased()
+{
+    m_convergeUi = false;
+}
+
+void MainWindow::sendConvergeStep()
+{
+    if (!m_seiStrobeValid || !m_jetson)
+        return;
+
+    constexpr int kCenterX = 960;
+    constexpr int kCenterY = 540;
+    constexpr int kStep = 5;
+
+    auto toward = [](int value, int center) {
+        if (value < center)
+            return qMin(value + kStep, center);
+        if (value > center)
+            return qMax(value - kStep, center);
+        return value;
+    };
+
+    const int x = toward(m_seiStrobeX, kCenterX);
+    const int y = toward(m_seiStrobeY, kCenterY);
+    m_jetson->sendStrobePos(x, y);
 }
 
 void MainWindow::onTrackStartClicked()
