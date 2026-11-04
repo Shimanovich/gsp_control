@@ -258,7 +258,7 @@ void MainWindow::updateGyroTemperatures(int imuTempC, int frameImuTempC)
     if (ui->labelImuTemp)
         ui->labelImuTemp->setText("ИМУ: " + formatTemp(imuTempC));
     if (ui->labelFrameImuTemp)
-        ui->labelFrameImuTemp->setText("ИМУ рамы: " + formatTemp(frameImuTempC));
+        ui->labelFrameImuTemp->setText("Рама: " + formatTemp(frameImuTempC));
 }
 
 void MainWindow::updateJoystickStatus(bool connected)

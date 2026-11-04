@@ -13,17 +13,39 @@
   <property name="windowTitle">
    <string>Панель управления ГСП</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QGroupBox { font-size: 9pt; margin-top: 8px; padding: 1px 2px 2px 2px; }
+QGroupBox::title { subcontrol-origin: margin; left: 6px; padding: 0 3px; }
+QPushButton { padding: 2px 8px; min-height: 20px; font-size: 9pt; }
+QRadioButton, QCheckBox, QLabel { font-size: 9pt; }
+QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>2</number>
+    </property>
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>2</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
+     <number>2</number>
+    </property>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="0,1">
       <property name="spacing">
-       <number>6</number>
+       <number>4</number>
       </property>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <property name="spacing">
-         <number>6</number>
+         <number>2</number>
         </property>
         <property name="leftMargin">
          <number>0</number>
@@ -39,6 +61,9 @@
         </property>
         <item>
          <widget class="QGroupBox" name="groupNetwork">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="enabled">
            <bool>true</bool>
           </property>
@@ -49,6 +74,9 @@
            <item>
             <widget class="QPushButton" name="btnConnect">
              <property name="text">
+              <string>Вкл</string>
+             </property>
+             <property name="toolTip">
               <string>Подключить</string>
              </property>
             </widget>
@@ -56,6 +84,9 @@
            <item>
             <widget class="QPushButton" name="btnDisconnect">
              <property name="text">
+              <string>Выкл</string>
+             </property>
+             <property name="toolTip">
               <string>Отключить</string>
              </property>
             </widget>
@@ -89,8 +120,11 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupCamera">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="title">
-           <string>Камера (VISCA)</string>
+           <string>Камера</string>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
@@ -115,10 +149,13 @@
              </item>
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_5">
+               <property name="spacing">
+                <number>2</number>
+               </property>
                <item>
                 <widget class="QLabel" name="zoomVal">
                  <property name="text">
-                  <string>Зум </string>
+                  <string>Зум</string>
                  </property>
                 </widget>
                </item>
@@ -144,35 +181,42 @@
                <item>
                 <widget class="QPushButton" name="zoom_prev">
                  <property name="text">
-                  <string>Зум мин</string>
+                  <string>Мин</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zoom_next">
                  <property name="text">
-                  <string>Зум макс</string>
+                  <string>Макс</string>
                  </property>
                 </widget>
                </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayoutBright">
+               <property name="spacing">
+                <number>2</number>
+               </property>
                <item>
                 <widget class="QPushButton" name="BrIghtUP">
                  <property name="text">
-                  <string>Яркость +</string>
+                  <string>Ярк +</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="BrightDW">
                  <property name="text">
-                  <string>Яркость -</string>
+                  <string>Ярк −</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="BrightReset">
                  <property name="text">
-                  <string>Яркость 0</string>
+                  <string>Ярк 0</string>
                  </property>
                  <property name="toolTip">
                   <string>Яркость ТВ-камеры в значение по умолчанию</string>
@@ -188,8 +232,11 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupRangefinder">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="title">
-           <string>Лазерный дальномер</string>
+           <string>Дальномер</string>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
@@ -197,7 +244,7 @@
              <item>
               <widget class="QCheckBox" name="checkSafety">
                <property name="text">
-                <string>Блокировка безопасности</string>
+                <string>Блокировка</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -239,6 +286,9 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupGyro">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="title">
            <string>Гироплатформа</string>
           </property>
@@ -248,7 +298,7 @@
              <item>
               <widget class="QLabel" name="labelMultiplier">
                <property name="text">
-                <string>Множитель скорости:</string>
+                <string>Скорость</string>
                </property>
               </widget>
              </item>
@@ -288,7 +338,7 @@
              <item>
               <widget class="QLabel" name="labelFrameImuTemp">
                <property name="text">
-                <string>ИМУ рамы: -- °C</string>
+                <string>Рама: -- °C</string>
                </property>
               </widget>
              </item>
@@ -296,10 +346,13 @@
            </item>
            <item row="1" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutGyroTools">
+             <property name="spacing">
+              <number>2</number>
+             </property>
              <item>
               <widget class="QCheckBox" name="checkInvertPitch">
                <property name="text">
-                <string>Инверсия тангажа</string>
+                <string>Инв. тангажа</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -313,17 +366,17 @@
                </property>
               </widget>
              </item>
-             <item>
-              <widget class="QPushButton" name="btnGyroTempCalib">
-               <property name="text">
-                <string>Калибровка гиро по температуре</string>
-               </property>
-               <property name="toolTip">
-                <string>CMD_CALIB_GYRO #105, ACTION=3 — температурная калибровка гироскопа</string>
-               </property>
-              </widget>
-             </item>
             </layout>
+           </item>
+           <item row="7" column="0" colspan="4">
+            <widget class="QPushButton" name="btnGyroTempCalib">
+             <property name="text">
+              <string>Калибр. гиро</string>
+             </property>
+             <property name="toolTip">
+              <string>CMD_CALIB_GYRO #105, ACTION=3 — температурная калибровка гироскопа</string>
+             </property>
+            </widget>
            </item>
            <item row="5" column="0" colspan="4">
             <layout class="QHBoxLayout" name="horizontalLayoutAngle">
@@ -454,17 +507,17 @@
                </property>
               </widget>
              </item>
-             <item row="0" column="2">
+             <item row="1" column="0">
               <widget class="QRadioButton" name="radioHeadingMode">
                <property name="text">
-                <string>Курсовая</string>
+                <string>Курс</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
                </property>
               </widget>
              </item>
-             <item row="1" column="0">
+             <item row="1" column="1">
               <widget class="QRadioButton" name="radioAngleMode">
                <property name="text">
                 <string>По углу</string>
@@ -474,17 +527,17 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="1">
+             <item row="2" column="0">
               <widget class="QRadioButton" name="radioStabNull">
                <property name="text">
-                <string>Стаб_ноль</string>
+                <string>Стаб 0</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
                </property>
               </widget>
              </item>
-             <item row="1" column="2">
+             <item row="2" column="1">
               <widget class="QRadioButton" name="radioMotorsOff">
                <property name="text">
                 <string>Моторы выкл</string>
@@ -515,10 +568,13 @@
         </item>
         <item>
          <layout class="QHBoxLayout" name="videoBtnLayout">
+          <property name="spacing">
+           <number>2</number>
+          </property>
           <item>
            <widget class="QPushButton" name="btnVideoStart">
             <property name="text">
-             <string>Старт видео</string>
+             <string>Старт</string>
             </property>
            </widget>
           </item>
@@ -528,7 +584,7 @@
              <bool>false</bool>
             </property>
             <property name="text">
-             <string>Стоп видео</string>
+             <string>Стоп</string>
             </property>
            </widget>
           </item>
@@ -562,7 +618,7 @@
                <set>Qt::AlignHCenter|Qt::AlignTop</set>
               </property>
               <property name="maximumWidth">
-               <number>110</number>
+               <number>72</number>
               </property>
              </widget>
             </item>
@@ -603,8 +659,11 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupJetson">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="title">
-           <string>Поток Jetson (JEP MDPL)</string>
+           <string>Jetson</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayoutJetson">
            <item>
@@ -612,6 +671,9 @@
              <item>
               <widget class="QPushButton" name="btnJetsonPlay">
                <property name="text">
+                <string>Старт</string>
+               </property>
+               <property name="toolTip">
                 <string>Воспроизвести поток</string>
                </property>
               </widget>
@@ -619,6 +681,9 @@
              <item>
               <widget class="QPushButton" name="btnJetsonStop">
                <property name="text">
+                <string>Стоп</string>
+               </property>
+               <property name="toolTip">
                 <string>Остановить поток</string>
                </property>
               </widget>
@@ -626,7 +691,7 @@
              <item>
               <widget class="QPushButton" name="btnJetsonSet">
                <property name="text">
-                <string>Применить настройки</string>
+                <string>Применить</string>
                </property>
               </widget>
              </item>
@@ -637,7 +702,7 @@
              <item>
               <widget class="QLabel" name="labelResolut">
                <property name="text">
-                <string>Разрешение</string>
+                <string>Разр.</string>
                </property>
               </widget>
              </item>
@@ -682,7 +747,7 @@
            <item>
             <widget class="QLabel" name="labelJetsonStatus">
              <property name="text">
-              <string>JEP: ожидание</string>
+              <string>JEP: —</string>
              </property>
             </widget>
            </item>
@@ -691,8 +756,11 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupTracking">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
           <property name="title">
-           <string>Трекинг (JEP CAPT)</string>
+           <string>Трекинг</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayoutTrack">
            <item>
@@ -778,38 +846,41 @@
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayoutTrackBtns">
+             <property name="spacing">
+              <number>2</number>
+             </property>
              <item>
               <widget class="QPushButton" name="btnTrackStart">
                <property name="text">
-                <string>Старт трека</string>
+                <string>Старт</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnTrackStop">
                <property name="text">
-                <string>Стоп трека</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btnConverge">
-               <property name="text">
-                <string>Сведение</string>
-               </property>
-               <property name="toolTip">
-                <string>Удерживайте: строб сдвигается к центру текущего кадра на 5 пикселей</string>
+                <string>Стоп</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QPushButton" name="btnPidSettings">
                <property name="text">
-                <string>ПИД…</string>
+                <string>ПИД</string>
                </property>
               </widget>
              </item>
             </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnConverge">
+             <property name="text">
+              <string>Сведение</string>
+             </property>
+             <property name="toolTip">
+              <string>Удерживайте: строб сдвигается к центру текущего кадра</string>
+             </property>
+            </widget>
            </item>
            <item>
             <widget class="QLabel" name="labelTrackStatus">
@@ -845,8 +916,8 @@
            </property>
            <property name="minimumSize">
             <size>
-             <width>800</width>
-             <height>450</height>
+             <width>480</width>
+             <height>270</height>
             </size>
            </property>
            <property name="styleSheet">
