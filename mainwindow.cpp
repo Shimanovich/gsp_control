@@ -1575,7 +1575,7 @@ void MainWindow::sendConvergeStep()
 
     const int centerX = m_lastFrameW / 2;
     const int centerY = m_lastFrameH / 2;
-    const int step = qMax(1, int(m_speedMultiplier));
+    const int step = qMax(1, int(m_speedMultiplier))/2;
 
     auto toward = [step](int value, int center) {
         if (value < center)
