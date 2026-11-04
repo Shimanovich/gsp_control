@@ -1378,9 +1378,6 @@ void MainWindow::startTrackFromSelection()
     const int posX = cx;
     const int posY = cy;
 
-    if (ui->spinStrobeW) ui->spinStrobeW->setValue(w);
-    if (ui->spinStrobeH) ui->spinStrobeH->setValue(h);
-
     const int cmd = qMax(1, ui->comboTrackCmd->currentData().toInt());
     sendTrackAt(cmd, posX, posY, w, h);
 }
