@@ -1575,13 +1575,13 @@ void MainWindow::sendConvergeStep()
 
     const int centerX = m_lastFrameW / 2;
     const int centerY = m_lastFrameH / 2;
-    constexpr int kStep = 5;
+    const int step = qMax(1, int(m_speedMultiplier));
 
-    auto toward = [](int value, int center) {
+    auto toward = [step](int value, int center) {
         if (value < center)
-            return qMin(value + kStep, center);
+            return qMin(value + step, center);
         if (value > center)
-            return qMax(value - kStep, center);
+            return qMax(value - step, center);
         return value;
     };
 
