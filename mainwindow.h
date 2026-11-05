@@ -60,6 +60,7 @@ private slots:
     void on_radioMotorsOff_clicked(bool checked);
     void on_btnGyroReset_clicked();
     void on_btnGyroTempCalib_clicked();
+    void onGyroCalibResult(bool ok, const QString& message);
     void onAngleTargetChanged();
     void onDisconnectClicked();
     void onHelpClicked();
@@ -171,6 +172,7 @@ private:
     bool                    m_seiStrobeValid = false;
     bool                    m_convergeUi = false;
     bool                    m_convergeJoy = false;
+    bool                    m_gyroCalibPending = false;
 
     bool                    m_selActive = false;
     QPoint                  m_selStart;

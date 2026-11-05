@@ -116,6 +116,7 @@ void MainWindow::setupControllers()
     connect(ui->btnDisconnect, &QPushButton::clicked,           this, &MainWindow::onDisconnectClicked);
     connect(m_gyro, &GyroController::anglesUpdated,             this, &MainWindow::updateGyroAngles);
     connect(m_gyro, &GyroController::temperaturesUpdated,       this, &MainWindow::updateGyroTemperatures);
+    connect(m_gyro, &GyroController::gyroCalibResult,           this, &MainWindow::onGyroCalibResult);
     connect(m_camera, &CameraController::zoomPositionUpdated,   this, &MainWindow::onZoomPositionUpdated);
     connect(m_rangefinder, &RangefinderController::measurementReceived,   this, &MainWindow::onMeasurementReceived);
     connect(m_keyboard, &KeyboardManager::buttonPressed,        this, &MainWindow::onKeyBoardButtonPressed);
@@ -566,7 +567,32 @@ void MainWindow::on_btnGyroTempCalib_clicked()
     if (ans != QMessageBox::Yes)
         return;
     m_gyro->calibrateGyroTemperature();
-    ui->statusBar->showMessage(QStringLiteral("ГСП: калибровка гиро по температуре отправлена"), 3000);
+    m_gyroCalibPending = true;
+    ui->btnGyroTempCalib->setText(QStringLiteral("Калибровка…"));
+    ui->btnGyroTempCalib->setStyleSheet(QStringLiteral("color: orange;"));
+    ui->statusBar->showMessage(QStringLiteral("ГСП: команда калибровки отправлена, жду подтверждение"), 4000);
+    QTimer::singleShot(2500, this, [this]() {
+        if (!m_gyroCalibPending)
+            return;
+        m_gyroCalibPending = false;
+        ui->btnGyroTempCalib->setText(QStringLiteral("Калибр. гиро"));
+        ui->btnGyroTempCalib->setStyleSheet(QStringLiteral("color: red;"));
+        ui->statusBar->showMessage(QStringLiteral("ГСП: нет подтверждения калибровки"), 5000);
+    });
+}
+
+void MainWindow::onGyroCalibResult(bool ok, const QString& message)
+{
+    m_gyroCalibPending = false;
+    ui->btnGyroTempCalib->setText(ok ? QStringLiteral("Калибровка ок")
+                                     : QStringLiteral("Ошибка калибр."));
+    ui->btnGyroTempCalib->setStyleSheet(ok ? QStringLiteral("color: green;")
+                                           : QStringLiteral("color: red;"));
+    ui->statusBar->showMessage(message, 5000);
+    QTimer::singleShot(4000, this, [this]() {
+        ui->btnGyroTempCalib->setText(QStringLiteral("Калибр. гиро"));
+        ui->btnGyroTempCalib->setStyleSheet(QString());
+    });
 }
 
 void MainWindow::onAngleTargetChanged()
@@ -1395,6 +1421,12 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
                 m_selStart = me->pos();
 #endif
                 m_selCurrent = m_selStart;
+                return true;
+            }
+            if (me->button() == Qt::RightButton) {
+                m_selActive = false;
+                sendTrackCommand(0);
+                ui->statusBar->showMessage(QStringLiteral("Захват сброшен"), 2000);
                 return true;
             }
         } else if (event->type() == QEvent::MouseMove && m_selActive) {

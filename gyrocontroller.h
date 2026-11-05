@@ -31,6 +31,7 @@ public:
 signals:
     void anglesUpdated(float pitch, float yaw); // degrees
     void temperaturesUpdated(int imuTempC, int frameImuTempC);
+    void gyroCalibResult(bool ok, const QString& message);
     void error(const QString& msg);
     void controlReadyChanged(bool ready);
 
@@ -48,6 +49,7 @@ private:
 
     QTimer* m_pollTimer = nullptr;
     QTimer* m_settleTimer = nullptr;
+    bool m_waitCalibConfirm = false;
     bool m_motorsPowered = true;
     bool m_controlReady = true;
 

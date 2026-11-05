@@ -157,6 +157,7 @@ void GyroController::calibrateGyroTemperature()
     payload.append(char(0));          // TIME_MS high
     payload.append(QByteArray(8, 0)); // RESERVED
     m_udp->sendPacket(m_targetId, SimpleBGC::buildPacket(SimpleBGC::CMD_CALIB_GYRO, payload));
+    m_waitCalibConfirm = true;
 }
 
 QByteArray GyroController::buildZeroPosCmd()
@@ -240,5 +241,18 @@ void GyroController::handleIncomingPacket(uint8_t sourceId, const QByteArray& pa
         emit anglesUpdated( pitch, yaw);
         emit temperaturesUpdated(msg->rtdata.imu_temp_celcius,
                                  msg->rtdata.frame_imu_temp_celcius);
+        return;
+    }
+
+    if (cmd == SimpleBGC::CMD_CONFIRM && m_waitCalibConfirm && payload.size() >= 6) {
+        const uint8_t confirmedCmd = static_cast<uint8_t>(payload.at(4));
+        const uint8_t err = static_cast<uint8_t>(payload.at(5));
+        if (confirmedCmd != SimpleBGC::CMD_CALIB_GYRO)
+            return;
+        m_waitCalibConfirm = false;
+        if (err == 0)
+            emit gyroCalibResult(true, QStringLiteral("ГСП подтвердила калибровку (ошибка 0)"));
+        else
+            emit gyroCalibResult(false, QStringLiteral("ГСП отклонила калибровку, код %1").arg(err));
     }
 }
