@@ -79,7 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
     if (ui->labelVideoFps)
         ui->labelVideoFps->clear();
     if (ui->labelVideoRate) {
-        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setText("0 Мбит/с");
         ui->labelVideoRate->setStyleSheet("color: red;");
     }
 
@@ -893,7 +893,7 @@ void MainWindow::onVideoStartClicked()
             ui->labelVideoFps->setStyleSheet("color: red;");
         }
         if (ui->labelVideoRate) {
-            ui->labelVideoRate->setText("0 кбит/с");
+            ui->labelVideoRate->setText("0 Мбит/с");
             ui->labelVideoRate->setStyleSheet("color: red;");
         }
         ui->btnVideoStart->setEnabled(true);
@@ -968,10 +968,10 @@ void MainWindow::updateVideoRate()
     m_rateTimer.restart();
 
     if (m_currentKbps < 4.0) {
-        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setText("0 Мбит/с");
         ui->labelVideoRate->setStyleSheet("color: red; font-weight: bold;");
     } else {
-        ui->labelVideoRate->setText(QString("%1 кбит/с").arg(m_currentKbps, 0, 'f', 1));
+        ui->labelVideoRate->setText(QString("%1 Мбит/с").arg(m_currentKbps / 1000.0, 0, 'f', 1));
         ui->labelVideoRate->setStyleSheet("color: green;");
     }
 }
@@ -1004,7 +1004,7 @@ void MainWindow::stopVideo()
         ui->labelVideoFps->setToolTip(QString());
     }
     if (ui->labelVideoRate) {
-        ui->labelVideoRate->setText("0 кбит/с");
+        ui->labelVideoRate->setText("0 Мбит/с");
         ui->labelVideoRate->setStyleSheet("color: red; font-weight: bold;");
     }
     m_lastFrameW = 0;

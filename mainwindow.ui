@@ -244,7 +244,7 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
              <item>
               <widget class="QCheckBox" name="checkSafety">
                <property name="text">
-                <string>Блокировка</string>
+                <string>Разблокировать</string>
                </property>
                <property name="checked">
                 <bool>false</bool>
@@ -627,10 +627,10 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
           <item>
            <widget class="QLabel" name="labelVideoRate">
             <property name="text">
-             <string>0 кбит/с</string>
+             <string>0 Мбит/с</string>
             </property>
             <property name="toolTip">
-             <string>Скорость входящего UDP-потока видео, кбит/с</string>
+             <string>Скорость входящего UDP-потока видео, Мбит/с</string>
             </property>
            </widget>
           </item>
