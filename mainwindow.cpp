@@ -575,9 +575,13 @@ void MainWindow::on_btnGyroTempCalib_clicked()
         if (!m_gyroCalibPending)
             return;
         m_gyroCalibPending = false;
-        ui->btnGyroTempCalib->setText(QStringLiteral("Калибр. гиро"));
+        ui->btnGyroTempCalib->setText(QStringLiteral("Нет ответа"));
         ui->btnGyroTempCalib->setStyleSheet(QStringLiteral("color: red;"));
         ui->statusBar->showMessage(QStringLiteral("ГСП: нет подтверждения калибровки"), 5000);
+        QTimer::singleShot(4000, this, [this]() {
+            ui->btnGyroTempCalib->setText(QStringLiteral("Калибр. гиро"));
+            ui->btnGyroTempCalib->setStyleSheet(QString());
+        });
     });
 }
 
