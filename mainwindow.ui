@@ -634,26 +634,38 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
             </property>
            </widget>
           </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="videoStatusLayout">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <item>
-           <layout class="QVBoxLayout" name="videoStatusLayout">
-            <property name="spacing">
-             <number>0</number>
+           <widget class="QLabel" name="labelVideoStatus">
+            <property name="text">
+             <string>Остановлено</string>
             </property>
-            <item>
-             <widget class="QLabel" name="labelVideoStatus">
-              <property name="text">
-               <string>Остановлено</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="labelVideoFps">
-              <property name="text">
-               <string></string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="maximumWidth">
+             <number>160</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelVideoFps">
+            <property name="text">
+             <string></string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="maximumWidth">
+             <number>80</number>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
