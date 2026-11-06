@@ -112,6 +112,7 @@ private:
     bool                m_fuActive = false;
     uint16_t            m_lastSeq = 0;
     bool                m_haveSeq = false;
+    bool                m_waitIdr = false;
 
     void decodeLoop();
     bool openInput();

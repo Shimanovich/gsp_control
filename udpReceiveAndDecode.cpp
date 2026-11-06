@@ -187,6 +187,7 @@ void udpDec::resetRtpState()
     m_fuActive = false;
     m_haveSeq = false;
     m_lastSeq = 0;
+    m_waitIdr = false;
     m_seiCapValid = false;
     m_seiCapW = 0;
     m_seiCapH = 0;
@@ -410,8 +411,10 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     if (m_haveSeq) {
         const uint16_t expected = static_cast<uint16_t>(m_lastSeq + 1);
         if (seq != expected) {
-            // Дырка в RTP: недособранный FU нельзя доклеивать — декодер потом «встаёт».
+            // Дырка в RTP: недособранный FU нельзя доклеивать.
+            // Декодер после потери кадра застревает на старом frame_num — ждём IDR.
             dropCurrentAu();
+            m_waitIdr = true;
         }
     }
     m_lastSeq = seq;
@@ -498,6 +501,27 @@ bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
     if (m_recorder)
         m_recorder->write(data, size);
 
+    auto hasIdr = [](const uint8_t* p, int n) {
+        for (int i = 0; i + 4 < n; ++i) {
+            int sc = 0;
+            if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1)
+                sc = 3;
+            else if (i + 4 < n && p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 0 && p[i + 3] == 1)
+                sc = 4;
+            if (sc && (p[i + sc] & 0x1F) == 5)
+                return true;
+        }
+        return false;
+    };
+
+    if (m_waitIdr && !hasIdr(data, size))
+        return false;
+
+    if (m_waitIdr) {
+        avcodec_flush_buffers(codec_ctx);
+        m_waitIdr = false;
+    }
+
     av_packet_unref(packet);
     if (av_new_packet(packet, size) < 0)
         return false;
@@ -511,8 +535,11 @@ bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
         ret = avcodec_send_packet(codec_ctx, packet);
     }
     av_packet_unref(packet);
-    if (ret < 0)
+    if (ret < 0) {
+        m_waitIdr = true;
+        avcodec_flush_buffers(codec_ctx);
         return emitDecodedFrames();
+    }
 
     return emitDecodedFrames();
 }
