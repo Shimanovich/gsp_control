@@ -175,67 +175,32 @@ namespace SimpleBGC {
     }
 
     /**
-     * @brief Builds a complete SimpleBGC Protocol v2 packet
-     * @param cmd Command ID
-     * @param payload Command payload (can be empty)
-     * @return Full packet: $ + CMD + SIZE + HCS + Payload + CRC16
+     * @brief SimpleBGC protocol v2 packet
+     * $ (0x24) + CMD + SIZE + HCS + payload + CRC16
+     * HCS = (CMD + SIZE) % 256
+     * CRC16 (poly 0x8005, init 0) over all bytes except the start byte,
+     * little-endian. Matches Appendix A of SimpleBGC32 Serial API.
      */
-
-
     inline QByteArray buildPacket(uint8_t cmd, const QByteArray& payload = QByteArray())
     {
-        // QByteArray packet;
-        //  uint8_t size = static_cast<uint8_t>(payload.size());
+        const uint8_t size = static_cast<uint8_t>(payload.size());
+        const uint8_t headerChecksum = static_cast<uint8_t>(cmd + size);
 
-        //  // Header
-        //  packet.append(static_cast<char>(START_BYTE_V2));
-        //  packet.append(static_cast<char>(cmd));
-        //  packet.append(static_cast<char>(size));
-
-        //  // Header Checksum = (CMD + SIZE) % 256
-        //  uint8_t headerChecksum = (cmd + (uint8_t)size) & 0xFF;
-        //  packet.append(static_cast<char>(headerChecksum));
-
-        //  // Payload
-        //  if (!payload.isEmpty())
-        //      packet.append(payload);
-
-        // uint8_t crc[2];
-        // crc16_calculate(packet.size() - 1,reinterpret_cast<const uint8_t*>(packet.constData() + 1), crc);
-        // packet.append(static_cast<char>(crc[0]));
-        // packet.append(static_cast<char>(crc[1]));
-
-        // return packet;
-
-         // V 1.0
-
-         QByteArray packet;
-         uint8_t size = static_cast<uint8_t>(payload.size());
-         packet.append(static_cast<char>(START_BYTE_V1));
-         packet.append(static_cast<char>(cmd));
-         packet.append(static_cast<char>(size));
-
-         // Header Checksum = (CMD + SIZE) % 256
-         uint8_t headerChecksum = (cmd + (uint8_t)size) & 0xFF;
-         packet.append(static_cast<char>(headerChecksum));
-
-         // Payload
-         if (!payload.isEmpty())
-         {
+        QByteArray packet;
+        packet.append(static_cast<char>(START_BYTE_V2));
+        packet.append(static_cast<char>(cmd));
+        packet.append(static_cast<char>(size));
+        packet.append(static_cast<char>(headerChecksum));
+        if (!payload.isEmpty())
             packet.append(payload);
-            uint8_t sum = sumBytesFromSecond(payload);
-            packet.append(sum);
-         }
-         else
-         {
-             packet.append(static_cast<char>(0));
-         }
 
-
-
-
-
-         return packet;
+        uint8_t crc[2];
+        crc16_calculate(static_cast<uint16_t>(packet.size() - 1),
+                        reinterpret_cast<const uint8_t*>(packet.constData() + 1),
+                        crc);
+        packet.append(static_cast<char>(crc[0]));
+        packet.append(static_cast<char>(crc[1]));
+        return packet;
     }
 
 
