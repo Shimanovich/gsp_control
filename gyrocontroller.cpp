@@ -228,7 +228,7 @@ QByteArray GyroController::buildControlPayload(uint8_t mode, float yaw, float pi
 
 void GyroController::handleIncomingPacket(uint8_t sourceId, const QByteArray& payload)
 {
-    if (sourceId != m_targetId || payload.isEmpty()) return;
+    if ((sourceId != m_targetId && sourceId != 0xff) || payload.isEmpty()) return;
 
     uint8_t cmd = static_cast<uint8_t>(payload.at(1));
 

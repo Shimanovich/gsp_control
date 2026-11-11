@@ -104,14 +104,15 @@ void UdpCommunicator::onReadyRead()
 
         QByteArray payload;
         uint8_t sourceId = static_cast<uint8_t>(datagram.at(0));
-        if (sourceId !=0x3e)
+        // Голый пакет SimpleBGC без ID устройства: v1 (0x3E) и v2 (0x24).
+        if (sourceId == 0x3E || sourceId == 0x24)
         {
-             payload = datagram.mid(1,datagram.size()-1);
+            sourceId = 0xff;
+            payload = datagram;
         }
         else
         {
-            sourceId = 0xff;
-            payload = datagram.mid(0,datagram.size());
+            payload = datagram.mid(1);
         }
 
         // Update last receive time for this source
