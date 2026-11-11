@@ -104,7 +104,8 @@ void UdpCommunicator::onReadyRead()
 
         QByteArray payload;
         uint8_t sourceId = static_cast<uint8_t>(datagram.at(0));
-        // Голый пакет SimpleBGC без ID устройства: v1 (0x3E) и v2 (0x24).
+        // Голый пакет SimpleBGC без ID: v1 (0x3E) и v2 (0x24).
+        // Версия передачи задаётся SBGC_USE_PROTOCOL_V2 в simplebgc_protocol.h.
         if (sourceId == 0x3E || sourceId == 0x24)
         {
             sourceId = 0xff;

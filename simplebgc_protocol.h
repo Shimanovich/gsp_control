@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <QByteArray>
 
-// SimpleBGC 32-bit Protocol Version 2
-// Full packet format after target_id:
-// $ | CMD | SIZE | HeaderChecksum | Payload | CRC16
+// 0 — протокол v1 (старт 0x3E, сумма payload). Рабочий вариант.
+// 1 — протокол v2 (старт 0x24, CRC16). После первого v2 плата блокирует v1.
+#define SBGC_USE_PROTOCOL_V2 0
 
 namespace SimpleBGC {
 
@@ -175,17 +175,16 @@ namespace SimpleBGC {
     }
 
     /**
-     * @brief SimpleBGC protocol v2 packet
-     * $ (0x24) + CMD + SIZE + HCS + payload + CRC16
-     * HCS = (CMD + SIZE) % 256
-     * CRC16 (poly 0x8005, init 0) over all bytes except the start byte,
-     * little-endian. Matches Appendix A of SimpleBGC32 Serial API.
+     * v1: 0x3E + CMD + SIZE + HCS + payload + sum(payload)
+     * v2: 0x24 + CMD + SIZE + HCS + payload + CRC16
+     * Версия выбирается SBGC_USE_PROTOCOL_V2.
      */
     inline QByteArray buildPacket(uint8_t cmd, const QByteArray& payload = QByteArray())
     {
         const uint8_t size = static_cast<uint8_t>(payload.size());
         const uint8_t headerChecksum = static_cast<uint8_t>(cmd + size);
 
+#if SBGC_USE_PROTOCOL_V2
         QByteArray packet;
         packet.append(static_cast<char>(START_BYTE_V2));
         packet.append(static_cast<char>(cmd));
@@ -201,6 +200,20 @@ namespace SimpleBGC {
         packet.append(static_cast<char>(crc[0]));
         packet.append(static_cast<char>(crc[1]));
         return packet;
+#else
+        QByteArray packet;
+        packet.append(static_cast<char>(START_BYTE_V1));
+        packet.append(static_cast<char>(cmd));
+        packet.append(static_cast<char>(size));
+        packet.append(static_cast<char>(headerChecksum));
+        if (!payload.isEmpty()) {
+            packet.append(payload);
+            packet.append(static_cast<char>(sumBytesFromSecond(payload)));
+        } else {
+            packet.append(static_cast<char>(0));
+        }
+        return packet;
+#endif
     }
 
 
