@@ -475,6 +475,8 @@ void MainWindow::sendJoystickSpeed()
 
     float keyYaw   = m_keyboard ? m_keyboard->getAxisYaw()   : 0.0f;
     float keyPitch = m_keyboard ? m_keyboard->getAxisPitch() : 0.0f;
+    if (ui->checkInvertPitch && ui->checkInvertPitch->isChecked())
+        keyPitch = -keyPitch;
 
     const float zoomK = qMax(1.0f, m_zoomMagnification);
     float yaw   = (joyYaw   + keyYaw)   * m_speedMultiplier / zoomK;
