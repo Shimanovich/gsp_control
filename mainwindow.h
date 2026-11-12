@@ -9,6 +9,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <QEvent>
+class QLabel;
 #include <queue>
 #include <mutex>
 
@@ -113,6 +114,7 @@ private:
     GyroController* m_gyro = nullptr;
     RangefinderController* m_rangefinder = nullptr;
     JetsonController* m_jetson = nullptr;
+    QLabel* m_jetsonHwLabel = nullptr;
 
     QString m_configPath = "config.ini";
 

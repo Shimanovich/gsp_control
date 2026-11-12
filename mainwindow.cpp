@@ -27,6 +27,9 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    m_jetsonHwLabel = new QLabel(QStringLiteral("Jetson: —"), this);
+    m_jetsonHwLabel->setMinimumWidth(220);
+    ui->statusBar->addPermanentWidget(m_jetsonHwLabel);
 
     m_udp = new UdpCommunicator(this);
     m_joystick = new JoystickManager(this);
@@ -122,6 +125,7 @@ void MainWindow::setupControllers()
     connect(m_keyboard, &KeyboardManager::buttonPressed,        this, &MainWindow::onKeyBoardButtonPressed);
     connect(m_keyboard, &KeyboardManager::buttonReleased,       this, &MainWindow::onKeyBoardButtonReleased);
     connect(m_jetson, &JetsonController::mdplStatus,            this, &MainWindow::onMdplStatus);
+    connect(m_jetson, &JetsonController::hwStatusUpdated,       this, &MainWindow::onJetsonHwStatus);
     connect(m_jetson, &JetsonController::opticalZoomUpdated,    this, &MainWindow::onZoomPositionUpdated);
     connect(m_jetson, &JetsonController::captAck,               this, &MainWindow::onCaptAck);
     connect(m_jetson, &JetsonController::captStateUpdated,      this, &MainWindow::onCaptStateUpdated);
@@ -1734,14 +1738,15 @@ void MainWindow::onJetsonHwStatus(const JetsonHwStatus& st)
             return QString("%1 КБ").arg(n / 1024.0, 0, 'f', 0);
         return QString("%1 Б").arg(n);
     };
-    ui->statusBar->showMessage(
-        QString("Jetson: CPU %1 %   CPU %2 °C   GPU %3 °C   RAM своб. %4   flash своб. %5")
+    const QString text = QString("Jetson: CPU %1%   CPU %2 °C   GPU %3 °C   RAM %4   flash %5")
             .arg(st.cpuUse, 0, 'f', 1)
             .arg(st.tempCpu, 0, 'f', 1)
             .arg(st.tempGpu, 0, 'f', 1)
             .arg(fmtBytes(st.freeRam))
-            .arg(fmtBytes(st.freeFlash)),
-        0);
+            .arg(fmtBytes(st.freeFlash));
+    if (m_jetsonHwLabel)
+        m_jetsonHwLabel->setText(text);
+    ui->statusBar->showMessage(text, 0);
 }
 
 void MainWindow::onCaptAck(const QString& stat)

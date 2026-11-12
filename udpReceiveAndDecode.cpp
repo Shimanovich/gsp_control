@@ -87,6 +87,7 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     m_winHeight    = param->imageHeight;
     m_winWidth     = param->imageWidth;
     m_recudpport   = static_cast<uint16_t>(param->udpport);
+    m_frameTimeoutMs = param->udptimeout > 0 ? param->udptimeout : 40;
     m_phframeMutex = param->phframeMutex;
 
     strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
@@ -188,6 +189,7 @@ void udpDec::resetRtpState()
     m_haveSeq = false;
     m_lastSeq = 0;
     m_waitIdr = false;
+    m_auTiming = false;
     m_seiCapValid = false;
     m_seiCapW = 0;
     m_seiCapH = 0;
@@ -197,6 +199,23 @@ void udpDec::dropCurrentAu()
 {
     m_au.clear();
     m_fuActive = false;
+    m_auTiming = false;
+}
+
+bool udpDec::auTimedOut() const
+{
+    if (!m_auTiming || m_frameTimeoutMs <= 0)
+        return false;
+    const auto elapsed = std::chrono::steady_clock::now() - m_auStart;
+    return elapsed > std::chrono::milliseconds(m_frameTimeoutMs);
+}
+
+void udpDec::noteAuPacket()
+{
+    if (!m_auTiming) {
+        m_auStart = std::chrono::steady_clock::now();
+        m_auTiming = true;
+    }
 }
 
 bool udpDec::openInput()
@@ -427,6 +446,13 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     m_rtpTs = ts;
     m_haveTs = true;
 
+    if (auTimedOut()) {
+        dropCurrentAu();
+        m_waitIdr = true;
+        return true;
+    }
+    noteAuPacket();
+
     const uint8_t nalType = payload[0] & 0x1F;
 
     if (nalType == 28) {
@@ -486,6 +512,7 @@ void udpDec::finishAccessUnit()
     m_havePendingAu = true;
     m_au.clear();
     m_fuActive = false;
+    m_auTiming = false;
 }
 
 bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
@@ -675,6 +702,10 @@ void udpDec::decodeLoop()
         }
 
         const int got = drainSocket();
+        if (auTimedOut()) {
+            dropCurrentAu();
+            m_waitIdr = true;
+        }
         if (m_havePendingAu) {
             // Только последний собранный AU — как очередь в 1 кадр.
             decodeAccessUnit(m_pendingAu.data(), static_cast<int>(m_pendingAu.size()));

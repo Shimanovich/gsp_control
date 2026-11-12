@@ -17,6 +17,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -113,6 +114,9 @@ private:
     uint16_t            m_lastSeq = 0;
     bool                m_haveSeq = false;
     bool                m_waitIdr = false;
+    int                 m_frameTimeoutMs = 40;
+    bool                m_auTiming = false;
+    std::chrono::steady_clock::time_point m_auStart{};
 
     void decodeLoop();
     bool openInput();
@@ -126,6 +130,8 @@ private:
     bool emitDecodedFrames();
     void resetRtpState();
     void dropCurrentAu();
+    bool auTimedOut() const;
+    void noteAuPacket();
     void tryParseSeiTime(const uint8_t* data, int size);
     static int decodeInterruptCb(void* opaque);
 
