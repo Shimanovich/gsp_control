@@ -25,6 +25,7 @@ public:
     // Get normalized axis values (-1.0 .. 1.0)
     float getAxisYaw();
     float getAxisPitch();
+    void getHat(int& dx, int& dy);   // экран: dx -1..1 вправо, dy -1..1 вниз
 
     bool invertPitch() const { return m_invertPitch; }
     void setInvertPitch(bool invert) { m_invertPitch = invert; }

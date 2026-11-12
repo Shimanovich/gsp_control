@@ -104,6 +104,19 @@ float JoystickManager::getAxisPitch()
     return m_invertPitch ? -value : value;
 }
 
+void JoystickManager::getHat(int& dx, int& dy)
+{
+    dx = 0;
+    dy = 0;
+    if (!m_joystick || SDL_JoystickNumHats(m_joystick) < 1)
+        return;
+    const Uint8 hat = SDL_JoystickGetHat(m_joystick, 0);
+    if (hat & SDL_HAT_RIGHT) dx = 1;
+    else if (hat & SDL_HAT_LEFT) dx = -1;
+    if (hat & SDL_HAT_DOWN) dy = 1;
+    else if (hat & SDL_HAT_UP) dy = -1;
+}
+
 void JoystickManager::openJoystick(int index)
 {
     closeJoystick();

@@ -173,6 +173,7 @@ private:
     bool                    m_lockModeWhileTracking = true;
     bool                    m_convergeUi = false;
     bool                    m_convergeJoy = false;
+    bool                    m_jetsonZoomActive = false;
     bool                    m_gyroCalibPending = false;
 
     bool                    m_selActive = false;
@@ -217,6 +218,7 @@ private:
     void sendTrackCommand(int trackCmd);
     void sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, int strobH);
     void sendConvergeStep();
+    void sendHatNudge();
     bool labelToFrame(const QPoint& labelPos, int& frameX, int& frameY) const;
     void startTrackFromSelection();
 

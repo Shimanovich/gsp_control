@@ -310,17 +310,23 @@ void MainWindow::onJoystickButtonPressed(int button)
         return;
     }
     if (button == m_btnZoomIn) {
-        if (m_seiStrobeValid && m_jetson)
+        if (m_seiStrobeValid && m_jetson) {
+            m_jetsonZoomActive = true;
             m_jetson->sendZoomIn();
-        else
+        } else {
+            m_jetsonZoomActive = false;
             m_camera->zoomIn();
+        }
         return;
     }
     if (button == m_btnZoomOut) {
-        if (m_seiStrobeValid && m_jetson)
+        if (m_seiStrobeValid && m_jetson) {
+            m_jetsonZoomActive = true;
             m_jetson->sendZoomOut();
-        else
+        } else {
+            m_jetsonZoomActive = false;
             m_camera->zoomOut();
+        }
         return;
     }
     if (button == m_btnZoomNext) {
@@ -368,12 +374,13 @@ void MainWindow::onJoystickButtonReleased(int button)
     if (button == m_btnConverge)
         m_convergeJoy = false;
     if (button == m_btnZoomIn || button == m_btnZoomOut) {
-        if (m_seiStrobeValid && m_jetson) {
+        if (m_jetsonZoomActive && m_jetson) {
             m_jetson->sendZoomStop();
             m_jetson->sendZoomPos();
         } else if (m_camera) {
             m_camera->zoomStop();
         }
+        m_jetsonZoomActive = false;
     }
 }
 
@@ -1189,6 +1196,8 @@ void MainWindow::onVideoTimer()
         m_seiStrobeY = capY;
         if (m_convergeUi || m_convergeJoy)
             sendConvergeStep();
+        else
+            sendHatNudge();
     }
 
     img = img.mirrored(true, true);
@@ -1675,6 +1684,23 @@ void MainWindow::sendConvergeStep()
 
     const int x = toward(m_seiStrobeX, centerX);
     const int y = toward(m_seiStrobeY, centerY);
+    m_jetson->sendStrobePos(x, y);
+}
+
+void MainWindow::sendHatNudge()
+{
+    if (!m_seiStrobeValid || !m_jetson || !m_joystick || m_lastFrameW <= 0 || m_lastFrameH <= 0)
+        return;
+
+    int dx = 0, dy = 0;
+    m_joystick->getHat(dx, dy);
+    if (dx == 0 && dy == 0)
+        return;
+
+    // Кадр на экране отражён по обеим осям: экранное «вправо/вниз» — это минус в кадре.
+    const int step = qMax(1, int(m_speedMultiplier)) / 2;
+    const int x = qBound(0, m_seiStrobeX - dx * step, m_lastFrameW - 1);
+    const int y = qBound(0, m_seiStrobeY - dy * step, m_lastFrameH - 1);
     m_jetson->sendStrobePos(x, y);
 }
 
