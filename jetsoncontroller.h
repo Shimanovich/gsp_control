@@ -78,10 +78,7 @@ public:
     bool sendZoomOut();
     bool sendZoomStop();
     bool sendZoomPos();
-    bool sendTvFps25();
-    bool sendTvFps30();
-    bool sendTvPwrReset();
-    bool sendTvGetFps();
+
 
 signals:
     void mdplStatus(const QString& stat);

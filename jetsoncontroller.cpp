@@ -312,10 +312,7 @@ bool JetsonController::sendZoomIn()     { return sendMdplCommand("zoom_in"); }
 bool JetsonController::sendZoomOut()    { return sendMdplCommand("zoom_out"); }
 bool JetsonController::sendZoomStop()   { return sendMdplCommand("zoom_stop"); }
 bool JetsonController::sendZoomPos()    { return sendMdplCommand("zoom_pos"); }
-bool JetsonController::sendTvFps25()    { return sendMdplCommand("tv_fps25"); }
-bool JetsonController::sendTvFps30()    { return sendMdplCommand("tv_fps30"); }
-bool JetsonController::sendTvPwrReset() { return sendMdplCommand("tv_pwr_reset"); }
-bool JetsonController::sendTvGetFps()   { return sendMdplCommand("tv_get_fps"); }
+
 
 void JetsonController::onPollHwStatus()
 {
