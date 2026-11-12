@@ -1697,10 +1697,10 @@ void MainWindow::sendHatNudge()
     if (dx == 0 && dy == 0)
         return;
 
-    // Кадр на экране отражён по обеим осям: экранное «вправо/вниз» — это минус в кадре.
+    // Направления HAT инвертированы относительно экранных осей.
     const int step = qMax(1, int(m_speedMultiplier)) / 2;
-    const int x = qBound(0, m_seiStrobeX - dx * step, m_lastFrameW - 1);
-    const int y = qBound(0, m_seiStrobeY - dy * step, m_lastFrameH - 1);
+    const int x = qBound(0, m_seiStrobeX + dx * step, m_lastFrameW - 1);
+    const int y = qBound(0, m_seiStrobeY + dy * step, m_lastFrameH - 1);
     m_jetson->sendStrobePos(x, y);
 }
 
