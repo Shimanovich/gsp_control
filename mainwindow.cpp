@@ -122,7 +122,7 @@ void MainWindow::setupControllers()
     connect(m_keyboard, &KeyboardManager::buttonPressed,        this, &MainWindow::onKeyBoardButtonPressed);
     connect(m_keyboard, &KeyboardManager::buttonReleased,       this, &MainWindow::onKeyBoardButtonReleased);
     connect(m_jetson, &JetsonController::mdplStatus,            this, &MainWindow::onMdplStatus);
-    connect(m_jetson, &JetsonController::hwStatusUpdated,       this, &MainWindow::onJetsonHwStatus);
+    connect(m_jetson, &JetsonController::opticalZoomUpdated,    this, &MainWindow::onZoomPositionUpdated);
     connect(m_jetson, &JetsonController::captAck,               this, &MainWindow::onCaptAck);
     connect(m_jetson, &JetsonController::captStateUpdated,      this, &MainWindow::onCaptStateUpdated);
     connect(m_jetson, &JetsonController::errorOccurred,         this, [this](const QString& e) {
@@ -198,6 +198,7 @@ void MainWindow::loadAllSettings()
     }
     m_drawStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
     m_drawStrobeH = s.value("Tracking/strobe_y_sz", 64).toInt();
+    m_lockModeWhileTracking = s.value("Tracking/lock_mode_while_tracking", true).toBool();
 
     applyJetsonUiDefaults();
 }
@@ -293,6 +294,10 @@ void MainWindow::onJoystickButtonPressed(int button)
         return;
     }
     if (button == m_btnHeading) {
+        if (m_lockModeWhileTracking && m_seiStrobeValid) {
+            ui->statusBar->showMessage(QStringLiteral("ГСП: смена режима заблокирована, идёт слежение"), 2000);
+            return;
+        }
         toggleHeadingSpeedMode();
         return;
     }
@@ -305,18 +310,32 @@ void MainWindow::onJoystickButtonPressed(int button)
         return;
     }
     if (button == m_btnZoomIn) {
-        m_camera->zoomIn();
+        if (m_seiStrobeValid && m_jetson)
+            m_jetson->sendZoomIn();
+        else
+            m_camera->zoomIn();
         return;
     }
     if (button == m_btnZoomOut) {
-        m_camera->zoomOut();
+        if (m_seiStrobeValid && m_jetson)
+            m_jetson->sendZoomOut();
+        else
+            m_camera->zoomOut();
         return;
     }
     if (button == m_btnZoomNext) {
+        if (m_seiStrobeValid) {
+            ui->statusBar->showMessage(QStringLiteral("Слежение: зум только +/- через Jetson"), 2000);
+            return;
+        }
         m_camera->setZoomPosition_next();
         return;
     }
     if (button == m_btnZoomPrev) {
+        if (m_seiStrobeValid) {
+            ui->statusBar->showMessage(QStringLiteral("Слежение: зум только +/- через Jetson"), 2000);
+            return;
+        }
         m_camera->setZoomPosition_prev();
         return;
     }
@@ -348,8 +367,14 @@ void MainWindow::onJoystickButtonReleased(int button)
 {
     if (button == m_btnConverge)
         m_convergeJoy = false;
-    if (button == m_btnZoomIn || button == m_btnZoomOut)
-        m_camera->zoomStop();
+    if (button == m_btnZoomIn || button == m_btnZoomOut) {
+        if (m_seiStrobeValid && m_jetson) {
+            m_jetson->sendZoomStop();
+            m_jetson->sendZoomPos();
+        } else if (m_camera) {
+            m_camera->zoomStop();
+        }
+    }
 }
 
 
@@ -452,6 +477,8 @@ bool MainWindow::tryJoystickSpeedOverride()
     const float joyYaw = m_joystick->getAxisYaw();
     const float joyPitch = m_joystick->getAxisPitch();
     if (qAbs(joyYaw) <= 0.5f && qAbs(joyPitch) <= 0.5f)
+        return false;
+    if (m_lockModeWhileTracking && m_seiStrobeValid)
         return false;
 
     if (ui->radioSpeedMode)
@@ -731,7 +758,13 @@ void MainWindow::onZoomPositionUpdated(float magnification)
 
 void MainWindow::onZoomSliderReleased()
 {
-    if (!m_camera || !ui->sliderZoom)
+    if (!ui->sliderZoom)
+        return;
+    if (m_seiStrobeValid) {
+        ui->statusBar->showMessage(QStringLiteral("Слежение: позиция зума задаётся через Jetson"), 2000);
+        return;
+    }
+    if (!m_camera)
         return;
     m_camera->setZoomDirect(uint16_t(ui->sliderZoom->value()));
 }
@@ -781,12 +814,20 @@ void MainWindow::on_btnFocusInf_clicked()
 
 void MainWindow::on_zoom_prev_clicked()
 {
+    if (m_seiStrobeValid) {
+        ui->statusBar->showMessage(QStringLiteral("Слежение: зум только +/- через Jetson"), 2000);
+        return;
+    }
     m_camera->setZoomPosition_prev();
 }
 
 
 void MainWindow::on_zoom_next_clicked()
 {
+    if (m_seiStrobeValid) {
+        ui->statusBar->showMessage(QStringLiteral("Слежение: зум только +/- через Jetson"), 2000);
+        return;
+    }
     m_camera->setZoomPosition_next();
 }
 
@@ -1142,10 +1183,10 @@ void MainWindow::onVideoTimer()
     const int capY = static_cast<int>(frame.crop_top);
     const int capW = static_cast<int>(frame.crop_right);
     const int capH = static_cast<int>(frame.crop_bottom);
+    m_seiStrobeValid = hasStrobe;
     if (hasStrobe) {
         m_seiStrobeX = capX;
         m_seiStrobeY = capY;
-        m_seiStrobeValid = true;
         if (m_convergeUi || m_convergeJoy)
             sendConvergeStep();
     }
@@ -1435,14 +1476,26 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
                 ui->statusBar->showMessage(QStringLiteral("Захват сброшен"), 2000);
                 return true;
             }
-        } else if (event->type() == QEvent::MouseMove && m_selActive) {
+        } else if (event->type() == QEvent::MouseMove) {
             auto* me = static_cast<QMouseEvent*>(event);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-            m_selCurrent = me->position().toPoint();
+            const QPoint pos = me->position().toPoint();
 #else
-            m_selCurrent = me->pos();
+            const QPoint pos = me->pos();
 #endif
-            return true;
+            int fx = 0, fy = 0;
+            if (ui->labelCursorPos) {
+                if (labelToFrame(pos, fx, fy))
+                    ui->labelCursorPos->setText(QStringLiteral("курсор: %1, %2").arg(fx).arg(fy));
+                else
+                    ui->labelCursorPos->setText(QStringLiteral("курсор: —"));
+            }
+            if (m_selActive)
+                m_selCurrent = pos;
+            return m_selActive;
+        } else if (event->type() == QEvent::Leave) {
+            if (ui->labelCursorPos)
+                ui->labelCursorPos->setText(QStringLiteral("курсор: —"));
         } else if (event->type() == QEvent::MouseButtonRelease && m_selActive) {
             auto* me = static_cast<QMouseEvent*>(event);
             if (me->button() == Qt::LeftButton) {

@@ -302,6 +302,21 @@ bool JetsonController::sendHwStatus()
     return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
 }
 
+bool JetsonController::sendMdplCommand(const char* command)
+{
+    const QByteArray json = QByteArray("{\"command\":\"") + command + "\"}";
+    return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
+}
+
+bool JetsonController::sendZoomIn()     { return sendMdplCommand("zoom_in"); }
+bool JetsonController::sendZoomOut()    { return sendMdplCommand("zoom_out"); }
+bool JetsonController::sendZoomStop()   { return sendMdplCommand("zoom_stop"); }
+bool JetsonController::sendZoomPos()    { return sendMdplCommand("zoom_pos"); }
+bool JetsonController::sendTvFps25()    { return sendMdplCommand("tv_fps25"); }
+bool JetsonController::sendTvFps30()    { return sendMdplCommand("tv_fps30"); }
+bool JetsonController::sendTvPwrReset() { return sendMdplCommand("tv_pwr_reset"); }
+bool JetsonController::sendTvGetFps()   { return sendMdplCommand("tv_get_fps"); }
+
 void JetsonController::onPollHwStatus()
 {
     if (m_started)
@@ -340,6 +355,13 @@ void JetsonController::handlePacket(const QByteArray& packet)
     const QString stat = obj.value(QStringLiteral("stat")).toString();
 
     if (unpacked.first == JEP_HD::MDPL) {
+        if (stat == QLatin1String("zoom_pos")) {
+            const double mag = obj.value(QStringLiteral("data")).toDouble();
+            if (mag > 0.0)
+                emit opticalZoomUpdated(mag);
+            emit mdplStatus(stat.isEmpty() ? QStringLiteral("zoom_pos") : stat);
+            return;
+        }
         if (stat == QLatin1String("status")
                 || obj.contains(QStringLiteral("temp_cpu"))
                 || obj.contains(QStringLiteral("temp_gpu"))) {

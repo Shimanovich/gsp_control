@@ -170,6 +170,7 @@ private:
     int                     m_seiStrobeX = 0;
     int                     m_seiStrobeY = 0;
     bool                    m_seiStrobeValid = false;
+    bool                    m_lockModeWhileTracking = true;
     bool                    m_convergeUi = false;
     bool                    m_convergeJoy = false;
     bool                    m_gyroCalibPending = false;

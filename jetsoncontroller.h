@@ -74,10 +74,19 @@ public:
     bool sendPidSet();
     bool sendGetSet();
     bool sendHwStatus();
+    bool sendZoomIn();
+    bool sendZoomOut();
+    bool sendZoomStop();
+    bool sendZoomPos();
+    bool sendTvFps25();
+    bool sendTvFps30();
+    bool sendTvPwrReset();
+    bool sendTvGetFps();
 
 signals:
     void mdplStatus(const QString& stat);
     void hwStatusUpdated(const JetsonHwStatus& st);
+    void opticalZoomUpdated(double magnification);
     void captAck(const QString& stat);
     void captStateUpdated(CaptState state);
     void errorOccurred(const QString& error);
@@ -90,6 +99,7 @@ private slots:
 
 private:
     bool sendPacket(const QByteArray& packet);
+    bool sendMdplCommand(const char* command);
     void handlePacket(const QByteArray& packet);
     QString detectLocalIp() const;
     QByteArray pidInvJsonFields() const;

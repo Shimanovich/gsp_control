@@ -65,6 +65,10 @@ QString KeyboardManager::helpText() const
                  .arg(QKeySequence(m_keyPitchDown).toString(QKeySequence::NativeText));
     lines << QString();
     lines << QStringLiteral("Клавиатура активна после «Подключить».");
+    lines << QString();
+    lines << QStringLiteral("Лазерный дальномер:");
+    lines << QStringLiteral("Минимальное рабочее расстояние — 100 м");
+    lines << QStringLiteral("(слепая зона, протокол дальномера на эрбиевом стекле).");
     return lines.join('\n');
 }
 

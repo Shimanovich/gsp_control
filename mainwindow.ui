@@ -670,6 +670,16 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
          </layout>
         </item>
         <item>
+         <widget class="QLabel" name="labelCursorPos">
+          <property name="text">
+           <string>курсор: —</string>
+          </property>
+          <property name="toolTip">
+           <string>Координаты курсора в системе координат входящего кадра</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QGroupBox" name="groupJetson">
           <property name="maximumWidth">
            <number>270</number>
