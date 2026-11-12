@@ -88,6 +88,7 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     m_winWidth     = param->imageWidth;
     m_recudpport   = static_cast<uint16_t>(param->udpport);
     m_frameTimeoutMs = param->udptimeout > 0 ? param->udptimeout : 40;
+    m_socketTimeoutMs = param->socketTimeoutMs > 0 ? param->socketTimeoutMs : 5;
     m_phframeMutex = param->phframeMutex;
 
     strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
@@ -253,13 +254,13 @@ bool udpDec::openInput()
                reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf));
 
 #ifdef _WIN32
-    DWORD to = 5;
+    DWORD to = static_cast<DWORD>(m_socketTimeoutMs);
     setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO,
                reinterpret_cast<const char*>(&to), sizeof(to));
 #else
     timeval tv{};
-    tv.tv_sec = 0;
-    tv.tv_usec = 5000;
+    tv.tv_sec = m_socketTimeoutMs / 1000;
+    tv.tv_usec = (m_socketTimeoutMs % 1000) * 1000;
     setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 #endif
 

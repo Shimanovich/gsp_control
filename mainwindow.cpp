@@ -148,6 +148,7 @@ void MainWindow::loadAllSettings()
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
+    m_socketTimeoutMs = s.value("Video/socket_timeout_ms", 5).toInt();
     m_videoBindAddress = s.value("Video/bind_address", QStringLiteral("192.168.144.1")).toString();
     m_btnZoomIn = s.value("Joystick/button_zoom_in", 9).toInt();
     m_btnZoomOut = s.value("Joystick/button_zoom_out", 7).toInt();
@@ -912,6 +913,7 @@ void MainWindow::setupVideo()
     udpDec::PlayerInitStructure p{};
     p.udpport        = m_videoPort;
     p.udptimeout     = m_videoTimeoutMs;
+    p.socketTimeoutMs = m_socketTimeoutMs;
     {
         const QByteArray ba = m_videoBindAddress.toLatin1();
         strncpy(p.bindAddress, ba.constData(), sizeof(p.bindAddress) - 1);
@@ -1746,7 +1748,6 @@ void MainWindow::onJetsonHwStatus(const JetsonHwStatus& st)
             .arg(fmtBytes(st.freeFlash));
     if (m_jetsonHwLabel)
         m_jetsonHwLabel->setText(text);
-    ui->statusBar->showMessage(text, 0);
 }
 
 void MainWindow::onCaptAck(const QString& stat)

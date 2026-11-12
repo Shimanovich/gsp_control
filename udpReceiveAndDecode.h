@@ -45,6 +45,7 @@ public:
     struct PlayerInitStructure {
         int  udpport      = 5000;
         int  udptimeout   = 50;
+        int  socketTimeoutMs = 5;
         char adapterName[64] = {0};
         char bindAddress[64] = {0};     // как udpsrc address=, пусто = 0.0.0.0
         int  imageWidth   = 0;
@@ -115,6 +116,7 @@ private:
     bool                m_haveSeq = false;
     bool                m_waitIdr = false;
     int                 m_frameTimeoutMs = 40;
+    int                 m_socketTimeoutMs = 5;
     bool                m_auTiming = false;
     std::chrono::steady_clock::time_point m_auStart{};
 
