@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <map>
+#include <queue>
+#include <condition_variable>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -46,6 +49,7 @@ public:
         int  udpport      = 5000;
         int  udptimeout   = 50;
         int  socketTimeoutMs = 5;
+        int  jitterMs = 120;
         char adapterName[64] = {0};
         char bindAddress[64] = {0};     // как udpsrc address=, пусто = 0.0.0.0
         int  imageWidth   = 0;
@@ -93,6 +97,10 @@ private:
     std::atomic<bool> m_opened{false};
 
     std::thread m_decodeThread;
+    std::thread m_recvThread;
+    std::mutex  m_pktMutex;
+    std::condition_variable m_pktCv;
+    std::queue<std::vector<uint8_t>> m_pktQueue;
     std::mutex  m_openMutex;
 
     AVCodecContext*     codec_ctx   = nullptr;
@@ -115,16 +123,25 @@ private:
     uint16_t            m_lastSeq = 0;
     bool                m_haveSeq = false;
     bool                m_waitIdr = false;
+    bool                m_haveParams = false;
+    std::vector<uint8_t> m_sps;
+    std::vector<uint8_t> m_pps;
     int                 m_frameTimeoutMs = 40;
     int                 m_socketTimeoutMs = 5;
+    int                 m_jitterMs = 120;
+    std::map<uint16_t, std::vector<uint8_t>> m_reorder;
+    std::map<uint16_t, std::chrono::steady_clock::time_point> m_reorderAt;
     bool                m_auTiming = false;
     std::chrono::steady_clock::time_point m_auStart{};
 
     void decodeLoop();
+    void recvLoop();
     bool openInput();
     void closeInput();
     void closeInputUnlocked();
     int  drainSocket();
+    void enqueueRtp(const uint8_t* data, int size);
+    void flushReorder();
     bool handleRtpPacket(const uint8_t* data, int size);
     bool appendNal(const uint8_t* nal, int size);
     void finishAccessUnit();

@@ -89,6 +89,7 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     m_recudpport   = static_cast<uint16_t>(param->udpport);
     m_frameTimeoutMs = param->udptimeout > 0 ? param->udptimeout : 40;
     m_socketTimeoutMs = param->socketTimeoutMs > 0 ? param->socketTimeoutMs : 5;
+    m_jitterMs = param->jitterMs > 0 ? param->jitterMs : 120;
     m_phframeMutex = param->phframeMutex;
 
     strncpy(m_adapterName, param->adapterName, sizeof(m_adapterName) - 1);
@@ -117,6 +118,7 @@ udpDec::udpDec(PlayerInitStructure* param, QObject* parent)
     }
 
     m_decodeThread = std::thread(&udpDec::decodeLoop, this);
+    m_recvThread = std::thread(&udpDec::recvLoop, this);
     qDebug() << "udpDec: constructed (RTP depay mode, bind"
              << m_bindAddress << "port" << m_recudpport << ")";
 }
@@ -152,6 +154,9 @@ void udpDec::stopThread()
 {
     m_enable = false;
     m_active = false;
+    m_pktCv.notify_all();
+    if (m_recvThread.joinable())
+        m_recvThread.join();
     if (m_decodeThread.joinable())
         m_decodeThread.join();
     closeInput();
@@ -189,7 +194,17 @@ void udpDec::resetRtpState()
     m_fuActive = false;
     m_haveSeq = false;
     m_lastSeq = 0;
+    m_reorder.clear();
+    m_reorderAt.clear();
+    {
+        std::lock_guard<std::mutex> lock(m_pktMutex);
+        std::queue<std::vector<uint8_t>> empty;
+        m_pktQueue.swap(empty);
+    }
     m_waitIdr = false;
+    m_haveParams = false;
+    m_sps.clear();
+    m_pps.clear();
     m_auTiming = false;
     m_seiCapValid = false;
     m_seiCapW = 0;
@@ -428,6 +443,15 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     if (pt != 96)
         return false;
 
+    if (m_haveSeq) {
+        const uint16_t expected = static_cast<uint16_t>(m_lastSeq + 1);
+        if (seq != expected) {
+            // Дырка или перестановка: кадр неполный, в декодер не отдаём.
+            // Иначе получается серый кадр и дальше только IDR.
+            dropCurrentAu();
+            m_waitIdr = true;
+        }
+    }
     m_lastSeq = seq;
     m_haveSeq = true;
 
@@ -515,20 +539,47 @@ bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
     if (m_recorder)
         m_recorder->write(data, size);
 
-    auto hasIdr = [](const uint8_t* p, int n) {
-        for (int i = 0; i + 4 < n; ++i) {
-            int sc = 0;
-            if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1)
-                sc = 3;
-            else if (i + 4 < n && p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 0 && p[i + 3] == 1)
-                sc = 4;
-            if (sc && (p[i + sc] & 0x1F) == 5)
-                return true;
-        }
-        return false;
+    auto nalTypeAt = [](const uint8_t* p, int i, int n) -> int {
+        int sc = 0;
+        if (i + 3 < n && p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1)
+            sc = 3;
+        else if (i + 4 < n && p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 0 && p[i + 3] == 1)
+            sc = 4;
+        if (!sc)
+            return -1;
+        return p[i + sc] & 0x1F;
     };
 
-    if (m_waitIdr && !hasIdr(data, size))
+    bool hasSps = false, hasPps = false, hasIdr = false;
+    for (int i = 0; i + 4 < size; ++i) {
+        const int t = nalTypeAt(data, i, size);
+        if (t == 7) hasSps = true;
+        else if (t == 8) hasPps = true;
+        else if (t == 5) hasIdr = true;
+    }
+
+    if (hasSps || hasPps) {
+        for (int i = 0; i + 4 < size; ) {
+            const int t = nalTypeAt(data, i, size);
+            if (t < 0) { ++i; continue; }
+            int sc = (data[i + 2] == 1) ? 3 : 4;
+            int j = i + sc + 1;
+            while (j + 3 < size && !(data[j] == 0 && data[j + 1] == 0 && (data[j + 2] == 1 || (data[j + 2] == 0 && j + 3 < size && data[j + 3] == 1))))
+                ++j;
+            if (t == 7)
+                m_sps.assign(data + i, data + j);
+            else if (t == 8)
+                m_pps.assign(data + i, data + j);
+            i = j;
+        }
+        if (!m_sps.empty() && !m_pps.empty())
+            m_haveParams = true;
+    }
+
+    if (!m_haveParams)
+        return false;
+
+    if (m_waitIdr && !hasIdr)
         return false;
 
     if (m_waitIdr) {
@@ -536,10 +587,22 @@ bool udpDec::decodeAccessUnit(const uint8_t* data, int size)
         m_waitIdr = false;
     }
 
+    std::vector<uint8_t> feed;
+    const uint8_t* feedData = data;
+    int feedSize = size;
+    if (!hasSps && !hasPps && !m_sps.empty() && !m_pps.empty()) {
+        feed.reserve(m_sps.size() + m_pps.size() + static_cast<size_t>(size));
+        feed.insert(feed.end(), m_sps.begin(), m_sps.end());
+        feed.insert(feed.end(), m_pps.begin(), m_pps.end());
+        feed.insert(feed.end(), data, data + size);
+        feedData = feed.data();
+        feedSize = static_cast<int>(feed.size());
+    }
+
     av_packet_unref(packet);
-    if (av_new_packet(packet, size) < 0)
+    if (av_new_packet(packet, feedSize) < 0)
         return false;
-    memcpy(packet->data, data, static_cast<size_t>(size));
+    memcpy(packet->data, feedData, static_cast<size_t>(feedSize));
     packet->pts = AV_NOPTS_VALUE;
     packet->dts = AV_NOPTS_VALUE;
 
@@ -660,18 +723,103 @@ int udpDec::drainSocket()
 
     int got = 0;
     uint8_t buf[kMaxUdp];
-    // Выгребаем пачку RTP до таймаута сокета, не засыпая между пакетами кадра.
     for (;;) {
         const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
         if (n <= 0)
             break;
         m_bytesReceived.fetch_add(static_cast<uint64_t>(n), std::memory_order_relaxed);
-        handleRtpPacket(buf, n);
+        enqueueRtp(buf, n);
         ++got;
         if (got >= 256)
             break;
     }
     return got;
+}
+
+static int seqDiff(uint16_t a, uint16_t b)
+{
+    return static_cast<int16_t>(a - b);
+}
+
+void udpDec::enqueueRtp(const uint8_t* data, int size)
+{
+    if (!data || size < 4)
+        return;
+    const uint16_t seq = static_cast<uint16_t>((data[2] << 8) | data[3]);
+    if (m_reorder.count(seq))
+        return;
+    m_reorder.emplace(seq, std::vector<uint8_t>(data, data + size));
+    m_reorderAt.emplace(seq, std::chrono::steady_clock::now());
+    if (m_reorder.size() > 512) {
+        m_reorder.erase(m_reorder.begin());
+        m_reorderAt.erase(m_reorderAt.begin());
+    }
+}
+
+void udpDec::flushReorder()
+{
+    if (m_reorder.empty())
+        return;
+
+    const auto now = std::chrono::steady_clock::now();
+    const auto hold = std::chrono::milliseconds(m_jitterMs);
+
+    if (!m_haveSeq) {
+        auto it = m_reorder.begin();
+        if (now - m_reorderAt[it->first] < hold && m_reorder.size() < 8)
+            return;
+        handleRtpPacket(it->second.data(), static_cast<int>(it->second.size()));
+        m_reorderAt.erase(it->first);
+        m_reorder.erase(it);
+    }
+
+    while (!m_reorder.empty()) {
+        uint16_t next = static_cast<uint16_t>(m_lastSeq + 1);
+        auto it = m_reorder.find(next);
+        if (it != m_reorder.end()) {
+            handleRtpPacket(it->second.data(), static_cast<int>(it->second.size()));
+            m_reorderAt.erase(it->first);
+            m_reorder.erase(it);
+            continue;
+        }
+        auto oldest = m_reorder.begin();
+        for (auto j = m_reorder.begin(); j != m_reorder.end(); ++j) {
+            if (m_reorderAt[j->first] < m_reorderAt[oldest->first])
+                oldest = j;
+        }
+        if (now - m_reorderAt[oldest->first] < hold)
+            break;
+        if (seqDiff(oldest->first, next) > 0) {
+            dropCurrentAu();
+            m_waitIdr = true;
+            m_lastSeq = static_cast<uint16_t>(oldest->first - 1);
+            m_haveSeq = true;
+        }
+        handleRtpPacket(oldest->second.data(), static_cast<int>(oldest->second.size()));
+        m_reorderAt.erase(oldest->first);
+        m_reorder.erase(oldest);
+    }
+}
+
+void udpDec::recvLoop()
+{
+    uint8_t buf[kMaxUdp];
+    while (m_active.load()) {
+        if (!m_enable.load() || !m_opened.load() || !sockValid(m_sock)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+        const int n = recvfrom(m_sock, reinterpret_cast<char*>(buf), kMaxUdp, 0, nullptr, nullptr);
+        if (n <= 0)
+            continue;
+        m_bytesReceived.fetch_add(static_cast<uint64_t>(n), std::memory_order_relaxed);
+        {
+            std::lock_guard<std::mutex> lock(m_pktMutex);
+            if (m_pktQueue.size() < 2048)
+                m_pktQueue.emplace(buf, buf + n);
+        }
+        m_pktCv.notify_one();
+    }
 }
 
 void udpDec::decodeLoop()
@@ -688,9 +836,20 @@ void udpDec::decodeLoop()
             continue;
         }
 
-        const int got = drainSocket();
+        int got = 0;
+        {
+            std::unique_lock<std::mutex> lock(m_pktMutex);
+            m_pktCv.wait_for(lock, std::chrono::milliseconds(m_socketTimeoutMs > 0 ? m_socketTimeoutMs : 5), [this] {
+                return !m_pktQueue.empty() || !m_active.load();
+            });
+            while (!m_pktQueue.empty() && got < 256) {
+                enqueueRtp(m_pktQueue.front().data(), static_cast<int>(m_pktQueue.front().size()));
+                m_pktQueue.pop();
+                ++got;
+            }
+        }
+        flushReorder();
         if (m_havePendingAu) {
-            // Только последний собранный AU — как очередь в 1 кадр.
             decodeAccessUnit(m_pendingAu.data(), static_cast<int>(m_pendingAu.size()));
             m_pendingAu.clear();
             m_havePendingAu = false;

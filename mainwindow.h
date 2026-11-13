@@ -159,6 +159,7 @@ private:
     int                     m_videoPort = 5004;
     int                     m_videoTimeoutMs = 40;
     int                     m_socketTimeoutMs = 5;
+    int                     m_jitterMs = 150;
     QString                 m_videoBindAddress;
 
     CaptState               m_captState;
