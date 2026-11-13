@@ -428,15 +428,6 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     if (pt != 96)
         return false;
 
-    if (m_haveSeq) {
-        const uint16_t expected = static_cast<uint16_t>(m_lastSeq + 1);
-        if (seq != expected) {
-            // Дырка в RTP: недособранный FU нельзя доклеивать.
-            // Декодер после потери кадра застревает на старом frame_num — ждём IDR.
-            dropCurrentAu();
-            m_waitIdr = true;
-        }
-    }
     m_lastSeq = seq;
     m_haveSeq = true;
 
@@ -447,11 +438,6 @@ bool udpDec::handleRtpPacket(const uint8_t* data, int size)
     m_rtpTs = ts;
     m_haveTs = true;
 
-    if (auTimedOut()) {
-        dropCurrentAu();
-        m_waitIdr = true;
-        return true;
-    }
     noteAuPacket();
 
     const uint8_t nalType = payload[0] & 0x1F;
@@ -703,10 +689,6 @@ void udpDec::decodeLoop()
         }
 
         const int got = drainSocket();
-        if (auTimedOut()) {
-            dropCurrentAu();
-            m_waitIdr = true;
-        }
         if (m_havePendingAu) {
             // Только последний собранный AU — как очередь в 1 кадр.
             decodeAccessUnit(m_pendingAu.data(), static_cast<int>(m_pendingAu.size()));
