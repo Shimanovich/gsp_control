@@ -1213,7 +1213,7 @@ void MainWindow::onVideoTimer()
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
         Qt::KeepAspectRatio,
-        Qt::FastTransformation);
+        Qt::SmoothTransformation);
 
     {
         QPainter painter(&pix);
