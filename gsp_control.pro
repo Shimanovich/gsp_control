@@ -82,7 +82,8 @@ SOURCES += \
     udpReceiveAndDecode.cpp \
     videorecorder.cpp \
     jepprotocol.cpp \
-    jetsoncontroller.cpp
+    jetsoncontroller.cpp \
+    mocstatusdialog.cpp
 
 HEADERS += \
     gsp_control_global.h \
@@ -97,7 +98,8 @@ HEADERS += \
     udpReceiveAndDecode.h \
     videorecorder.h \
     jepprotocol.h \
-    jetsoncontroller.h
+    jetsoncontroller.h \
+    mocstatusdialog.h
 
 FORMS += \
     mainwindow.ui

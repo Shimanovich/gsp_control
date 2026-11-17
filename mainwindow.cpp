@@ -73,6 +73,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnConverge, &QPushButton::pressed, this, &MainWindow::onConvergePressed);
     connect(ui->btnConverge, &QPushButton::released, this, &MainWindow::onConvergeReleased);
     connect(ui->btnPidSettings, &QPushButton::clicked, this, &MainWindow::onPidSettingsClicked);
+    connect(ui->btnMocStatus, &QPushButton::clicked, this, &MainWindow::onMocStatusClicked);
 
     // Status labels
     ui->labelGyroStatus->setText("Отключено");
@@ -88,6 +89,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupVideo();
     onVideoStartClicked();
+
+    // МОС status polling (every 5 s)
+    m_mocPollTimer = new QTimer(this);
+    m_mocPollTimer->setInterval(5000);
+    connect(m_mocPollTimer, &QTimer::timeout, this, &MainWindow::onMocPoll);
+    connect(m_udp, &UdpCommunicator::packetReceived, this, &MainWindow::onMocPacket);
+    // Start polling after connect; we start it in onConnectClicked / when connected
 
     ui->videoLabel->installEventFilter(this);
     ui->videoLabel->setMouseTracking(true);
@@ -229,6 +237,9 @@ void MainWindow::onConnectClicked()
         }
         ui->btnConnect->setEnabled(false);
         ui->btnDisconnect->setEnabled(true);
+
+        if (m_mocPollTimer)
+            m_mocPollTimer->start();
 
         // Apply current mode after connection
         QTimer::singleShot(100, this, &MainWindow::updateControlMode);
@@ -419,6 +430,9 @@ void MainWindow::onDisconnectClicked()
     if (m_camera) m_camera->stopZoomPolling();
     if (m_keyboard) m_keyboard->uninstall();
     if (m_jetson) m_jetson->stop();
+
+    if (m_mocPollTimer)
+        m_mocPollTimer->stop();
 
     ui->btnConnect->setEnabled(true);
     ui->btnDisconnect->setEnabled(false);
@@ -1772,6 +1786,37 @@ void MainWindow::onCaptStateUpdated(CaptState state)
                 .arg(state.strobYSz));
         ui->labelTrackStatus->setStyleSheet("color: orange;");
     }
+}
+
+void MainWindow::onMocStatusClicked()
+{
+    if (!m_mocDialog) {
+        m_mocDialog = new MocStatusDialog(this);
+        m_mocDialog->setAttribute(Qt::WA_DeleteOnClose, false);
+    }
+    m_mocDialog->show();
+    m_mocDialog->raise();
+    m_mocDialog->activateWindow();
+    // Immediate request so the window is not empty
+    onMocPoll();
+}
+
+void MainWindow::onMocPoll()
+{
+    if (!m_udp || !m_udp->isConnected())
+        return;
+    // Poll all telemetry sources every 5 s (WR=0 / simple read)
+    // 15 МОЭ(Г), 21 ПУПэ(Д), 22 Тн(Е), 23 Тт(Ж), 24 Твт(З),
+    // 31 ПУПс(И), 32 Тнтвт(К), 33 МОС(Л)
+    const QList<uint8_t> addresses = {15, 21, 22, 23, 24, 31, 32, 33};
+    for (uint8_t addr : addresses)
+        m_udp->sendPacket(addr, QByteArray(1, static_cast<char>(0x00)));
+}
+
+void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)
+{
+    if (m_mocDialog && m_mocDialog->isVisible())
+        m_mocDialog->updateFromPayload(sourceId, payload);
 }
 
 

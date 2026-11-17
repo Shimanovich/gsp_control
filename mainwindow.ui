@@ -102,6 +102,16 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="btnMocStatus">
+             <property name="text">
+              <string>ТМ</string>
+             </property>
+             <property name="toolTip">
+              <string>Телеметрия (Приложения Г–Л)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QLabel" name="labelGyroStatus">
              <property name="text">
               <string>Гиро: Отключено</string>

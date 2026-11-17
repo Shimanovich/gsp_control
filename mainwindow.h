@@ -22,6 +22,7 @@ class QLabel;
 #include "videorecorder.h"
 #include "keyboardmanager.h"
 #include "jetsoncontroller.h"
+#include "mocstatusdialog.h"
 
 
 class QSettings;
@@ -98,6 +99,10 @@ private slots:
     void onCaptAck(const QString& stat);
     void onCaptStateUpdated(CaptState state);
 
+    void onMocStatusClicked();
+    void onMocPoll();
+    void onMocPacket(uint8_t sourceId, const QByteArray& payload);
+
     void on_spinSpeedMultiplier_valueChanged(int value);
     void on_checkInvertPitch_toggled(bool checked);
 
@@ -115,6 +120,11 @@ private:
     RangefinderController* m_rangefinder = nullptr;
     JetsonController* m_jetson = nullptr;
     QLabel* m_jetsonHwLabel = nullptr;
+
+    // МОС status (Приложение Л)
+    MocStatusDialog* m_mocDialog = nullptr;
+    QTimer* m_mocPollTimer = nullptr;
+    static constexpr uint8_t kMocAddress = 33;
 
     QString m_configPath = "config.ini";
 
