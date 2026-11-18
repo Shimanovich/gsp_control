@@ -151,6 +151,8 @@ MainWindow::MainWindow(QWidget *parent)
                     this, &MainWindow::onTpvContrastChanged);
         if (ui->btnTpvShutter)
             connect(ui->btnTpvShutter, &QPushButton::clicked, this, &MainWindow::onTpvShutterClicked);
+        if (ui->btnTpvCmd0103)
+            connect(ui->btnTpvCmd0103, &QPushButton::clicked, this, &MainWindow::onTpvCmd0103Clicked);
     }
 
     // Video buttons
@@ -2326,7 +2328,7 @@ void MainWindow::onMocPoll()
     // Как в рабочем варианте: [адрес][0x00], обёртку ставит мост.
     const QList<uint8_t> addresses = {15, 21, 22, 23, 24, 31, 32, 33};
     for (uint8_t addr : addresses)
-        m_udp->sendPacket(addr, QByteArray(1, static_cast<char>(0x00)));
+        m_udp->sendPacket(addr, QByteArray(4, static_cast<char>(0x00)));
 }
 
 void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)
@@ -2394,6 +2396,11 @@ void MainWindow::onTpvContrastChanged(int value)
 {
     if (m_thermal) m_thermal->setContrast(value);
 }
+void MainWindow::onTpvCmd0103Clicked()
+{
+    if (m_thermal) m_thermal->sendCmd0103();
+}
+
 void MainWindow::onTpvShutterClicked()
 {
     if (m_thermal) m_thermal->shutterCompensation();

@@ -964,6 +964,12 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
                <property name="toolTip"><string>Шторная компенсация (NUC)</string></property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="btnTpvCmd0103">
+               <property name="text"><string>Команда</string></property>
+               <property name="toolTip"><string>55 AA 07 02 01 03 00 00 00 00 07 F0</string></property>
+              </widget>
+             </item>
 
             </layout>
            </item>

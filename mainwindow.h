@@ -77,6 +77,7 @@ private slots:
     void onTpvBrightChanged(int value);
     void onTpvContrastChanged(int value);
     void onTpvShutterClicked();
+    void onTpvCmd0103Clicked();
     void onFocalTempUpdated(double celsius);
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();

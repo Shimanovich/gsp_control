@@ -119,6 +119,21 @@ void ThermalController::setContrast(int level)
     send(body);
 }
 
+void ThermalController::sendCmd0103()
+{
+    // 55 AA 07 02 01 03 00 00 00 00 07 F0
+    QByteArray body;
+    body.append(char(0x07));
+    body.append(char(0x02));
+    body.append(char(0x01));
+    body.append(char(0x03));
+    body.append(char(0x00));
+    body.append(char(0x00));
+    body.append(char(0x00));
+    body.append(char(0x00));
+    send(body);
+}
+
 void ThermalController::shutterCompensation()
 {
     // 55 AA 07 02 01 08 00 00 00 01 0D F0
