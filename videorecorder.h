@@ -14,7 +14,7 @@ public:
     VideoRecorder() = default;
     ~VideoRecorder();
 
-    bool start(const QString& baseDir);
+    bool start(const QString& baseDir, const QString& channelPrefix = QString());
     void stop();
     bool isRecording() const;
 
@@ -31,6 +31,7 @@ private:
     mutable QMutex m_mutex;
     QString m_baseDir;
     QString m_sessionStamp;
+    QString m_channelPrefix;
     QString m_dirPath;
     QFile   m_file;
     qint64  m_fileBytes = 0;

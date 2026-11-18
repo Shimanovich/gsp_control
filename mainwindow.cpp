@@ -10,6 +10,8 @@
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QPainter>
 #include <QMouseEvent>
 #include <QEvent>
@@ -18,8 +20,11 @@
 #include <QDoubleSpinBox>
 #include <QDialogButtonBox>
 #include <QCheckBox>
+#include <QScrollArea>
+#include <QFrame>
 #include <QVBoxLayout>
 #include <cstring>
+#include <utility>
 #include <climits>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -27,6 +32,66 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    // Левая панель управления — со скроллом, если не влезает по высоте.
+    // Виджеты переносим по имени: перенос layout item уничтожал содержимое.
+    {
+        auto* scroll = new QScrollArea(this);
+        scroll->setObjectName("leftScroll");
+        scroll->setWidgetResizable(true);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setMaximumWidth(300);
+        scroll->setMinimumWidth(250);
+        scroll->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+        auto* host = new QWidget;
+        auto* hostLay = new QVBoxLayout(host);
+        hostLay->setContentsMargins(2, 2, 2, 2);
+        hostLay->setSpacing(4);
+
+        const QStringList groups = {
+            "groupNetwork", "groupCamera", "groupGyro"
+        };
+        for (const QString& name : groups) {
+            if (auto* w = findChild<QWidget*>(name))
+                hostLay->addWidget(w);
+        }
+
+        // Ряд Старт / Стоп / Запись
+        auto* videoRow = new QHBoxLayout;
+        videoRow->setSpacing(2);
+        if (ui->btnVideoStart) videoRow->addWidget(ui->btnVideoStart);
+        if (ui->btnVideoStop)  videoRow->addWidget(ui->btnVideoStop);
+        if (ui->btnRecord)     videoRow->addWidget(ui->btnRecord);
+        if (ui->labelRecord)   videoRow->addWidget(ui->labelRecord);
+        hostLay->addLayout(videoRow);
+
+        if (auto* cursor = findChild<QWidget*>("labelCursorPos"))
+            hostLay->addWidget(cursor);
+
+        const QStringList rest = {
+            "groupJetson", "groupThermal", "groupTracking"
+        };
+        for (const QString& name : rest) {
+            if (auto* w = findChild<QWidget*>(name))
+                hostLay->addWidget(w);
+        }
+        hostLay->addStretch();
+        scroll->setWidget(host);
+
+        if (auto* h = ui->horizontalLayout_7) {
+            if (h->count() > 0) {
+                QLayoutItem* oldItem = h->takeAt(0);
+                // Старый layout уже пуст по виджетам; удаляем только обёртку
+                if (oldItem && oldItem->layout())
+                    oldItem->layout()->setParent(nullptr);
+                delete oldItem;
+            }
+            h->insertWidget(0, scroll);
+        }
+    }
     m_jetsonHwLabel = new QLabel(QStringLiteral("Jetson: —"), this);
     m_jetsonHwLabel->setMinimumWidth(220);
     ui->statusBar->addPermanentWidget(m_jetsonHwLabel);
@@ -35,6 +100,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_joystick = new JoystickManager(this);
     m_keyboard = new KeyboardManager(this);
     m_camera = new CameraController(m_udp, this);
+    m_thermal = new ThermalController(m_udp, this);
     m_gyro = new GyroController(m_udp, this);
     m_rangefinder = new RangefinderController(m_udp, this);
     m_jetson = new JetsonController(this);
@@ -58,6 +124,35 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnHelp, &QPushButton::clicked, this, &MainWindow::onHelpClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
 
+    // Thermal
+    if (m_thermal) {
+        connect(m_thermal, &ThermalController::focalTempUpdated,
+                this, &MainWindow::onFocalTempUpdated);
+        if (ui->comboTpvPalette)
+            connect(ui->comboTpvPalette, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, &MainWindow::onTpvPaletteChanged);
+        if (ui->comboTpvTone)
+            connect(ui->comboTpvTone, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, &MainWindow::onTpvToneChanged);
+        if (ui->comboTpvMode)
+            connect(ui->comboTpvMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, &MainWindow::onTpvModeChanged);
+        if (ui->spinTpvDenoise)
+            connect(ui->spinTpvDenoise, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &MainWindow::onTpvDenoiseChanged);
+        if (ui->spinTpvDetail)
+            connect(ui->spinTpvDetail, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &MainWindow::onTpvDetailChanged);
+        if (ui->spinTpvBright)
+            connect(ui->spinTpvBright, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &MainWindow::onTpvBrightChanged);
+        if (ui->spinTpvContrast)
+            connect(ui->spinTpvContrast, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &MainWindow::onTpvContrastChanged);
+        if (ui->btnTpvShutter)
+            connect(ui->btnTpvShutter, &QPushButton::clicked, this, &MainWindow::onTpvShutterClicked);
+    }
+
     // Video buttons
     connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
     connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
@@ -65,9 +160,18 @@ MainWindow::MainWindow(QWidget *parent)
     if (ui->sliderZoom)
         connect(ui->sliderZoom, &QSlider::sliderReleased, this, &MainWindow::onZoomSliderReleased);
 
-    connect(ui->btnJetsonPlay, &QPushButton::clicked, this, &MainWindow::onJetsonPlayClicked);
-    connect(ui->btnJetsonStop, &QPushButton::clicked, this, &MainWindow::onJetsonStopClicked);
+    if (ui->btnChannelTv)
+        connect(ui->btnChannelTv, &QPushButton::toggled, this, &MainWindow::onChannelTvToggled);
+    if (ui->btnChannelTpv)
+        connect(ui->btnChannelTpv, &QPushButton::toggled, this, &MainWindow::onChannelTpvToggled);
     connect(ui->btnJetsonSet,  &QPushButton::clicked, this, &MainWindow::onJetsonSetClicked);
+    if (ui->btnDisplayChannel)
+        connect(ui->btnDisplayChannel, &QPushButton::clicked, this, &MainWindow::onDisplayChannelClicked);
+    if (ui->checkSecondChannel)
+        connect(ui->checkSecondChannel, &QCheckBox::toggled, this, &MainWindow::onSecondChannelToggled);
+    if (ui->comboCtrlChannel)
+        connect(ui->comboCtrlChannel, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &MainWindow::onCtrlChannelChanged);
     connect(ui->btnTrackStart, &QPushButton::clicked, this, &MainWindow::onTrackStartClicked);
     connect(ui->btnTrackStop,  &QPushButton::clicked, this, &MainWindow::onTrackStopClicked);
     connect(ui->btnConverge, &QPushButton::pressed, this, &MainWindow::onConvergePressed);
@@ -97,6 +201,30 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_udp, &UdpCommunicator::packetReceived, this, &MainWindow::onMocPacket);
     // Start polling after connect; we start it in onConnectClicked / when connected
 
+    // Thermal combos (без отправки команд при заполнении)
+    if (ui->comboTpvPalette) {
+        QSignalBlocker b1(ui->comboTpvPalette);
+        const struct { const char* name; int code; } pals[] = {
+            {"White hot", 0}, {"Black hot", 9}, {"Iron red", 2}, {"Hot iron", 3},
+            {"Rainbow 1", 6}, {"Rainbow 2", 7}, {"Arctic", 5}, {"Medical", 4},
+            {"Tint", 8}, {"Fulgurite", 1}
+        };
+        for (auto& p : pals)
+            ui->comboTpvPalette->addItem(QString::fromUtf8(p.name), p.code);
+    }
+    if (ui->comboTpvTone) {
+        QSignalBlocker b2(ui->comboTpvTone);
+        ui->comboTpvTone->addItem("Warm", 0);
+        ui->comboTpvTone->addItem("Cold", 1);
+        ui->comboTpvTone->addItem("Green hot", 2);
+    }
+    if (ui->comboTpvMode) {
+        QSignalBlocker b3(ui->comboTpvMode);
+        ui->comboTpvMode->addItem("Soft", 0);
+        ui->comboTpvMode->addItem("Standard", 1);
+        ui->comboTpvMode->addItem("Highlight", 3);
+    }
+
     ui->videoLabel->installEventFilter(this);
     ui->videoLabel->setMouseTracking(true);
     ui->videoLabel->setCursor(Qt::CrossCursor);
@@ -109,7 +237,9 @@ MainWindow::~MainWindow()
     if (m_videoTimer)
         disconnect(m_videoTimer, nullptr, this, nullptr);
     stopVideo();
+    stopSecondVideo();
     m_recorder.stop();
+    m_recorderTpv.stop();
     if (m_videoDec) {
         m_videoDec->stopThread();
         delete m_videoDec;
@@ -148,6 +278,7 @@ void MainWindow::loadAllSettings()
     m_udp->loadSettings(m_configPath);
     m_joystick->loadSettings(m_configPath);
     m_camera->loadSettings(m_configPath);
+    if (m_thermal) m_thermal->loadSettings(m_configPath);
     m_gyro->loadSettings(m_configPath);
     m_rangefinder->loadSettings(m_configPath);
     m_keyboard->loadSettings(m_configPath);
@@ -155,6 +286,12 @@ void MainWindow::loadAllSettings()
 
     QSettings s(m_configPath, QSettings::IniFormat);
     m_videoPort = s.value("Video/port", 5004).toInt();
+    m_tvPort = s.value("Video/tv_port", m_videoPort).toInt();
+    m_tpvPort = s.value("Video/tpv_port", 5402).toInt();
+    m_displayChannel = s.value("Jetson/display_channel", "TV").toString().toUpper();
+    if (m_displayChannel != "TPV")
+        m_displayChannel = "TV";
+    m_videoPort = (m_displayChannel == "TPV") ? m_tpvPort : m_tvPort;
     m_videoTimeoutMs = s.value("Video/timeout_ms", 40).toInt();
     m_socketTimeoutMs = s.value("Video/socket_timeout_ms", 5).toInt();
     m_jitterMs = s.value("Video/jitter_ms", 150).toInt();
@@ -174,6 +311,7 @@ void MainWindow::loadAllSettings()
     m_btnHeading = s.value("Joystick/button_heading", 11).toInt();
     m_btnSpeedUp = s.value("Joystick/button_speed_up", 13).toInt();
     m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
+    m_btnChannelSwitch = s.value("Joystick/button_channel_switch", 0).toInt();
     loadHeadingAnglesFromConfig(s);
     m_angleAzMin = s.value("Gyro/angle_az_min", -180.0).toFloat();
     m_angleAzMax = s.value("Gyro/angle_az_max", 180.0).toFloat();
@@ -227,6 +365,7 @@ void MainWindow::onConnectClicked()
         this->setFocus();
 
         m_gyro->startAnglePolling();
+        if (m_thermal) m_thermal->startPolling();
 
         m_camera->startZoomPolling();
         if (m_jetson && !m_jetson->isStarted()) {
@@ -308,6 +447,10 @@ void MainWindow::onJoystickButtonPressed(int button)
     }
     if (button == m_btnConverge) {
         m_convergeJoy = true;
+        return;
+    }
+    if (button == m_btnChannelSwitch && m_btnChannelSwitch > 0) {
+        onDisplayChannelClicked();
         return;
     }
     if (button == m_btnHeading) {
@@ -427,6 +570,7 @@ void MainWindow::onDisconnectClicked()
     if (m_udp) m_udp->stop();
     if (m_joystick) m_joystick->shutdown();
     if (m_gyro) m_gyro->stopAnglePolling();
+    if (m_thermal) m_thermal->stopPolling();
     if (m_camera) m_camera->stopZoomPolling();
     if (m_keyboard) m_keyboard->uninstall();
     if (m_jetson) m_jetson->stop();
@@ -940,6 +1084,9 @@ void MainWindow::setupVideo()
     p.pFrameOutQueue = &m_frameQueue;
     p.phframeMutex   = &m_frameMutex;
 
+    m_decPort = m_videoPort;
+    m_dispQueue = &m_frameQueue;
+    m_dispMutex = &m_frameMutex;
     m_videoDec = new udpDec(&p, this);
     m_videoDec->setRecorder(&m_recorder);
     connect(m_videoDec, &udpDec::incomingResolutionChanged,
@@ -977,7 +1124,9 @@ void MainWindow::onVideoStartClicked()
     m_rateTimer.start();
     m_lastBytes = m_videoDec->bytesReceived();
     m_videoTimer->start(8);
-    ui->labelVideoStatus->setText("Работает");
+    setupSecondVideo();
+    attachRecorders();
+    ui->labelVideoStatus->setText(QString("Работает (%1)").arg(m_displayChannel));
     ui->labelVideoStatus->setStyleSheet("color: green;");
     if (ui->labelVideoFps) {
         ui->labelVideoFps->clear();
@@ -995,39 +1144,42 @@ void MainWindow::onVideoStopClicked()
 
 void MainWindow::onRecordToggled(bool checked)
 {
+    const QString base = QCoreApplication::applicationDirPath() + "/recordings";
     if (checked) {
-        const QString base = QCoreApplication::applicationDirPath() + "/recordings";
-        if (!m_recorder.start(base)) {
+        const bool okTv  = m_recorder.start(base, QStringLiteral("TV"));
+        const bool okTpv = m_recorderTpv.start(base, QStringLiteral("TPV"));
+        if (!okTv && !okTpv) {
             QSignalBlocker blocker(ui->btnRecord);
             ui->btnRecord->setChecked(false);
-            ui->labelRecord->setText("Ошибка записи");
-            ui->labelRecord->setStyleSheet("color: red;");
+            if (ui->labelRecord) {
+                ui->labelRecord->setText(QStringLiteral("!"));
+                ui->labelRecord->setStyleSheet("color: red; font-weight: bold;");
+            }
             QMessageBox::warning(this, "Запись",
                                  "Не удалось создать каталог или файл записи.");
             return;
         }
         ui->btnRecord->setText("Стоп запись");
-        ui->labelRecord->setText(m_recorder.currentFileName());
-        ui->labelRecord->setStyleSheet("color: red;");
-        ui->labelRecord->setToolTip(m_recorder.currentFilePath());
+        if (ui->labelRecord) {
+            ui->labelRecord->setText(QStringLiteral("●"));
+            ui->labelRecord->setStyleSheet("color: red; font-weight: bold; font-size: 16px;");
+            ui->labelRecord->setToolTip(QStringLiteral("Запись TV и TPV"));
+        }
+        attachRecorders();
     } else {
         m_recorder.stop();
+        m_recorderTpv.stop();
         ui->btnRecord->setText("Запись");
-        ui->labelRecord->setText("не записывается");
-        ui->labelRecord->setStyleSheet("color: gray;");
-        ui->labelRecord->setToolTip(QString());
+        if (ui->labelRecord) {
+            ui->labelRecord->setText(QString());
+            ui->labelRecord->setStyleSheet("");
+            ui->labelRecord->setToolTip(QString());
+        }
     }
 }
 
 void MainWindow::updateVideoRate()
 {
-    if (ui->labelRecord && m_recorder.isRecording()) {
-        const QString name = m_recorder.currentFileName();
-        if (ui->labelRecord->text() != name)
-            ui->labelRecord->setText(name);
-        ui->labelRecord->setToolTip(m_recorder.currentFilePath());
-    }
-
     if (!ui->labelVideoRate || !m_videoDec)
         return;
     const uint64_t nowBytes = m_videoDec->bytesReceived();
@@ -1038,6 +1190,9 @@ void MainWindow::updateVideoRate()
     m_currentKbps = (delta * 8.0 / 1000.0) * 1000.0 / static_cast<double>(elapsed);
     m_lastBytes = nowBytes;
     m_rateTimer.restart();
+    if (m_displayChannel == "TPV") m_tpvKbps = m_currentKbps;
+    else m_tvKbps = m_currentKbps;
+    updateChannelStatsLabels();
 
     if (m_currentKbps < 4.0) {
         ui->labelVideoRate->setText("0 Мбит/с");
@@ -1052,6 +1207,7 @@ void MainWindow::stopVideo()
 {
     if (m_videoTimer)
         m_videoTimer->stop();
+    stopSecondVideo();
     if (m_videoDec)
         m_videoDec->off();
 
@@ -1124,6 +1280,8 @@ void MainWindow::noteIncomingFrames(int count)
     if (elapsedMs < 500)
         return;
     m_currentFps = m_fpsFrameCount * 1000.0 / static_cast<double>(elapsedMs);
+    if (m_displayChannel == "TPV") m_tpvFps = m_currentFps;
+    else m_tvFps = m_currentFps;
     m_fpsValid = true;
     m_fpsFrameCount = 0;
     m_fpsTimer.restart();
@@ -1166,12 +1324,17 @@ void MainWindow::onIncomingResolutionChanged(int width, int height)
         return;
     m_dispResW = width;
     m_dispResH = height;
+    if (m_displayChannel == "TPV") { m_tpvResW = width; m_tpvResH = height; }
+    else { m_tvResW = width; m_tvResH = height; }
     updateVideoStatusLabel();
+    updateChannelStatsLabels();
 }
 
 void MainWindow::onVideoTimer()
 {
     updateVideoRate();
+    updateChannelRates();
+    updateSecondFrame();
 
     AVFrame frame{};
     bool hasFrame = false;
@@ -1179,10 +1342,11 @@ void MainWindow::onVideoTimer()
 
     // ЗАМЕНА: используем std::lock_guard вместо WaitForSingleObject/ReleaseMutex
     {
-        std::lock_guard<std::mutex> lock(m_frameMutex);
-        while (!m_frameQueue.empty()) {
-            AVFrame next = m_frameQueue.front();
-            m_frameQueue.pop();
+        if (!m_dispQueue || !m_dispMutex) return;
+        std::lock_guard<std::mutex> lock(*m_dispMutex);
+        while (!m_dispQueue->empty()) {
+            AVFrame next = m_dispQueue->front();
+            m_dispQueue->pop();
             ++incomingCount;
             if (hasFrame && frame.data[0])
                 av_free(frame.data[0]);
@@ -1222,7 +1386,10 @@ void MainWindow::onVideoTimer()
             sendHatNudge();
     }
 
-    img = img.mirrored(true, true);
+    // TV: поворот 180° (как раньше). TPV: без зеркала — получается переворот на 180° относительно TV.
+    const bool flip180 = (m_displayChannel != "TPV");
+    if (flip180)
+        img = img.mirrored(true, true);
 
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
@@ -1301,9 +1468,10 @@ void MainWindow::drawCaptureStrobe(QPainter& painter, const QSize& pixSize,
     strobeW = qBound(1, strobeW, frameW);
     strobeH = qBound(1, strobeH, frameH);
 
-    // То же mirrored(true, true), что и у кадра: поворот 180°.
-    const int srcX = frameW - 1 - capX;
-    const int srcY = frameH - 1 - capY;
+    // Согласовано с отображением кадра.
+    const bool flip180 = (m_displayChannel != "TPV");
+    const int srcX = flip180 ? (frameW - 1 - capX) : capX;
+    const int srcY = flip180 ? (frameH - 1 - capY) : capY;
 
     const double sx = double(pixSize.width())  / double(frameW);
     const double sy = double(pixSize.height()) / double(frameH);
@@ -1385,6 +1553,13 @@ void MainWindow::applyJetsonUiDefaults()
     ui->comboTrackCmd->setCurrentIndex(cmdIdx >= 0 ? cmdIdx : 1);
 
     ui->labelJetsonStatus->setText("JEP: ожидание");
+    if (ui->btnDisplayChannel)
+        ui->btnDisplayChannel->setText(QString("Показ: %1").arg(m_displayChannel));
+    if (ui->comboCtrlChannel) {
+        const int idx = ui->comboCtrlChannel->findText(m_displayChannel);
+        if (idx >= 0)
+            ui->comboCtrlChannel->setCurrentIndex(idx);
+    }
     ui->labelTrackStatus->setText("Трек: выкл");
 }
 
@@ -1408,7 +1583,12 @@ void MainWindow::sendTrackAt(int trackCmd, int strobX, int strobY, int strobW, i
         return;
     }
 
-    const int channel = ui->comboVideoChannel->currentData().toInt();
+    // Слежение доступно только для видимого канала (TV)
+    if (m_displayChannel == "TPV" && trackCmd != 0) {
+        ui->statusBar->showMessage(QStringLiteral("Слежение доступно только для канала TV"), 2000);
+        return;
+    }
+    const int channel = 1; // всегда TV для CAPT
     strobW = qMax(8, strobW);
     strobH = qMax(8, strobH);
     if (trackCmd != 0) {
@@ -1443,11 +1623,14 @@ bool MainWindow::labelToFrame(const QPoint& labelPos, int& frameX, int& frameY) 
     if (px < 0 || py < 0 || px >= m_dispPixW || py >= m_dispPixH)
         return false;
 
-    // Пиксель отображаемого (уже mirrored) кадра -> исходный кадр.
+    // Пиксель отображаемого кадра -> исходный кадр (с учётом поворота канала).
     const int dispX = int((px + 0.5) * m_lastFrameW / m_dispPixW);
     const int dispY = int((py + 0.5) * m_lastFrameH / m_dispPixH);
-    frameX = qBound(0, m_lastFrameW - 1 - dispX, m_lastFrameW - 1);
-    frameY = qBound(0, m_lastFrameH - 1 - dispY, m_lastFrameH - 1);
+    const bool flip180 = (m_displayChannel != "TPV");
+    frameX = flip180 ? qBound(0, m_lastFrameW - 1 - dispX, m_lastFrameW - 1)
+                     : qBound(0, dispX, m_lastFrameW - 1);
+    frameY = flip180 ? qBound(0, m_lastFrameH - 1 - dispY, m_lastFrameH - 1)
+                     : qBound(0, dispY, m_lastFrameH - 1);
     return true;
 }
 
@@ -1544,40 +1727,58 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
     return QMainWindow::eventFilter(obj, event);
 }
 
-void MainWindow::onJetsonPlayClicked()
+void MainWindow::onChannelTvToggled(bool checked)
+{
+    startStopChannel(QStringLiteral("TV"), checked);
+}
+
+void MainWindow::onChannelTpvToggled(bool checked)
+{
+    startStopChannel(QStringLiteral("TPV"), checked);
+}
+
+void MainWindow::startStopChannel(const QString& channel, bool start)
 {
     if (!m_jetson) return;
     if (!m_jetson->isStarted() && !m_jetson->start()) {
         QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
+        // revert button
+        QPushButton* btn = (channel == "TPV") ? ui->btnChannelTpv : ui->btnChannelTv;
+        if (btn) { QSignalBlocker b(btn); btn->setChecked(false); }
         return;
     }
 
     const QString ip = m_jetson->playIp();
-    const int port = m_jetson->playPort() != 0 ? m_jetson->playPort() : m_videoPort;
-    if (!m_jetson->sendPlay(ip, port)) {
-        ui->labelJetsonStatus->setText("JEP: ошибка запуска");
-        ui->labelJetsonStatus->setStyleSheet("color: red;");
-        return;
-    }
-    ui->labelJetsonStatus->setText(QString("JEP: поток %1:%2").arg(ip).arg(port));
-    ui->labelJetsonStatus->setStyleSheet("color: orange;");
+    const int port = (channel == "TPV") ? m_jetson->tpvPlayPort() : m_jetson->tvPlayPort();
+    QPushButton* btn = (channel == "TPV") ? ui->btnChannelTpv : ui->btnChannelTv;
 
-    if (ui->btnVideoStart->isEnabled())
-        onVideoStartClicked();
-}
-
-void MainWindow::onJetsonStopClicked()
-{
-    if (!m_jetson) return;
-    if (!m_jetson->isStarted() && !m_jetson->start())
-        return;
-    if (!m_jetson->sendStop()) {
-        ui->labelJetsonStatus->setText("JEP: ошибка остановки");
-        ui->labelJetsonStatus->setStyleSheet("color: red;");
-        return;
+    if (start) {
+        if (!m_jetson->sendPlay(ip, port, channel)) {
+            ui->labelJetsonStatus->setText(QString("JEP: ошибка запуска %1").arg(channel));
+            ui->labelJetsonStatus->setStyleSheet("color: red;");
+            if (btn) { QSignalBlocker b(btn); btn->setChecked(false); }
+            return;
+        }
+        if (channel == "TV") m_tvStreamActive = true;
+        else m_tpvStreamActive = true;
+        if (btn) btn->setStyleSheet("background-color: #2ecc71; color: white;");
+        ui->labelJetsonStatus->setText(QString("JEP: %1 → %2:%3").arg(channel).arg(ip).arg(port));
+        ui->labelJetsonStatus->setStyleSheet("color: orange;");
+        if (channel == m_displayChannel && ui->btnVideoStart && ui->btnVideoStart->isEnabled())
+            onVideoStartClicked();
+    } else {
+        if (!m_jetson->sendStop(channel)) {
+            ui->labelJetsonStatus->setText(QString("JEP: ошибка остановки %1").arg(channel));
+            ui->labelJetsonStatus->setStyleSheet("color: red;");
+            return;
+        }
+        if (channel == "TV") { m_tvStreamActive = false; m_tvFps = 0; m_tvKbps = 0; }
+        else { m_tpvStreamActive = false; m_tpvFps = 0; m_tpvKbps = 0; }
+        if (btn) btn->setStyleSheet("");
+        ui->labelJetsonStatus->setText(QString("JEP: стоп %1").arg(channel));
+        ui->labelJetsonStatus->setStyleSheet("color: orange;");
     }
-    ui->labelJetsonStatus->setText("JEP: стоп отправлен");
-    ui->labelJetsonStatus->setStyleSheet("color: orange;");
+    updateChannelStatsLabels();
 }
 
 void MainWindow::onJetsonSetClicked()
@@ -1587,17 +1788,334 @@ void MainWindow::onJetsonSetClicked()
         QMessageBox::warning(this, "Jetson", "Не удалось открыть JEP UDP");
         return;
     }
+    const QString channel = ui->comboCtrlChannel ? ui->comboCtrlChannel->currentText() : QStringLiteral("TV");
     const int bitrate = ui->comboBitrate->currentData().toInt();
-    const QString res = ui->comboResolut->currentText();
-    if (!m_jetson->sendSet(bitrate, res)) {
+    QString res = ui->comboResolut->currentText();
+    if (channel == "TPV")
+        res = QStringLiteral("SD1"); // тепловизор только SD1 640x512
+    if (!m_jetson->sendSet(bitrate, res, channel)) {
         ui->labelJetsonStatus->setText("JEP: ошибка установки");
         ui->labelJetsonStatus->setStyleSheet("color: red;");
         return;
     }
-    ui->labelJetsonStatus->setText(QString("JEP: установлено %1 %2").arg(res).arg(bitrate));
+    ui->labelJetsonStatus->setText(QString("JEP: %1 %2 %3").arg(channel).arg(res).arg(bitrate));
     ui->labelJetsonStatus->setStyleSheet("color: orange;");
 }
 
+void MainWindow::onCtrlChannelChanged(int /*index*/)
+{
+    const QString channel = ui->comboCtrlChannel ? ui->comboCtrlChannel->currentText() : QStringLiteral("TV");
+    const bool isTpv = (channel == "TPV");
+
+    // TPV: только SD1. TV: SD1 недоступен.
+    if (ui->comboResolut) {
+        const int sd1 = ui->comboResolut->findText("SD1");
+        if (isTpv) {
+            if (sd1 < 0)
+                ui->comboResolut->addItem("SD1");
+            ui->comboResolut->setCurrentText("SD1");
+            ui->comboResolut->setEnabled(false);
+        } else {
+            if (sd1 >= 0)
+                ui->comboResolut->removeItem(sd1);
+            ui->comboResolut->setEnabled(true);
+            if (ui->comboResolut->currentText() == "SD1" || ui->comboResolut->currentIndex() < 0)
+                ui->comboResolut->setCurrentText("HD");
+        }
+    }
+
+    // Restore saved bitrate for the channel
+    if (m_jetson && ui->comboBitrate) {
+        const int targetBps = isTpv ? m_jetson->tpvBitrate() : m_jetson->tvBitrate();
+        int bestIdx = 0;
+        int bestDiff = INT_MAX;
+        for (int i = 0; i < ui->comboBitrate->count(); ++i) {
+            const int bps = ui->comboBitrate->itemData(i).toInt();
+            const int diff = qAbs(bps - targetBps);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestIdx = i;
+            }
+        }
+        ui->comboBitrate->setCurrentIndex(bestIdx);
+    }
+}
+
+void MainWindow::onDisplayChannelClicked()
+{
+    // Не пересоздаём декодеры: сокеты остаются на своих портах.
+    // Меняем только, какой поток считается основным (отображаемым).
+    // Пересоздание на лету давало гонку bind — один из каналов оставался чёрным.
+    m_displayChannel = (m_displayChannel == "TV") ? "TPV" : "TV";
+    if (ui->btnDisplayChannel)
+        ui->btnDisplayChannel->setText(QString("Показ: %1").arg(m_displayChannel));
+
+    if (m_videoDec && m_videoDec2 && m_dispQueue && m_otherQueue) {
+        std::swap(m_videoDec, m_videoDec2);
+        std::swap(m_decPort, m_dec2Port);
+        std::swap(m_dispQueue, m_otherQueue);
+        std::swap(m_dispMutex, m_otherMutex);
+        m_videoPort = m_decPort;
+    } else {
+        // Декодеры ещё не подняты — просто сменим порт приёма к следующему старту
+        m_videoPort = (m_displayChannel == "TPV") ? m_tpvPort : m_tvPort;
+    }
+
+    // Сигнал разрешения должен идти от отображаемого декодера
+    if (m_videoDec2)
+        disconnect(m_videoDec2, &udpDec::incomingResolutionChanged, this, nullptr);
+    if (m_videoDec) {
+        disconnect(m_videoDec, &udpDec::incomingResolutionChanged, this, nullptr);
+        connect(m_videoDec, &udpDec::incomingResolutionChanged,
+                this, &MainWindow::onIncomingResolutionChanged,
+                Qt::QueuedConnection);
+    }
+
+    attachRecorders();
+
+    if (m_secondWindow && m_secondWindow->isVisible()) {
+        const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+        m_secondWindow->setWindowTitle(QString("Второй канал: %1").arg(other));
+    }
+
+    ui->statusBar->showMessage(
+        QString("Отображение: %1 (порт %2)").arg(m_displayChannel).arg(m_videoPort), 2000);
+}
+
+
+
+void MainWindow::updateChannelStatsLabels()
+{
+    auto fmt = [](bool active, int w, int h, double fps, double kbps) -> QString {
+        if (!active)
+            return QStringLiteral("—");
+        const QString res = (w > 0 && h > 0) ? QString("%1x%2").arg(w).arg(h) : QStringLiteral("?");
+        const QString fpsStr = (fps > 0.1) ? QString("%1 fps").arg(fps, 0, 'f', 1) : QStringLiteral("— fps");
+        const QString brStr = (kbps > 1.0) ? QString("%1 Мбит/с").arg(kbps / 1000.0, 0, 'f', 1) : QStringLiteral("— Мбит/с");
+        return QString("%1  %2  %3").arg(res, fpsStr, brStr);
+    };
+
+    if (ui->labelTvStats) {
+        const QString s = fmt(m_tvStreamActive, m_tvResW, m_tvResH, m_tvFps, m_tvKbps);
+        ui->labelTvStats->setText(QString("TV: %1").arg(s));
+        ui->labelTvStats->setStyleSheet(m_tvStreamActive ? "color: green;" : "color: gray;");
+    }
+    if (ui->labelTpvStats) {
+        const QString s = fmt(m_tpvStreamActive, m_tpvResW, m_tpvResH, m_tpvFps, m_tpvKbps);
+        ui->labelTpvStats->setText(QString("TPV: %1").arg(s));
+        ui->labelTpvStats->setStyleSheet(m_tpvStreamActive ? "color: green;" : "color: gray;");
+    }
+}
+
+
+
+void MainWindow::attachRecorders()
+{
+    // Привязать рекордер к декодеру по порту канала
+    auto bind = [&](udpDec* dec, int port) {
+        if (!dec) return;
+        if (port == m_tvPort)
+            dec->setRecorder(m_recorder.isRecording() ? &m_recorder : nullptr);
+        else if (port == m_tpvPort)
+            dec->setRecorder(m_recorderTpv.isRecording() ? &m_recorderTpv : nullptr);
+    };
+    bind(m_videoDec, m_decPort);
+    bind(m_videoDec2, m_dec2Port);
+}
+
+void MainWindow::updateChannelRates()
+{
+    // Битрейт основного (отображаемого) канала
+    if (m_videoDec) {
+        const uint64_t now = m_videoDec->bytesReceived();
+        if (!m_tvRateTimer.isValid() && m_displayChannel == "TV") m_tvRateTimer.start();
+        if (!m_tpvRateTimer.isValid() && m_displayChannel == "TPV") m_tpvRateTimer.start();
+        QElapsedTimer& timer = (m_displayChannel == "TPV") ? m_tpvRateTimer : m_tvRateTimer;
+        uint64_t& last = (m_displayChannel == "TPV") ? m_tpvLastBytes : m_tvLastBytes;
+        if (timer.isValid() && timer.elapsed() >= 500) {
+            const uint64_t delta = (now >= last) ? (now - last) : now;
+            const double kbps = (delta * 8.0 / 1000.0) * 1000.0 / timer.elapsed();
+            if (m_displayChannel == "TPV") m_tpvKbps = kbps;
+            else m_tvKbps = kbps;
+            last = now;
+            timer.restart();
+        }
+    }
+    // Битрейт второго канала
+    if (m_videoDec2) {
+        const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+        const uint64_t now = m_videoDec2->bytesReceived();
+        QElapsedTimer& timer = (other == "TPV") ? m_tpvRateTimer : m_tvRateTimer;
+        uint64_t& last = (other == "TPV") ? m_tpvLastBytes : m_tvLastBytes;
+        if (!timer.isValid()) timer.start();
+        if (timer.elapsed() >= 500) {
+            const uint64_t delta = (now >= last) ? (now - last) : now;
+            const double kbps = (delta * 8.0 / 1000.0) * 1000.0 / timer.elapsed();
+            if (other == "TPV") m_tpvKbps = kbps;
+            else m_tvKbps = kbps;
+            last = now;
+            timer.restart();
+        }
+    }
+    updateChannelStatsLabels();
+}
+
+void MainWindow::onSecondChannelToggled(bool checked)
+{
+    if (checked) {
+        if (!m_secondWindow) {
+            m_secondWindow = new QDialog(this);
+            m_secondWindow->setWindowTitle(QStringLiteral("Второй канал"));
+            m_secondWindow->setWindowFlags(m_secondWindow->windowFlags()
+                                           & ~Qt::WindowContextHelpButtonHint);
+            m_secondWindow->setMinimumSize(320, 240);
+            m_secondWindow->resize(640, 480);
+            auto* lay = new QVBoxLayout(m_secondWindow);
+            lay->setContentsMargins(0, 0, 0, 0);
+            m_secondLabel = new QLabel(m_secondWindow);
+            m_secondLabel->setAlignment(Qt::AlignCenter);
+            m_secondLabel->setStyleSheet("background-color: black; color: gray;");
+            m_secondLabel->setText(QStringLiteral("Нет сигнала"));
+            m_secondLabel->setScaledContents(false);
+            lay->addWidget(m_secondLabel);
+            // Закрытие окна крестиком снимает чекбокс
+            connect(m_secondWindow, &QDialog::finished, this, [this](int) {
+                if (ui->checkSecondChannel && ui->checkSecondChannel->isChecked()) {
+                    QSignalBlocker b(ui->checkSecondChannel);
+                    ui->checkSecondChannel->setChecked(false);
+                }
+                // Декодер оставляем для записи и статистики
+            });
+        }
+        const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+        m_secondWindow->setWindowTitle(QString("Второй канал: %1").arg(other));
+        m_secondWindow->show();
+        m_secondWindow->raise();
+        setupSecondVideo();
+    } else {
+        if (m_secondWindow)
+            m_secondWindow->hide();
+        // Декодер второго канала не останавливаем — нужен для записи и статистики
+    }
+}
+
+void MainWindow::setupSecondVideo()
+{
+    stopSecondVideo();
+    const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+    const int port = (other == "TPV") ? m_tpvPort : m_tvPort;
+
+    udpDec::PlayerInitStructure p{};
+    p.udpport = port;
+    p.udptimeout = m_videoTimeoutMs;
+    p.socketTimeoutMs = m_socketTimeoutMs;
+    p.jitterMs = m_jitterMs;
+    {
+        const QByteArray ba = m_videoBindAddress.toLatin1();
+        strncpy(p.bindAddress, ba.constData(), sizeof(p.bindAddress) - 1);
+        p.bindAddress[sizeof(p.bindAddress) - 1] = '\0';
+    }
+    p.pFrameOutQueue = &m_frameQueue2;
+    p.phframeMutex = &m_frameMutex2;
+
+    m_dec2Port = port;
+    m_otherQueue = &m_frameQueue2;
+    m_otherMutex = &m_frameMutex2;
+    m_videoDec2 = new udpDec(&p, this);
+    if (!m_videoDec2->on()) {
+        if (m_secondLabel)
+            m_secondLabel->setText(QStringLiteral("Ошибка открытия"));
+        return;
+    }
+    if (m_secondLabel)
+        m_secondLabel->setText(QString());
+}
+
+void MainWindow::stopSecondVideo()
+{
+    if (m_videoDec2) {
+        m_videoDec2->off();
+        m_videoDec2->stopThread();
+        m_videoDec2->deleteLater();
+        m_videoDec2 = nullptr;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_frameMutex2);
+        while (!m_frameQueue2.empty()) {
+            AVFrame f = m_frameQueue2.front();
+            m_frameQueue2.pop();
+            if (f.data[0]) av_free(f.data[0]);
+        }
+    }
+}
+
+void MainWindow::updateSecondFrame()
+{
+    if (!m_videoDec2)
+        return;
+
+    AVFrame frame{};
+    bool hasFrame = false;
+    int incomingCount = 0;
+    {
+        if (!m_otherQueue || !m_otherMutex) return;
+        std::lock_guard<std::mutex> lock(*m_otherMutex);
+        while (!m_otherQueue->empty()) {
+            AVFrame next = m_otherQueue->front();
+            m_otherQueue->pop();
+            ++incomingCount;
+            if (hasFrame && frame.data[0])
+                av_free(frame.data[0]);
+            frame = next;
+            hasFrame = true;
+        }
+    }
+
+    // FPS второго канала независимо от отображения
+    if (incomingCount > 0) {
+        const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+        QElapsedTimer& timer = (other == "TPV") ? m_tpvFpsTimer : m_tvFpsTimer;
+        int& count = (other == "TPV") ? m_tpvFpsCount : m_tvFpsCount;
+        if (!timer.isValid()) {
+            timer.start();
+            count = incomingCount;
+        } else {
+            count += incomingCount;
+            if (timer.elapsed() >= 500) {
+                const double fps = count * 1000.0 / timer.elapsed();
+                if (other == "TPV") m_tpvFps = fps;
+                else m_tvFps = fps;
+                count = 0;
+                timer.restart();
+            }
+        }
+        if (frame.width > 0 && frame.height > 0) {
+            if (other == "TPV") { m_tpvResW = frame.width; m_tpvResH = frame.height; }
+            else { m_tvResW = frame.width; m_tvResH = frame.height; }
+        }
+    }
+
+    if (!m_secondWindow || !m_secondWindow->isVisible() || !m_secondLabel || !hasFrame || !frame.data[0]) {
+        if (hasFrame && frame.data[0]) av_free(frame.data[0]);
+        return;
+    }
+
+    QImage img(frame.data[0], frame.width, frame.height,
+               frame.linesize[0], QImage::Format_BGR888);
+    // Тот же поворот, что и на основной панели для этого канала
+    const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
+    if (other != "TPV")
+        img = img.mirrored(true, true);
+
+    QPixmap pix = QPixmap::fromImage(img).scaled(
+        m_secondLabel->size(),
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation);
+    m_secondLabel->setPixmap(pix);
+
+    if (frame.data[0])
+        av_free(frame.data[0]);
+}
 
 void MainWindow::onPidSettingsClicked()
 {
@@ -1803,11 +2321,9 @@ void MainWindow::onMocStatusClicked()
 
 void MainWindow::onMocPoll()
 {
-    if (!m_udp || !m_udp->isConnected())
+    if (!m_udp)
         return;
-    // Poll all telemetry sources every 5 s (WR=0 / simple read)
-    // 15 МОЭ(Г), 21 ПУПэ(Д), 22 Тн(Е), 23 Тт(Ж), 24 Твт(З),
-    // 31 ПУПс(И), 32 Тнтвт(К), 33 МОС(Л)
+    // Как в рабочем варианте: [адрес][0x00], обёртку ставит мост.
     const QList<uint8_t> addresses = {15, 21, 22, 23, 24, 31, 32, 33};
     for (uint8_t addr : addresses)
         m_udp->sendPacket(addr, QByteArray(1, static_cast<char>(0x00)));
@@ -1815,8 +2331,30 @@ void MainWindow::onMocPoll()
 
 void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)
 {
-    if (m_mocDialog && m_mocDialog->isVisible())
-        m_mocDialog->updateFromPayload(sourceId, payload);
+    if (!m_mocDialog)
+        return;
+
+    uint8_t addr = sourceId;
+    QByteArray data = payload;
+
+    // Ответ может прийти обёрнутым кадром внутренней шины:
+    // 5A | ADDRESS | LEN(12 бит)+флаги | CRC16 заголовка | DATA | CRC16
+    if (sourceId == 0x5A && payload.size() >= 7) {
+        addr = static_cast<uint8_t>(payload.at(0));
+        const int lenWords = (static_cast<uint8_t>(payload.at(1))
+                              | ((static_cast<uint8_t>(payload.at(2)) & 0x0F) << 8));
+        int dataBytes = lenWords * 2;
+        const bool evenPad = (static_cast<uint8_t>(payload.at(2)) & 0x80) != 0;
+        if (evenPad && (dataBytes % 2))
+            ++dataBytes;
+        const int dataOff = 5; // addr, len_lo, len_hi, crc, crc
+        if (dataOff + dataBytes <= payload.size() - 2)
+            data = payload.mid(dataOff, dataBytes);
+        else if (payload.size() > dataOff + 2)
+            data = payload.mid(dataOff, payload.size() - dataOff - 2);
+    }
+
+    m_mocDialog->updateFromPayload(addr, data);
 }
 
 
@@ -1824,3 +2362,44 @@ void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)
 
 
 
+
+void MainWindow::onTpvPaletteChanged(int index)
+{
+    if (!m_thermal || index < 0) return;
+    m_thermal->setPalette(ui->comboTpvPalette->itemData(index).toInt());
+}
+void MainWindow::onTpvToneChanged(int index)
+{
+    if (!m_thermal || index < 0) return;
+    m_thermal->setTone(ui->comboTpvTone->itemData(index).toInt());
+}
+void MainWindow::onTpvModeChanged(int index)
+{
+    if (!m_thermal || index < 0) return;
+    m_thermal->setImageMode(ui->comboTpvMode->itemData(index).toInt());
+}
+void MainWindow::onTpvDenoiseChanged(int value)
+{
+    if (m_thermal) m_thermal->setDenoise(value);
+}
+void MainWindow::onTpvDetailChanged(int value)
+{
+    if (m_thermal) m_thermal->setDetail(value);
+}
+void MainWindow::onTpvBrightChanged(int value)
+{
+    if (m_thermal) m_thermal->setBrightness(value);
+}
+void MainWindow::onTpvContrastChanged(int value)
+{
+    if (m_thermal) m_thermal->setContrast(value);
+}
+void MainWindow::onTpvShutterClicked()
+{
+    if (m_thermal) m_thermal->shutterCompensation();
+}
+void MainWindow::onFocalTempUpdated(double celsius)
+{
+    if (ui->labelTpvFocalTemp)
+        ui->labelTpvFocalTemp->setText(QString("Фокал: %1 °C").arg(celsius, 0, 'f', 1));
+}

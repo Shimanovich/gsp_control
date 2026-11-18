@@ -10,13 +10,14 @@ VideoRecorder::~VideoRecorder()
     stop();
 }
 
-bool VideoRecorder::start(const QString& baseDir)
+bool VideoRecorder::start(const QString& baseDir, const QString& channelPrefix)
 {
     QMutexLocker lock(&m_mutex);
     if (m_recording)
         return true;
 
     m_baseDir = baseDir;
+    m_channelPrefix = channelPrefix.trimmed().toUpper();
     m_sessionStamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
     m_dirPath = QDir(m_baseDir).filePath(m_sessionStamp);
     m_index = 0;
@@ -105,9 +106,17 @@ int VideoRecorder::fileIndex() const
 bool VideoRecorder::openNextFile()
 {
     ++m_index;
-    const QString name = QString("%1_%2.h264")
-                             .arg(m_sessionStamp)
-                             .arg(m_index, 3, 10, QChar('0'));
+    QString name;
+    if (m_channelPrefix.isEmpty()) {
+        name = QString("%1_%2.h264")
+                   .arg(m_sessionStamp)
+                   .arg(m_index, 3, 10, QChar('0'));
+    } else {
+        name = QString("%1_%2_%3.h264")
+                   .arg(m_channelPrefix)
+                   .arg(m_sessionStamp)
+                   .arg(m_index, 3, 10, QChar('0'));
+    }
     const QString path = QDir(m_dirPath).filePath(name);
     m_file.setFileName(path);
     if (!m_file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {

@@ -56,6 +56,13 @@ public:
     quint16 playPort() const { return m_playPort; }
     QString defaultResolut() const { return m_defaultResolut; }
     int defaultBitrate() const { return m_defaultBitrate; }
+    QString tvResolut() const { return m_tvResolut; }
+    int tvBitrate() const { return m_tvBitrate; }
+    QString tpvResolut() const { return m_tpvResolut; }
+    int tpvBitrate() const { return m_tpvBitrate; }
+    int tvPlayPort() const { return m_tvPlayPort; }
+    int tpvPlayPort() const { return m_tpvPlayPort; }
+    QString displayChannel() const { return m_displayChannel; }
     int defaultStrobeW() const { return m_defaultStrobeW; }
     int defaultStrobeH() const { return m_defaultStrobeH; }
     int defaultTrackCmd() const { return m_defaultTrackCmd; }
@@ -66,9 +73,9 @@ public:
     bool saveTrackingParams(const QString& iniPath = QString()) const;
     CaptState lastCaptState() const { return m_capt; }
 
-    bool sendPlay(const QString& playIp, int playPort);
-    bool sendStop();
-    bool sendSet(int bitrate, const QString& resolut);
+    bool sendPlay(const QString& playIp, int playPort, const QString& channel = QStringLiteral("TV"));
+    bool sendStop(const QString& channel = QStringLiteral("TV"));
+    bool sendSet(int bitrate, const QString& resolut, const QString& channel = QStringLiteral("TV"));
     bool sendTrackSet(int trackCmd, int videoChannel, int strobX, int strobY, int strobW, int strobH);
     bool sendStrobePos(int strobX, int strobY);
     bool sendPidSet();
@@ -113,6 +120,13 @@ private:
     quint16 m_playPort = 5400;
     QString m_defaultResolut = QStringLiteral("HD");
     int m_defaultBitrate = 2500000;
+    QString m_tvResolut = QStringLiteral("FHD");
+    int m_tvBitrate = 6000000;
+    QString m_tpvResolut = QStringLiteral("SD1");
+    int m_tpvBitrate = 4000000;
+    int m_tvPlayPort = 5400;
+    int m_tpvPlayPort = 5402;
+    QString m_displayChannel = QStringLiteral("TV");
     int m_defaultStrobeW = 64;
     int m_defaultStrobeH = 64;
     int m_defaultTrackCmd = 1;

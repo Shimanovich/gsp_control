@@ -59,6 +59,20 @@ bool JetsonController::loadSettings(const QString& iniPath)
 
     m_defaultResolut = s.value("Jetson/resolut", "HD").toString();
     m_defaultBitrate = s.value("Jetson/bitrate", 2500000).toInt();
+    m_tvResolut = s.value("Jetson/tv_resolut", m_defaultResolut).toString();
+    m_tvBitrate = s.value("Jetson/tv_bitrate", m_defaultBitrate).toInt();
+    m_tpvResolut = s.value("Jetson/tpv_resolut", "SD1").toString();
+    m_tpvBitrate = s.value("Jetson/tpv_bitrate", 4000000).toInt();
+    // play_port в команде play: каждому каналу свой порт из [Video]
+    // TV  <- Video/tv_port (fallback: Video/port, Jetson/play_port)
+    // TPV <- Video/tpv_port
+    m_tvPlayPort = s.value("Video/tv_port",
+                           s.value("Video/port",
+                                   s.value("Jetson/play_port", 5400))).toInt();
+    m_tpvPlayPort = s.value("Video/tpv_port", 5402).toInt();
+    m_displayChannel = s.value("Jetson/display_channel", "TV").toString().toUpper();
+    if (m_displayChannel != "TPV")
+        m_displayChannel = "TV";
 
     m_defaultStrobeW = s.value("Tracking/strobe_x_sz", 64).toInt();
     m_defaultStrobeH = s.value("Tracking/strobe_y_sz", 64).toInt();
@@ -180,28 +194,33 @@ bool JetsonController::sendPacket(const QByteArray& packet)
     return n == packet.size();
 }
 
-bool JetsonController::sendPlay(const QString& playIp, int playPort)
+bool JetsonController::sendPlay(const QString& playIp, int playPort, const QString& channel)
 {
     QJsonObject o;
     o.insert(QStringLiteral("command"), QStringLiteral("play"));
     o.insert(QStringLiteral("play_ip"), playIp);
     o.insert(QStringLiteral("play_port"), playPort);
+    o.insert(QStringLiteral("channel"), channel);
     const QByteArray json = QJsonDocument(o).toJson(QJsonDocument::Compact);
     return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
 }
 
-bool JetsonController::sendStop()
+bool JetsonController::sendStop(const QString& channel)
 {
-    const QByteArray json = QByteArrayLiteral("{\"command\":\"stop\"}");
+    QJsonObject o;
+    o.insert(QStringLiteral("command"), QStringLiteral("stop"));
+    o.insert(QStringLiteral("channel"), channel);
+    const QByteArray json = QJsonDocument(o).toJson(QJsonDocument::Compact);
     return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
 }
 
-bool JetsonController::sendSet(int bitrate, const QString& resolut)
+bool JetsonController::sendSet(int bitrate, const QString& resolut, const QString& channel)
 {
     QJsonObject o;
     o.insert(QStringLiteral("command"), QStringLiteral("set"));
     o.insert(QStringLiteral("bitrate"), bitrate);
     o.insert(QStringLiteral("resolut"), resolut);
+    o.insert(QStringLiteral("channel"), channel);
     const QByteArray json = QJsonDocument(o).toJson(QJsonDocument::Compact);
     return sendPacket(JEPProtocol::pack(json, JEP_HD::MDPL));
 }

@@ -10,12 +10,14 @@
 #include <QPixmap>
 #include <QEvent>
 class QLabel;
+class QDialog;
 #include <queue>
 #include <mutex>
 
 #include "udpcommunicator.h"
 #include "joystickmanager.h"
 #include "cameracontroller.h"
+#include "thermalcontroller.h"
 #include "gyrocontroller.h"
 #include "rangefindercontroller.h"
 #include "udpReceiveAndDecode.h"
@@ -67,6 +69,15 @@ private slots:
     void onDisconnectClicked();
     void onHelpClicked();
 
+    void onTpvPaletteChanged(int index);
+    void onTpvToneChanged(int index);
+    void onTpvModeChanged(int index);
+    void onTpvDenoiseChanged(int value);
+    void onTpvDetailChanged(int value);
+    void onTpvBrightChanged(int value);
+    void onTpvContrastChanged(int value);
+    void onTpvShutterClicked();
+    void onFocalTempUpdated(double celsius);
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();
     void onZoomPositionUpdated(float magnification);
@@ -86,9 +97,14 @@ private slots:
     void onIncomingResolutionChanged(int width, int height);
 
     // Jetson / JEP
-    void onJetsonPlayClicked();
-    void onJetsonStopClicked();
+    void onChannelTvToggled(bool checked);
+    void onChannelTpvToggled(bool checked);
     void onJetsonSetClicked();
+    void onDisplayChannelClicked();
+    void onSecondChannelToggled(bool checked);
+    void onCtrlChannelChanged(int index);
+    void startStopChannel(const QString& channel, bool start);
+    void updateChannelStatsLabels();
     void onTrackStartClicked();
     void onTrackStopClicked();
     void onConvergePressed();
@@ -116,6 +132,7 @@ private:
     KeyboardManager* m_keyboard = nullptr;
 
     CameraController* m_camera = nullptr;
+    ThermalController* m_thermal = nullptr;
     GyroController* m_gyro = nullptr;
     RangefinderController* m_rangefinder = nullptr;
     JetsonController* m_jetson = nullptr;
@@ -159,14 +176,40 @@ private:
     int m_btnHeading = 11;
     int m_btnSpeedUp = 13;
     int m_btnSpeedDown = 14;
+    int m_btnChannelSwitch = 0;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
-    VideoRecorder           m_recorder;
+    udpDec*                 m_videoDec2 = nullptr;
+    QDialog*                m_secondWindow = nullptr;
+    QLabel*                 m_secondLabel = nullptr;
+    std::queue<AVFrame>     m_frameQueue2;
+    std::mutex              m_frameMutex2;
+    VideoRecorder           m_recorder;      // TV
+    VideoRecorder           m_recorderTpv;   // TPV
     std::queue<AVFrame>     m_frameQueue;
-    std::mutex              m_frameMutex;  // Вместо HANDLE m_frameMutex = nullptr;
+    std::mutex              m_frameMutex;
+    std::queue<AVFrame>*    m_dispQueue = nullptr;
+    std::mutex*             m_dispMutex = nullptr;
+    std::queue<AVFrame>*    m_otherQueue = nullptr;
+    std::mutex*             m_otherMutex = nullptr;  // Вместо HANDLE m_frameMutex = nullptr;
     QTimer*                 m_videoTimer = nullptr;
     int                     m_videoPort = 5004;
+    int                     m_decPort = 5400;
+    int                     m_dec2Port = 5402;
+    int                     m_tvPort = 5400;
+    int                     m_tpvPort = 5402;
+    QString                 m_displayChannel = QStringLiteral("TV");
+    bool                    m_tvStreamActive = false;
+    bool                    m_tpvStreamActive = false;
+    int                     m_tvResW = 0, m_tvResH = 0;
+    int                     m_tpvResW = 0, m_tpvResH = 0;
+    double                  m_tvFps = 0.0, m_tpvFps = 0.0;
+    double                  m_tvKbps = 0.0, m_tpvKbps = 0.0;
+    uint64_t                m_tvLastBytes = 0, m_tpvLastBytes = 0;
+    int                     m_tvFpsCount = 0, m_tpvFpsCount = 0;
+    QElapsedTimer           m_tvRateTimer, m_tpvRateTimer;
+    QElapsedTimer           m_tvFpsTimer, m_tpvFpsTimer;
     int                     m_videoTimeoutMs = 40;
     int                     m_socketTimeoutMs = 5;
     int                     m_jitterMs = 150;
@@ -218,6 +261,11 @@ private:
     bool readValidatedAngles(float& azDeg, float& elDeg, bool showError);
 
     void setupVideo();
+    void setupSecondVideo();
+    void attachRecorders();
+    void updateChannelRates();
+    void stopSecondVideo();
+    void updateSecondFrame();
     void stopVideo();
     void resetFpsMeter();
     void noteIncomingFrames(int count);

@@ -77,6 +77,7 @@ SOURCES += \
     joystickmanager.cpp \
     keyboardmanager.cpp \
     cameracontroller.cpp \
+    thermalcontroller.cpp \
     gyrocontroller.cpp \
     rangefindercontroller.cpp \
     udpReceiveAndDecode.cpp \
@@ -92,6 +93,7 @@ HEADERS += \
     joystickmanager.h \
     keyboardmanager.h \
     cameracontroller.h \
+    thermalcontroller.h \
     gyrocontroller.h \
     rangefindercontroller.h \
     simplebgc_protocol.h \

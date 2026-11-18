@@ -27,6 +27,7 @@ MocStatusDialog::MocStatusDialog(QWidget *parent)
     auto* content = new QWidget;
     auto* columns = new QHBoxLayout(content);
     columns->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    columns->setContentsMargins(4, 4, 4, 4);
     columns->setSpacing(12);
 
     auto addColumn = [&](const QString& title, auto setup) {
@@ -35,13 +36,16 @@ MocStatusDialog::MocStatusDialog(QWidget *parent)
         grp->setMinimumWidth(140);
         grp->setTitle(QString()); // no overlapping title
         auto* lay = new QVBoxLayout(grp);
+        lay->setContentsMargins(6, 4, 6, 6);
+        lay->setAlignment(Qt::AlignTop);
 
         auto* header = new QLabel(title, grp);
-        header->setAlignment(Qt::AlignCenter);
+        header->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
         header->setWordWrap(true);
         header->setObjectName("colHeader");
-        header->setStyleSheet(QStringLiteral("font-weight: bold;"));
-        lay->addWidget(header);
+        header->setStyleSheet(QStringLiteral("font-weight: bold; padding: 2px;"));
+        header->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        lay->addWidget(header, 0, Qt::AlignTop);
 
         setup(lay);
         columns->addWidget(grp);
@@ -295,7 +299,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         return qFromLittleEndian<quint32>(reinterpret_cast<const uchar*>(payload.constData() + off));
     };
 
-    if (sourceId == 33 && payload.size() >= 28) {
+    if (sourceId == 33 && payload.size() >= 2) {
         // МОС / Л
         const uint8_t b1 = static_cast<uint8_t>(payload.at(0));
         const uint8_t b2 = static_cast<uint8_t>(payload.at(1));
@@ -319,7 +323,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         if (m_lblId1FrameCnt) m_lblId1FrameCnt->setText(QString::number(readU32(20)));
         if (m_lblId2FrameCnt) m_lblId2FrameCnt->setText(QString::number(readU32(24)));
     }
-    else if (sourceId == 15 && payload.size() >= 5) {
+    else if (sourceId == 15 && payload.size() >= 1) {
         // МОЭ / Г — bits in UINT32 starting at offset 1
         const quint32 bits = readU32(1);
         setLed(m_ledMoeTvLvds,   bits & 0x01);
@@ -338,7 +342,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         setLed(m_ledPupe12Tv,    b & 0x20);
         setLed(m_ledPupe12Lazer, b & 0x40);
     }
-    else if (sourceId == 22 && payload.size() >= 16) {
+    else if (sourceId == 22 && payload.size() >= 2) {
         // Тн / Е — voltages, validity in first UINT16, values from offset 2
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok) {
@@ -355,7 +359,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         show(m_lblTn5Fpga,  10,  valid & 0x10);
         show(m_lblTn25,     12,  valid & 0x80); // VALID_2V5 is b7
     }
-    else if (sourceId == 23 && payload.size() >= 16) {
+    else if (sourceId == 23 && payload.size() >= 2) {
         // Тт / Ж — currents
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok) {
@@ -372,7 +376,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         show(m_lblTt5Fpga,  10,  valid & 0x10);
         show(m_lblTt25,     12,  valid & 0x80);
     }
-    else if (sourceId == 24 && payload.size() >= 6) {
+    else if (sourceId == 24 && payload.size() >= 2) {
         // Твт / З
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok, const QString& unit) {
@@ -396,7 +400,7 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         setLed(m_ledPups5,       b & 0x20);
         setLed(m_ledPups12,      b & 0x40);
     }
-    else if (sourceId == 32 && payload.size() >= 26) {
+    else if (sourceId == 32 && payload.size() >= 2) {
         // Тнтвт / К
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok, const QString& unit) {
@@ -422,9 +426,17 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         show(m_lblTntHum,     24,  validHi & 0x08, "%");
     }
 
-    if (m_lblLastUpdate)
-        m_lblLastUpdate->setText(QStringLiteral("Последнее обновление: %1")
-                                     .arg(QDateTime::currentDateTime().toString("hh:mm:ss")));
+    if (m_lblLastUpdate) {
+        const bool known = (sourceId == 15 || sourceId == 21 || sourceId == 22
+                            || sourceId == 23 || sourceId == 24 || sourceId == 31
+                            || sourceId == 32 || sourceId == 33);
+        m_lblLastUpdate->setText(
+            QStringLiteral("Последнее обновление: %1   addr=%2  len=%3%4")
+                .arg(QDateTime::currentDateTime().toString("hh:mm:ss"))
+                .arg(sourceId)
+                .arg(payload.size())
+                .arg(known ? QString() : QStringLiteral("  (не телеметрия)")));
+    }
 }
 
 

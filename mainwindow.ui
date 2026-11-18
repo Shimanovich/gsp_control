@@ -636,6 +636,9 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
           </item>
           <item>
            <widget class="QLabel" name="labelVideoRate">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>0 Мбит/с</string>
             </property>
@@ -653,6 +656,9 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
           </property>
           <item>
            <widget class="QLabel" name="labelVideoStatus">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>Остановлено</string>
             </property>
@@ -666,6 +672,9 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
           </item>
           <item>
            <widget class="QLabel" name="labelVideoFps">
+            <property name="visible">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string></string>
             </property>
@@ -701,22 +710,28 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
            <item>
             <layout class="QHBoxLayout" name="horizontalLayoutJetsonBtns">
              <item>
-              <widget class="QPushButton" name="btnJetsonPlay">
+              <widget class="QPushButton" name="btnChannelTv">
                <property name="text">
-                <string>Старт</string>
+                <string>TV</string>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
                </property>
                <property name="toolTip">
-                <string>Воспроизвести поток</string>
+                <string>Старт/стоп потока TV</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="btnJetsonStop">
+              <widget class="QPushButton" name="btnChannelTpv">
                <property name="text">
-                <string>Стоп</string>
+                <string>TPV</string>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
                </property>
                <property name="toolTip">
-                <string>Остановить поток</string>
+                <string>Старт/стоп потока TPV</string>
                </property>
               </widget>
              </item>
@@ -728,6 +743,74 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
               </widget>
              </item>
             </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutChannel">
+             <item>
+              <widget class="QLabel" name="labelCtrlChannel">
+               <property name="text">
+                <string>Канал</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboCtrlChannel">
+               <item>
+                <property name="text">
+                 <string>TV</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>TPV</string>
+                </property>
+               </item>
+               <property name="toolTip">
+                <string>Канал для команд Старт/Стоп/Применить</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btnDisplayChannel">
+               <property name="text">
+                <string>Показ: TV</string>
+               </property>
+               <property name="toolTip">
+                <string>Переключить отображаемый канал (TV/TPV)</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkSecondChannel">
+               <property name="text">
+                <string>2-й канал</string>
+               </property>
+               <property name="toolTip">
+                <string>Показать второй канал в отдельном окне</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="labelTvStats">
+             <property name="text">
+              <string>TV: —</string>
+             </property>
+             <property name="toolTip">
+              <string>Разрешение, FPS и битрейт канала TV</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="labelTpvStats">
+             <property name="text">
+              <string>TPV: —</string>
+             </property>
+             <property name="toolTip">
+              <string>Разрешение, FPS и битрейт канала TPV</string>
+             </property>
+            </widget>
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayoutJetsonSet">
@@ -758,6 +841,11 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
                  <string>SD</string>
                 </property>
                </item>
+               <item>
+                <property name="text">
+                 <string>SD1</string>
+                </property>
+               </item>
               </widget>
              </item>
              <item>
@@ -781,6 +869,108 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
              <property name="text">
               <string>JEP: —</string>
              </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <item>
+         <widget class="QGroupBox" name="groupThermal">
+          <property name="maximumWidth">
+           <number>270</number>
+          </property>
+          <property name="title">
+           <string>Тепловизор</string>
+          </property>
+          <layout class="QGridLayout" name="gridThermal">
+           <item row="0" column="0">
+            <widget class="QLabel" name="labelTpvPalette">
+             <property name="text"><string>Палитра</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="comboTpvPalette"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="labelTpvTone">
+             <property name="text"><string>Тон</string></property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="comboTpvTone"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="labelTpvMode">
+             <property name="text"><string>Режим</string></property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QComboBox" name="comboTpvMode"/>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="labelTpvDenoise">
+             <property name="text"><string>Шум</string></property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QSpinBox" name="spinTpvDenoise">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>3</number></property>
+             <property name="value"><number>1</number></property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="labelTpvDetail">
+             <property name="text"><string>Детали</string></property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QSpinBox" name="spinTpvDetail">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>4</number></property>
+             <property name="value"><number>1</number></property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="labelTpvBright">
+             <property name="text"><string>Яркость</string></property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QSpinBox" name="spinTpvBright">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>5</number></property>
+             <property name="value"><number>3</number></property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="labelTpvContrast">
+             <property name="text"><string>Контраст</string></property>
+            </widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QSpinBox" name="spinTpvContrast">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>5</number></property>
+             <property name="value"><number>3</number></property>
+            </widget>
+           </item>
+           <item row="7" column="0" colspan="2">
+            <layout class="QHBoxLayout" name="horizontalTpvComp">
+             <item>
+              <widget class="QPushButton" name="btnTpvShutter">
+               <property name="text"><string>Шторка</string></property>
+               <property name="toolTip"><string>Шторная компенсация (NUC)</string></property>
+              </widget>
+             </item>
+
+            </layout>
+           </item>
+           <item row="8" column="0" colspan="2">
+            <widget class="QLabel" name="labelTpvFocalTemp">
+             <property name="text"><string>Фокал: —</string></property>
+             <property name="toolTip"><string>Температура фокальной плоскости</string></property>
             </widget>
            </item>
           </layout>
