@@ -635,6 +635,16 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
            </layout>
           </item>
           <item>
+           <widget class="QPushButton" name="btnSnapshot">
+            <property name="text">
+             <string>Кадр</string>
+            </property>
+            <property name="toolTip">
+             <string>Сохранить текущий кадр активного канала в PNG (images/)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="labelVideoRate">
             <property name="visible">
              <bool>false</bool>

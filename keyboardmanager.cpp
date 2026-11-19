@@ -28,6 +28,11 @@ bool KeyboardManager::loadSettings(const QString& iniPath)
     add("brightness_down",  Qt::Key_9,            settings.value("Joystick/button_brightness_down", 12).toInt(), "Яркость −");
     add("autofocus",        Qt::Key_F,            settings.value("Joystick/button_autofocus", 2).toInt(),        "Автофокус");
     add("focus_infinity",   Qt::Key_I,            settings.value("Joystick/button_focus_infinity", 3).toInt(),   "Фокус ∞");
+    {
+        int snapBtn = settings.value("Joystick/button_snapshot", 0).toInt();
+        if (snapBtn <= 0) snapBtn = 100; // только клавиатура, если кнопка джойстика не задана
+        add("snapshot", Qt::Key_S, snapBtn, "Сохранить кадр");
+    }
     add("rangefinder_shot", Qt::Key_Space,        settings.value("Joystick/button_rangefinder_shot", 1).toInt(), "Выстрел дальномера");
     add("track",            Qt::Key_T,            settings.value("Joystick/button_track", 4).toInt(),            "Старт трека");
     add("track_cancel",     Qt::Key_Escape,       settings.value("Joystick/button_track_cancel", 5).toInt(),     "Стоп трека");

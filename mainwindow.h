@@ -93,6 +93,7 @@ private slots:
     void onVideoStartClicked();
     void onVideoStopClicked();
     void onRecordToggled(bool checked);
+    void saveSnapshot();
     void onVideoTimer();
     void onIncomingResolutionChanged(int width, int height);
 
@@ -178,6 +179,7 @@ private:
     int m_btnSpeedUp = 13;
     int m_btnSpeedDown = 14;
     int m_btnChannelSwitch = 0;
+    int m_btnSnapshot = 0;
 
     // Video
     udpDec*                 m_videoDec = nullptr;
@@ -219,6 +221,7 @@ private:
     CaptState               m_captState;
     int                     m_lastFrameW = 0;
     int                     m_lastFrameH = 0;
+    QImage                  m_lastFrame;
     int                     m_dispPixW = 0;
     int                     m_dispPixH = 0;
     int                     m_dispResW = 0;

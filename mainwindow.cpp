@@ -65,6 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
         if (ui->btnVideoStart) videoRow->addWidget(ui->btnVideoStart);
         if (ui->btnVideoStop)  videoRow->addWidget(ui->btnVideoStop);
         if (ui->btnRecord)     videoRow->addWidget(ui->btnRecord);
+        if (ui->btnSnapshot)   videoRow->addWidget(ui->btnSnapshot);
         if (ui->labelRecord)   videoRow->addWidget(ui->labelRecord);
         hostLay->addLayout(videoRow);
 
@@ -157,6 +158,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnVideoStart, &QPushButton::clicked, this, &MainWindow::onVideoStartClicked);
     connect(ui->btnVideoStop,  &QPushButton::clicked, this, &MainWindow::onVideoStopClicked);
     connect(ui->btnRecord, &QPushButton::toggled, this, &MainWindow::onRecordToggled);
+    if (ui->btnSnapshot)
+        connect(ui->btnSnapshot, &QPushButton::clicked, this, &MainWindow::saveSnapshot);
     if (ui->sliderZoom)
         connect(ui->sliderZoom, &QSlider::sliderReleased, this, &MainWindow::onZoomSliderReleased);
 
@@ -312,6 +315,7 @@ void MainWindow::loadAllSettings()
     m_btnSpeedUp = s.value("Joystick/button_speed_up", 13).toInt();
     m_btnSpeedDown = s.value("Joystick/button_speed_down", 14).toInt();
     m_btnChannelSwitch = s.value("Joystick/button_channel_switch", 0).toInt();
+    m_btnSnapshot = s.value("Joystick/button_snapshot", 0).toInt();
     loadHeadingAnglesFromConfig(s);
     m_angleAzMin = s.value("Gyro/angle_az_min", -180.0).toFloat();
     m_angleAzMax = s.value("Gyro/angle_az_max", 180.0).toFloat();
@@ -511,6 +515,10 @@ void MainWindow::onJoystickButtonPressed(int button)
     }
     if (button == m_btnBrightnessDown) {
         m_camera->brightnessDown();
+        return;
+    }
+    if ((m_btnSnapshot > 0 && button == m_btnSnapshot) || button == 100) {
+        saveSnapshot();
         return;
     }
     if (button == m_btnRangefinderShot) {
@@ -1142,6 +1150,28 @@ void MainWindow::onVideoStopClicked()
     stopVideo();
 }
 
+void MainWindow::saveSnapshot()
+{
+    if (m_lastFrame.isNull()) {
+        ui->statusBar->showMessage(QStringLiteral("Нет кадра для сохранения"), 2000);
+        return;
+    }
+    QDir dir(QCoreApplication::applicationDirPath() + QStringLiteral("/images"));
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+        ui->statusBar->showMessage(QStringLiteral("Не удалось создать папку images"), 3000);
+        return;
+    }
+    const QString prefix = (m_displayChannel == QLatin1String("TPV"))
+                               ? QStringLiteral("TPV") : QStringLiteral("TV");
+    const QString name = QStringLiteral("%1_%2.png")
+                             .arg(prefix, QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    const QString path = dir.filePath(name);
+    if (m_lastFrame.save(path, "PNG"))
+        ui->statusBar->showMessage(QStringLiteral("Кадр сохранён: %1").arg(path), 3000);
+    else
+        ui->statusBar->showMessage(QStringLiteral("Ошибка сохранения кадра"), 3000);
+}
+
 void MainWindow::onRecordToggled(bool checked)
 {
     const QString base = QCoreApplication::applicationDirPath() + "/recordings";
@@ -1390,6 +1420,8 @@ void MainWindow::onVideoTimer()
     const bool flip180 = (m_displayChannel != "TPV");
     if (flip180)
         img = img.mirrored(true, true);
+
+    m_lastFrame = img.copy();
 
     QPixmap pix = QPixmap::fromImage(img).scaled(
         ui->videoLabel->size(),
