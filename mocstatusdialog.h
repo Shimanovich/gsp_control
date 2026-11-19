@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QByteArray>
+#include <QCheckBox>
 
 class MocStatusDialog : public QDialog
 {
@@ -12,6 +13,11 @@ public:
     explicit MocStatusDialog(QWidget *parent = nullptr);
 
     void updateFromPayload(uint8_t sourceId, const QByteArray& payload);
+
+signals:
+    void pupeWriteRequested(quint8 value);
+    void pupsWriteRequested(quint8 value);
+
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -103,6 +109,24 @@ private:
     QLabel* m_lblTntHum = nullptr;
 
     QLabel* m_lblLastUpdate = nullptr;
+
+    // Управление ПУПэ (21, Д) — запись
+    QCheckBox* m_chk25 = nullptr;
+    QCheckBox* m_chk33 = nullptr;
+    QCheckBox* m_chk5Tpv = nullptr;
+    QCheckBox* m_chk5Fpga = nullptr;
+    QCheckBox* m_chk12Tv = nullptr;
+    QCheckBox* m_chk12Lazer = nullptr;
+
+    // Управление ПУПс (31, И) — запись
+    QCheckBox* m_chkS18 = nullptr;
+    QCheckBox* m_chkS25 = nullptr;
+    QCheckBox* m_chkS33 = nullptr;
+    QCheckBox* m_chkS5Jet = nullptr;
+    QCheckBox* m_chkS5Fpga = nullptr;
+    QCheckBox* m_chkS5 = nullptr;
+    QCheckBox* m_chkS12 = nullptr;
+
 
     QList<QLabel*> m_allLeds;
     int m_basePointSize = 11;

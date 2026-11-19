@@ -77,7 +77,6 @@ private slots:
     void onTpvBrightChanged(int value);
     void onTpvContrastChanged(int value);
     void onTpvShutterClicked();
-    void onTpvCmd0103Clicked();
     void onFocalTempUpdated(double celsius);
     void on_btnAutofocus_clicked();
     void on_btnFocusInf_clicked();
@@ -142,6 +141,7 @@ private:
     // МОС status (Приложение Л)
     MocStatusDialog* m_mocDialog = nullptr;
     QTimer* m_mocPollTimer = nullptr;
+    int m_mocPollIndex = 0;
     static constexpr uint8_t kMocAddress = 33;
 
     QString m_configPath = "config.ini";

@@ -28,7 +28,6 @@ public:
 
     // Compensation
     void shutterCompensation();
-    void sendCmd0103();
     void sceneCompensation();
 
     void queryStatus();

@@ -4,6 +4,8 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QCheckBox>
+#include <QPushButton>
 #include <QDateTime>
 #include <QtEndian>
 #include <QScrollArea>
@@ -244,6 +246,80 @@ MocStatusDialog::MocStatusDialog(QWidget *parent)
     scroll->setWidget(content);
     root->addWidget(scroll);
 
+    // Управление ПУПэ / ПУПс — одна сетка, колонки строго друг под другом
+    auto* ctrl = new QGroupBox(QStringLiteral("Управление питанием (WR=1)"), this);
+    auto* grid = new QGridLayout(ctrl);
+    grid->setHorizontalSpacing(12);
+    grid->setVerticalSpacing(4);
+
+    auto makeChk = [&](const QString& text) {
+        auto* cb = new QCheckBox(text, ctrl);
+        cb->setChecked(true);
+        cb->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        return cb;
+    };
+
+    auto* lblE = new QLabel(QStringLiteral("ПУПэ"), ctrl);
+    lblE->setMinimumWidth(48);
+    grid->addWidget(lblE, 0, 0);
+    m_chk25      = makeChk(QStringLiteral("ON_2.5V"));
+    m_chk33      = makeChk(QStringLiteral("ON_3.3V"));
+    m_chk5Tpv    = makeChk(QStringLiteral("ON_5V_TPV"));
+    m_chk5Fpga   = makeChk(QStringLiteral("ON_5V_FPGA"));
+    m_chk12Tv    = makeChk(QStringLiteral("ON_12V_TV"));
+    m_chk12Lazer = makeChk(QStringLiteral("ON_12V_LAZER"));
+    QCheckBox* rowE[] = {m_chk25, m_chk33, m_chk5Tpv, m_chk5Fpga, m_chk12Tv, m_chk12Lazer};
+    for (int i = 0; i < 6; ++i)
+        grid->addWidget(rowE[i], 0, i + 1);
+    auto* btnWrite = new QPushButton(QStringLiteral("Записать"), ctrl);
+    btnWrite->setToolTip(QStringLiteral("Отправить ПУПэ (адрес 21): b0=1, b1..b6 из чекбоксов, b7 WR=1"));
+    btnWrite->setFixedWidth(110);
+    grid->addWidget(btnWrite, 0, 8);
+    connect(btnWrite, &QPushButton::clicked, this, [this]() {
+        quint8 v = 0x01;
+        if (m_chk25 && m_chk25->isChecked())      v |= 0x02;
+        if (m_chk33 && m_chk33->isChecked())      v |= 0x04;
+        if (m_chk5Tpv && m_chk5Tpv->isChecked())  v |= 0x08;
+        if (m_chk5Fpga && m_chk5Fpga->isChecked())v |= 0x10;
+        if (m_chk12Tv && m_chk12Tv->isChecked())  v |= 0x20;
+        if (m_chk12Lazer && m_chk12Lazer->isChecked()) v |= 0x40;
+        v |= 0x80;
+        emit pupeWriteRequested(v);
+    });
+
+    auto* lblS = new QLabel(QStringLiteral("ПУПс"), ctrl);
+    grid->addWidget(lblS, 1, 0);
+    m_chkS18    = makeChk(QStringLiteral("ON_1.8V"));
+    m_chkS25    = makeChk(QStringLiteral("ON_2.5V"));
+    m_chkS33    = makeChk(QStringLiteral("ON_3.3V"));
+    m_chkS5Jet  = makeChk(QStringLiteral("ON_5V_JETSON"));
+    m_chkS5Fpga = makeChk(QStringLiteral("ON_5V_FPGA"));
+    m_chkS5     = makeChk(QStringLiteral("ON_5V"));
+    m_chkS12    = makeChk(QStringLiteral("ON_12V"));
+    QCheckBox* rowS[] = {m_chkS18, m_chkS25, m_chkS33, m_chkS5Jet, m_chkS5Fpga, m_chkS5, m_chkS12};
+    for (int i = 0; i < 7; ++i)
+        grid->addWidget(rowS[i], 1, i + 1);
+    auto* btnWriteS = new QPushButton(QStringLiteral("Записать"), ctrl);
+    btnWriteS->setToolTip(QStringLiteral("Отправить ПУПс (адрес 31): b0..b6 из чекбоксов, b7 WR=1"));
+    btnWriteS->setFixedWidth(110);
+    grid->addWidget(btnWriteS, 1, 8);
+    connect(btnWriteS, &QPushButton::clicked, this, [this]() {
+        quint8 v = 0;
+        if (m_chkS18 && m_chkS18->isChecked())       v |= 0x01;
+        if (m_chkS25 && m_chkS25->isChecked())       v |= 0x02;
+        if (m_chkS33 && m_chkS33->isChecked())       v |= 0x04;
+        if (m_chkS5Jet && m_chkS5Jet->isChecked())   v |= 0x08;
+        if (m_chkS5Fpga && m_chkS5Fpga->isChecked()) v |= 0x10;
+        if (m_chkS5 && m_chkS5->isChecked())         v |= 0x20;
+        if (m_chkS12 && m_chkS12->isChecked())       v |= 0x40;
+        v |= 0x80;
+        emit pupsWriteRequested(v);
+    });
+
+    for (int c = 1; c <= 7; ++c)
+        grid->setColumnStretch(c, 1);
+    root->addWidget(ctrl);
+
     m_lblLastUpdate = new QLabel(QStringLiteral("Последнее обновление: —"), this);
     QFont updateFont = font();
     updateFont.setPointSize(10);
@@ -342,12 +418,12 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         setLed(m_ledPupe12Tv,    b & 0x20);
         setLed(m_ledPupe12Lazer, b & 0x40);
     }
-    else if (sourceId == 22 && payload.size() >= 2) {
+    else if (sourceId == 22 && payload.size() >= 1) {
         // Тн / Е — voltages, validity in first UINT16, values from offset 2
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok) {
             if (!lbl) return;
-            if (!ok) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
+            if (!ok || payload.size() < off + 2) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
             const double v = fixedPoint1s7d8(readI16(off));
             lbl->setText(QString("%1 В").arg(v, 0, 'f', 2));
             lbl->setStyleSheet("");
@@ -359,12 +435,12 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         show(m_lblTn5Fpga,  10,  valid & 0x10);
         show(m_lblTn25,     12,  valid & 0x80); // VALID_2V5 is b7
     }
-    else if (sourceId == 23 && payload.size() >= 2) {
+    else if (sourceId == 23 && payload.size() >= 1) {
         // Тт / Ж — currents
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok) {
             if (!lbl) return;
-            if (!ok) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
+            if (!ok || payload.size() < off + 2) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
             const double v = fixedPoint1s7d8(readI16(off));
             lbl->setText(QString("%1 А").arg(v, 0, 'f', 2));
             lbl->setStyleSheet("");
@@ -376,12 +452,12 @@ void MocStatusDialog::updateFromPayload(uint8_t sourceId, const QByteArray& payl
         show(m_lblTt5Fpga,  10,  valid & 0x10);
         show(m_lblTt25,     12,  valid & 0x80);
     }
-    else if (sourceId == 24 && payload.size() >= 2) {
+    else if (sourceId == 24 && payload.size() >= 1) {
         // Твт / З
         const quint16 valid = readU16(0);
         auto show = [&](QLabel* lbl, int off, bool ok, const QString& unit) {
             if (!lbl) return;
-            if (!ok) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
+            if (!ok || payload.size() < off + 2) { lbl->setText("?"); lbl->setStyleSheet("color: gray;"); return; }
             const double v = fixedPoint1s7d8(readI16(off));
             lbl->setText(QString("%1 %2").arg(v, 0, 'f', 1).arg(unit));
             lbl->setStyleSheet("");
