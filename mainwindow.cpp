@@ -1588,6 +1588,7 @@ void MainWindow::applyJetsonUiDefaults()
     if (ui->btnDisplayChannel)
         ui->btnDisplayChannel->setText(QString("Показ: %1").arg(m_displayChannel));
     if (ui->comboCtrlChannel) {
+        onCtrlChannelChanged(ui->comboCtrlChannel->currentIndex());
         const int idx = ui->comboCtrlChannel->findText(m_displayChannel);
         if (idx >= 0)
             ui->comboCtrlChannel->setCurrentIndex(idx);
@@ -2370,7 +2371,7 @@ void MainWindow::onMocPoll()
     const int n = int(sizeof(addresses) / sizeof(addresses[0]));
     const uint8_t addr = addresses[m_mocPollIndex % n];
     m_mocPollIndex = (m_mocPollIndex + 1) % n;
-    m_udp->sendPacket(addr, QByteArray(4, static_cast<char>(0x00)));
+    m_udp->sendPacket(addr, QByteArray(1, static_cast<char>(0x00)));
 }
 
 void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)

@@ -851,11 +851,6 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
                  <string>SD</string>
                 </property>
                </item>
-               <item>
-                <property name="text">
-                 <string>SD1</string>
-                </property>
-               </item>
               </widget>
              </item>
              <item>
