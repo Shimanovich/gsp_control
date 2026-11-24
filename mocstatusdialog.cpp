@@ -551,14 +551,12 @@ void MocStatusDialog::applyScale(double factor)
         h->setFont(tf);
 
     // LED sizes
-    const int radius = led / 2;
     for (auto* ledLbl : m_allLeds) {
         if (!ledLbl) continue;
         ledLbl->setFixedSize(led, led);
         // keep current color, only update size-related style if needed
         QString ss = ledLbl->styleSheet();
         if (ss.contains("border-radius")) {
-            // leave color, radius will be reapplied by setLed on next update
         }
     }
 

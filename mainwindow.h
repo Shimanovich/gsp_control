@@ -102,7 +102,9 @@ private slots:
     void onChannelTpvToggled(bool checked);
     void onJetsonSetClicked();
     void onDisplayChannelClicked();
+    void switchDisplayChannel(bool force);
     void onSecondChannelToggled(bool checked);
+    void updateSecondChannelOption();
     void onCtrlChannelChanged(int index);
     void startStopChannel(const QString& channel, bool start);
     void updateChannelStatsLabels();

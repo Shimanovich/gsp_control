@@ -196,6 +196,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupVideo();
     onVideoStartClicked();
+    updateSecondChannelOption();
 
     // МОС status polling (every 5 s)
     m_mocPollTimer = new QTimer(this);
@@ -1799,6 +1800,11 @@ void MainWindow::startStopChannel(const QString& channel, bool start)
         ui->labelJetsonStatus->setStyleSheet("color: orange;");
         if (channel == m_displayChannel && ui->btnVideoStart && ui->btnVideoStart->isEnabled())
             onVideoStartClicked();
+        // Если на экране канал, который ещё не запущен, переключить показ
+        // на только что включённый. Иначе при старте с ТПВ экран остаётся чёрным.
+        const bool shownActive = (m_displayChannel == "TV") ? m_tvStreamActive : m_tpvStreamActive;
+        if (!shownActive && m_displayChannel != channel)
+            switchDisplayChannel(true);
     } else {
         if (!m_jetson->sendStop(channel)) {
             ui->labelJetsonStatus->setText(QString("JEP: ошибка остановки %1").arg(channel));
@@ -1810,7 +1816,12 @@ void MainWindow::startStopChannel(const QString& channel, bool start)
         if (btn) btn->setStyleSheet("");
         ui->labelJetsonStatus->setText(QString("JEP: стоп %1").arg(channel));
         ui->labelJetsonStatus->setStyleSheet("color: orange;");
+        // Остановили тот, что на экране, а второй ещё идёт — показать его.
+        const bool otherActive = (channel == "TV") ? m_tpvStreamActive : m_tvStreamActive;
+        if (m_displayChannel == channel && otherActive)
+            switchDisplayChannel(true);
     }
+    updateSecondChannelOption();
     updateChannelStatsLabels();
 }
 
@@ -1876,6 +1887,17 @@ void MainWindow::onCtrlChannelChanged(int /*index*/)
 
 void MainWindow::onDisplayChannelClicked()
 {
+    switchDisplayChannel(false);
+}
+
+void MainWindow::switchDisplayChannel(bool force)
+{
+    // Ручное переключение (кнопка, джойстик, клавиатура) — только когда идут оба.
+    if (!force && !(m_tvStreamActive && m_tpvStreamActive)) {
+        ui->statusBar->showMessage(
+            QStringLiteral("Переключение недоступно: идёт только один канал"), 2000);
+        return;
+    }
     // Не пересоздаём декодеры: сокеты остаются на своих портах.
     // Меняем только, какой поток считается основным (отображаемым).
     // Пересоздание на лету давало гонку bind — один из каналов оставался чёрным.
@@ -1991,6 +2013,30 @@ void MainWindow::updateChannelRates()
         }
     }
     updateChannelStatsLabels();
+}
+
+void MainWindow::updateSecondChannelOption()
+{
+    // Второй канал имеет смысл только когда идут оба потока.
+    const bool both = m_tvStreamActive && m_tpvStreamActive;
+    if (!ui->checkSecondChannel)
+        return;
+    if (!both && ui->checkSecondChannel->isChecked()) {
+        QSignalBlocker b(ui->checkSecondChannel);
+        ui->checkSecondChannel->setChecked(false);
+        if (m_secondWindow)
+            m_secondWindow->hide();
+    }
+    ui->checkSecondChannel->setEnabled(both);
+    ui->checkSecondChannel->setToolTip(both
+        ? QStringLiteral("Показать второй канал в отдельном окне")
+        : QStringLiteral("Доступно, только когда идут оба потока"));
+    if (ui->btnDisplayChannel) {
+        ui->btnDisplayChannel->setEnabled(both);
+        ui->btnDisplayChannel->setToolTip(both
+            ? QStringLiteral("Переключить отображаемый канал (TV/TPV)")
+            : QStringLiteral("Переключение недоступно: идёт только один канал"));
+    }
 }
 
 void MainWindow::onSecondChannelToggled(bool checked)
@@ -2371,7 +2417,7 @@ void MainWindow::onMocPoll()
     const int n = int(sizeof(addresses) / sizeof(addresses[0]));
     const uint8_t addr = addresses[m_mocPollIndex % n];
     m_mocPollIndex = (m_mocPollIndex + 1) % n;
-    m_udp->sendPacket(addr, QByteArray(1, static_cast<char>(0x00)));
+    m_udp->sendPacket(addr, QByteArray(4, static_cast<char>(0x00)));
 }
 
 void MainWindow::onMocPacket(uint8_t sourceId, const QByteArray& payload)
