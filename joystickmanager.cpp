@@ -32,9 +32,35 @@ float JoystickManager::mapValueClamped(float value, float inMin, float inMax, fl
 bool JoystickManager::loadSettings(const QString& iniPath)
 {
     QSettings settings(iniPath, QSettings::IniFormat);
+    m_iniPath = iniPath;
     m_deviceIndex = settings.value("Joystick/device_index", -1).toInt();
     m_invertYaw = settings.value("Joystick/invert_yaw", false).toBool();
     m_invertPitch = settings.value("Joystick/invert_pitch", false).toBool();
+    m_zeroYaw = settings.value("Joystick/zero_yaw", 0.0).toFloat();
+    m_zeroPitch = settings.value("Joystick/zero_pitch", 0.0).toFloat();
+    return true;
+}
+
+float JoystickManager::readNormalized(int axis) const
+{
+    if (!m_joystick) return 0.0f;
+    return SDL_JoystickGetAxis(m_joystick, axis) / 32767.0f;
+}
+
+bool JoystickManager::calibrateAxes()
+{
+    if (!m_joystick)
+        return false;
+    SDL_JoystickUpdate();
+    m_zeroYaw = readNormalized(0);
+    m_zeroPitch = readNormalized(1);
+    if (!m_iniPath.isEmpty()) {
+        QSettings s(m_iniPath, QSettings::IniFormat);
+        s.setValue("Joystick/zero_yaw", m_zeroYaw);
+        s.setValue("Joystick/zero_pitch", m_zeroPitch);
+        s.sync();
+    }
+    qDebug() << "Joystick zero:" << m_zeroYaw << m_zeroPitch;
     return true;
 }
 
@@ -79,28 +105,14 @@ int JoystickManager::getDeviceIndex() const
 float JoystickManager::getAxisYaw()
 {
     if (!m_joystick) return 0.0f;
-    Sint16 raw = SDL_JoystickGetAxis(m_joystick, 0); // X axis usually
-    float value = raw / 32767.0f;
-
-    if (value>0)
-            value = mapValueClamped(value,0.1f,1.0f,0.0f,1.0f);
-    else
-            value = mapValueClamped(value,-1.0f,-0.1f,-1.0f,0.0f);
-
+    float value = qBound(-1.0f, readNormalized(0) - m_zeroYaw, 1.0f);
     return m_invertYaw ? -value : value;
 }
 
 float JoystickManager::getAxisPitch()
 {
     if (!m_joystick) return 0.0f;
-    Sint16 raw = SDL_JoystickGetAxis(m_joystick, 1); // Y axis usually
-    float value = raw / 32767.0f;
-
-    if (value>0)
-        value = mapValueClamped(value,0.1f,1.0f,0.0f,1.0f);
-    else
-        value = mapValueClamped(value,-1.0f,-0.1f,-1.0f,0.0f);
-
+    float value = qBound(-1.0f, readNormalized(1) - m_zeroPitch, 1.0f);
     return m_invertPitch ? -value : value;
 }
 

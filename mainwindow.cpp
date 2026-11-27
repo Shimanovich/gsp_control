@@ -121,6 +121,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connect UI signals
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+    if (ui->btnCalibrateJoy)
+        connect(ui->btnCalibrateJoy, &QPushButton::clicked, this, &MainWindow::onCalibrateJoyClicked);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::onDisconnectClicked);
     connect(ui->btnHelp, &QPushButton::clicked, this, &MainWindow::onHelpClicked);
     connect(ui->btnShoot, &QPushButton::clicked, this, &MainWindow::onShootClicked);
@@ -565,6 +567,23 @@ void MainWindow::onKeyBoardButtonReleased(int button)
 }
 
 
+
+void MainWindow::onCalibrateJoyClicked()
+{
+    if (!m_joystick || !m_joystick->isConnected()) {
+        ui->statusBar->showMessage(QStringLiteral("Джойстик не подключён"), 2000);
+        return;
+    }
+    if (!m_joystick->calibrateAxes()) {
+        ui->statusBar->showMessage(QStringLiteral("Не удалось снять ноль осей"), 2000);
+        return;
+    }
+    ui->statusBar->showMessage(
+        QString("Ноль осей: X=%1  Y=%2")
+            .arg(m_joystick->zeroYaw(), 0, 'f', 3)
+            .arg(m_joystick->zeroPitch(), 0, 'f', 3),
+        4000);
+}
 
 void MainWindow::onHelpClicked()
 {
@@ -1079,7 +1098,7 @@ void MainWindow::setupVideo()
 
 
     udpDec::PlayerInitStructure p{};
-    p.udpport        = m_videoPort;
+    p.udpport        = m_tvPort; // декодер 1 всегда TV
     p.udptimeout     = m_videoTimeoutMs;
     p.socketTimeoutMs = m_socketTimeoutMs;
     p.jitterMs = m_jitterMs;
@@ -1093,14 +1112,10 @@ void MainWindow::setupVideo()
     p.pFrameOutQueue = &m_frameQueue;
     p.phframeMutex   = &m_frameMutex;
 
-    m_decPort = m_videoPort;
-    m_dispQueue = &m_frameQueue;
-    m_dispMutex = &m_frameMutex;
+    m_decPort = m_tvPort;
     m_videoDec = new udpDec(&p, this);
     m_videoDec->setRecorder(&m_recorder);
-    connect(m_videoDec, &udpDec::incomingResolutionChanged,
-            this, &MainWindow::onIncomingResolutionChanged,
-            Qt::QueuedConnection);
+    bindDisplayQueues();
 
     m_videoTimer = new QTimer(this);
     connect(m_videoTimer, &QTimer::timeout, this, &MainWindow::onVideoTimer);
@@ -1211,9 +1226,10 @@ void MainWindow::onRecordToggled(bool checked)
 
 void MainWindow::updateVideoRate()
 {
-    if (!ui->labelVideoRate || !m_videoDec)
+    udpDec* dec = displayedDecoder();
+    if (!ui->labelVideoRate || !dec)
         return;
-    const uint64_t nowBytes = m_videoDec->bytesReceived();
+    const uint64_t nowBytes = dec->bytesReceived();
     const qint64 elapsed = m_rateTimer.elapsed();
     if (elapsed < 400)
         return;
@@ -1449,6 +1465,25 @@ void MainWindow::onVideoTimer()
 
         painter.setBrush(QColor(0, 255, 0, 220));
         painter.drawEllipse(QPoint(cx, cy), 2, 2);
+
+        // Область стартового строба: только TV, всегда. Размер — из полей панели.
+        if (m_displayChannel != "TPV" && srcW > 0 && srcH > 0
+            && ui->checkStrobePreview && ui->checkStrobePreview->isChecked()
+            && ui->spinStrobeW && ui->spinStrobeH) {
+            const int sw = qMax(8, ui->spinStrobeW->value());
+            const int sh = qMax(8, ui->spinStrobeH->value());
+            const double sx = double(pix.width())  / double(srcW);
+            const double sy = double(pix.height()) / double(srcH);
+            const int pw = qMax(2, int(sw * sx + 0.5));
+            const int ph = qMax(2, int(sh * sy + 0.5));
+            const QRect preview(cx - pw / 2, cy - ph / 2, pw, ph);
+            QPen prevPen(QColor(255, 200, 0));
+            prevPen.setWidth(2);
+            prevPen.setStyle(Qt::DashLine);
+            painter.setPen(prevPen);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(preview);
+        }
 
         if (hasStrobe && srcW > 0 && srcH > 0)
             drawCaptureStrobe(painter, pix.size(), srcW, srcH, capX, capY, capW, capH);
@@ -1885,6 +1920,37 @@ void MainWindow::onCtrlChannelChanged(int /*index*/)
     }
 }
 
+udpDec* MainWindow::displayedDecoder() const
+{
+    return (m_displayChannel == "TPV") ? m_videoDec2 : m_videoDec;
+}
+
+void MainWindow::bindDisplayQueues()
+{
+    // Строгая привязка: показ читает очередь своего канала, второй — другую.
+    if (m_displayChannel == "TPV") {
+        m_dispQueue  = &m_frameQueue2;
+        m_dispMutex  = &m_frameMutex2;
+        m_otherQueue = &m_frameQueue;
+        m_otherMutex = &m_frameMutex;
+    } else {
+        m_dispQueue  = &m_frameQueue;
+        m_dispMutex  = &m_frameMutex;
+        m_otherQueue = &m_frameQueue2;
+        m_otherMutex = &m_frameMutex2;
+    }
+
+    // Разрешение на статус — только от отображаемого декодера.
+    if (m_videoDec)
+        disconnect(m_videoDec, &udpDec::incomingResolutionChanged, this, nullptr);
+    if (m_videoDec2)
+        disconnect(m_videoDec2, &udpDec::incomingResolutionChanged, this, nullptr);
+    if (udpDec* d = displayedDecoder())
+        connect(d, &udpDec::incomingResolutionChanged,
+                this, &MainWindow::onIncomingResolutionChanged,
+                Qt::QueuedConnection);
+}
+
 void MainWindow::onDisplayChannelClicked()
 {
     switchDisplayChannel(false);
@@ -1898,33 +1964,21 @@ void MainWindow::switchDisplayChannel(bool force)
             QStringLiteral("Переключение недоступно: идёт только один канал"), 2000);
         return;
     }
-    // Не пересоздаём декодеры: сокеты остаются на своих портах.
-    // Меняем только, какой поток считается основным (отображаемым).
-    // Пересоздание на лету давало гонку bind — один из каналов оставался чёрным.
+    // Декодеры не трогаем: TV всегда на m_tvPort/m_frameQueue,
+    // TPV всегда на m_tpvPort/m_frameQueue2. Меняется только вид.
     m_displayChannel = (m_displayChannel == "TV") ? "TPV" : "TV";
     if (ui->btnDisplayChannel)
         ui->btnDisplayChannel->setText(QString("Показ: %1").arg(m_displayChannel));
 
-    if (m_videoDec && m_videoDec2 && m_dispQueue && m_otherQueue) {
-        std::swap(m_videoDec, m_videoDec2);
-        std::swap(m_decPort, m_dec2Port);
-        std::swap(m_dispQueue, m_otherQueue);
-        std::swap(m_dispMutex, m_otherMutex);
-        m_videoPort = m_decPort;
-    } else {
-        // Декодеры ещё не подняты — просто сменим порт приёма к следующему старту
-        m_videoPort = (m_displayChannel == "TPV") ? m_tpvPort : m_tvPort;
-    }
+    m_videoPort = (m_displayChannel == "TPV") ? m_tpvPort : m_tvPort;
+    bindDisplayQueues();
 
-    // Сигнал разрешения должен идти от отображаемого декодера
-    if (m_videoDec2)
-        disconnect(m_videoDec2, &udpDec::incomingResolutionChanged, this, nullptr);
-    if (m_videoDec) {
-        disconnect(m_videoDec, &udpDec::incomingResolutionChanged, this, nullptr);
-        connect(m_videoDec, &udpDec::incomingResolutionChanged,
-                this, &MainWindow::onIncomingResolutionChanged,
-                Qt::QueuedConnection);
+    // Сбросить картинку предыдущего канала, чтобы не мигала до первого кадра нового.
+    if (ui->videoLabel) {
+        ui->videoLabel->clear();
+        ui->videoLabel->setText(m_displayChannel);
     }
+    m_lastFrame = QImage();
 
     attachRecorders();
 
@@ -1980,36 +2034,25 @@ void MainWindow::attachRecorders()
 
 void MainWindow::updateChannelRates()
 {
-    // Битрейт основного (отображаемого) канала
+    // Битрейт по фиксированным декодерам: m_videoDec = TV, m_videoDec2 = TPV
     if (m_videoDec) {
         const uint64_t now = m_videoDec->bytesReceived();
-        if (!m_tvRateTimer.isValid() && m_displayChannel == "TV") m_tvRateTimer.start();
-        if (!m_tpvRateTimer.isValid() && m_displayChannel == "TPV") m_tpvRateTimer.start();
-        QElapsedTimer& timer = (m_displayChannel == "TPV") ? m_tpvRateTimer : m_tvRateTimer;
-        uint64_t& last = (m_displayChannel == "TPV") ? m_tpvLastBytes : m_tvLastBytes;
-        if (timer.isValid() && timer.elapsed() >= 500) {
-            const uint64_t delta = (now >= last) ? (now - last) : now;
-            const double kbps = (delta * 8.0 / 1000.0) * 1000.0 / timer.elapsed();
-            if (m_displayChannel == "TPV") m_tpvKbps = kbps;
-            else m_tvKbps = kbps;
-            last = now;
-            timer.restart();
+        if (!m_tvRateTimer.isValid()) m_tvRateTimer.start();
+        if (m_tvRateTimer.elapsed() >= 500) {
+            const uint64_t delta = (now >= m_tvLastBytes) ? (now - m_tvLastBytes) : now;
+            m_tvKbps = (delta * 8.0 / 1000.0) * 1000.0 / m_tvRateTimer.elapsed();
+            m_tvLastBytes = now;
+            m_tvRateTimer.restart();
         }
     }
-    // Битрейт второго канала
     if (m_videoDec2) {
-        const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
         const uint64_t now = m_videoDec2->bytesReceived();
-        QElapsedTimer& timer = (other == "TPV") ? m_tpvRateTimer : m_tvRateTimer;
-        uint64_t& last = (other == "TPV") ? m_tpvLastBytes : m_tvLastBytes;
-        if (!timer.isValid()) timer.start();
-        if (timer.elapsed() >= 500) {
-            const uint64_t delta = (now >= last) ? (now - last) : now;
-            const double kbps = (delta * 8.0 / 1000.0) * 1000.0 / timer.elapsed();
-            if (other == "TPV") m_tpvKbps = kbps;
-            else m_tvKbps = kbps;
-            last = now;
-            timer.restart();
+        if (!m_tpvRateTimer.isValid()) m_tpvRateTimer.start();
+        if (m_tpvRateTimer.elapsed() >= 500) {
+            const uint64_t delta = (now >= m_tpvLastBytes) ? (now - m_tpvLastBytes) : now;
+            m_tpvKbps = (delta * 8.0 / 1000.0) * 1000.0 / m_tpvRateTimer.elapsed();
+            m_tpvLastBytes = now;
+            m_tpvRateTimer.restart();
         }
     }
     updateChannelStatsLabels();
@@ -2081,8 +2124,8 @@ void MainWindow::onSecondChannelToggled(bool checked)
 void MainWindow::setupSecondVideo()
 {
     stopSecondVideo();
-    const QString other = (m_displayChannel == "TPV") ? QStringLiteral("TV") : QStringLiteral("TPV");
-    const int port = (other == "TPV") ? m_tpvPort : m_tvPort;
+    // Декодер 2 всегда TPV, на своём порту и своей очереди.
+    const int port = m_tpvPort;
 
     udpDec::PlayerInitStructure p{};
     p.udpport = port;
@@ -2097,10 +2140,9 @@ void MainWindow::setupSecondVideo()
     p.pFrameOutQueue = &m_frameQueue2;
     p.phframeMutex = &m_frameMutex2;
 
-    m_dec2Port = port;
-    m_otherQueue = &m_frameQueue2;
-    m_otherMutex = &m_frameMutex2;
+    m_dec2Port = m_tpvPort;
     m_videoDec2 = new udpDec(&p, this);
+    bindDisplayQueues();
     if (!m_videoDec2->on()) {
         if (m_secondLabel)
             m_secondLabel->setText(QStringLiteral("Ошибка открытия"));

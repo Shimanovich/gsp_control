@@ -119,6 +119,16 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="btnCalibrateJoy">
+             <property name="text">
+              <string>Ноль</string>
+             </property>
+             <property name="toolTip">
+              <string>Калибровка нуля осей: отпустите стики и нажмите</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QLabel" name="labelJoystickStatus">
              <property name="text">
               <string>Джойстик: Отключено</string>
@@ -1028,6 +1038,19 @@ QSpinBox, QComboBox { min-height: 20px; font-size: 9pt; padding: 0 2px; }</strin
                </property>
                <property name="value">
                 <number>64</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkStrobePreview">
+               <property name="text">
+                <string>Область</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+               <property name="toolTip">
+                <string>Показывать область стартового строба на ТВ</string>
                </property>
               </widget>
              </item>

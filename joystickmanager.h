@@ -27,6 +27,11 @@ public:
     float getAxisPitch();
     void getHat(int& dx, int& dy);   // экран: dx -1..1 вправо, dy -1..1 вниз
 
+    // Снять текущее положение стиков как ноль (стики отпущены).
+    bool calibrateAxes();
+    float zeroYaw() const { return m_zeroYaw; }
+    float zeroPitch() const { return m_zeroPitch; }
+
     bool invertPitch() const { return m_invertPitch; }
     void setInvertPitch(bool invert) { m_invertPitch = invert; }
 
@@ -47,10 +52,14 @@ private:
     int m_deviceIndex = -1;
     bool m_invertYaw = false;
     bool m_invertPitch = false;
+    float m_zeroYaw = 0.0f;
+    float m_zeroPitch = 0.0f;
+    QString m_iniPath;
 
     QTimer* m_pollTimer = nullptr;
 
 
+    float readNormalized(int axis) const;
     void openJoystick(int index);
     void closeJoystick();
 };

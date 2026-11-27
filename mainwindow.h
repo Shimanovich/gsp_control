@@ -68,6 +68,7 @@ private slots:
     void onAngleTargetChanged();
     void onDisconnectClicked();
     void onHelpClicked();
+    void onCalibrateJoyClicked();
 
     void onTpvPaletteChanged(int index);
     void onTpvToneChanged(int index);
@@ -103,6 +104,8 @@ private slots:
     void onJetsonSetClicked();
     void onDisplayChannelClicked();
     void switchDisplayChannel(bool force);
+    void bindDisplayQueues();
+    udpDec* displayedDecoder() const;
     void onSecondChannelToggled(bool checked);
     void updateSecondChannelOption();
     void onCtrlChannelChanged(int index);
